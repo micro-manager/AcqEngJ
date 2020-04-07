@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
-import org.json.JSONObject;
+import mmcorej.org.json.JSONObject;
 import org.micromanager.acqj.api.AcqEngMetadata;
 import org.micromanager.acqj.api.AcquisitionEvent;
 import org.micromanager.acqj.internal.acqengj.AcquisitionEventIterator;

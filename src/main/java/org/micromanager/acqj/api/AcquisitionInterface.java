@@ -6,7 +6,7 @@
 package org.micromanager.acqj.api;
 
 import java.util.Iterator;
-import org.json.JSONObject;
+import mmcorej.org.json.JSONObject;
 
 /**
  * General interface for acquisitions

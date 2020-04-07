@@ -1,7 +1,7 @@
 package org.micromanager.acqj.api;
 
 import mmcorej.TaggedImage;
-import org.json.JSONObject;
+import mmcorej.org.json.JSONObject;
 
 /**
  * Where the acquisition sends data to. Conventionally would be a
