@@ -1,3 +1,16 @@
 <project name="AcqEngJ" default="jar">
-	<import file="../javalibrarybuild.xml"/>
+	<property name="namespace" value="org.micromanager.acqengj"/>
+
+	<import file="javabuild.xml"/>
+
+	<path id="project.classpath">
+		<path refid="mm.compile.classpath"/>
+		<pathelement location="${mm.java.lib.mmcorej}"/>
+		<pathelement location="${mm.java.lib.mmstudio}"/>
+	</path>
+
+	<path id="project.linked.jars">
+		<pathelement location="${mm.java.lib.mmcorej}"/>
+		<pathelement location="${mm.java.lib.mmstudio}"/>
+	</path>
 </project>
