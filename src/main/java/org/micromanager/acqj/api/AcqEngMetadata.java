@@ -66,6 +66,8 @@ public class AcqEngMetadata {
    private static final String Z_STEP_UM = "z-step_um";
    private static final String GRID_COL = "GridColumnIndex";
    private static final String GRID_ROW = "GridRowIndex";
+      private static final String OVERLAP_X = "GridPixelOverlapX";
+   private static final String OVERLAP_Y = "GridPixelOverlapY";
    private static final String AFFINE_TRANSFORM = "AffineTransform";
    private static final String PIX_TYPE_GRAY8 = "GRAY8";
    private static final String PIX_TYPE_GRAY16 = "GRAY16";
@@ -124,6 +126,7 @@ public class AcqEngMetadata {
             if (event.getGridRow() != null && event.getGridCol() != null) {
                AcqEngMetadata.setGridRow(tags, event.getGridRow());
                AcqEngMetadata.setGridCol(tags, event.getGridCol());
+//               TODO: add overlap here?
             }
          }
          if (event.getZPosition() != null) {
@@ -661,6 +664,41 @@ public class AcqEngMetadata {
          return summaryMD.getString(AFFINE_TRANSFORM);
       } catch (JSONException ex) {
          throw new RuntimeException("Affine transform missing from summary metadata");
+      }
+   }
+   
+   
+      public static void setPixelOverlapX(JSONObject smd, int overlap) {
+      try {
+         smd.put(OVERLAP_X, overlap);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Couldnt set pixel overlap tag");
+
+      }
+   }
+
+   public static void setPixelOverlapY(JSONObject smd, int overlap) {
+      try {
+         smd.put(OVERLAP_Y, overlap);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Couldnt set pixel overlap tag");
+
+      }
+   }
+
+   public static int getPixelOverlapX(JSONObject summaryMD) {
+      try {
+         return summaryMD.getInt(OVERLAP_X);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Couldnt find pixel overlap in image tags");
+      }
+   }
+
+   public static int getPixelOverlapY(JSONObject summaryMD) {
+      try {
+         return summaryMD.getInt(OVERLAP_Y);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Couldnt find pixel overlap in image tags");
       }
    }
 
