@@ -1,8 +1,8 @@
 <project>
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.micromanager</groupId>
+    <groupId>org.micro-manager.acqengj</groupId>
     <artifactId>AcqEngJ</artifactId>
-    <version>1.0</version>
+    <version>0.1</version>
     <packaging>jar</packaging>
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -10,20 +10,66 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <developers>
+       <developer>
+          <id></id>
+          <name>Henry Pinkard</name>
+          <organization>UC Berkeley</organization>
+       </developer>
+       <developer>
+          <id>nicost</id>
+          <name>Nico Stuurman</name>
+          <organization>UCSF/HHMI</organization>
+       </developer>
+    </developers>
+
+    <dependencies>
+       <dependency>
+         <groupId>org.micro-manager.mmcorej</groupId>
+         <artifactId>MMCoreJ</artifactId>
+         <version>10.1.0.0</version>
+       </dependency>
+    </dependencies>
+
+    <build>
+          <plugins>
+             <plugin>
+               <groupId>org.apache.maven.plugins</groupId>
+               <artifactId>maven-source-plugin</artifactId>
+               <version>3.2.1</version>
+               <executions>
+                 <execution>
+                   <id>attach-sources</id>
+                   <goals>
+                     <goal>jar-no-fork</goal>
+                   </goals>
+                 </execution>
+               </executions>
+             </plugin>
+          </plugins>
+    </build>
+
     <repositories>
        <repository>
-          <id>nico</id>
-          <name>Temporary site</name>
-          <url>https://valelab.ucsf.edu/~nstuurman/maven</url>
+           <snapshots>
+               <enabled>true</enabled>
+           </snapshots>
+           <id>bintray-micro-manager-micro-manager</id>
+           <name>bintray</name>
+           <url>https://dl.bintray.com/micromanager/micro-manager</url>
        </repository>
     </repositories>
 
-  <dependencies>
-    <dependency>
-      <groupId>org.micromanager</groupId>
-      <artifactId>MMCoreJ</artifactId>
-      <version>10.1.0.0</version>
-    </dependency>
-  </dependencies>
+   <distributionManagement>
+      <repository>
+			<id>bintray-micro-manager-mmcorej</id>
+			<name>micro-manager-mmcorej</name>
+			<url>https://api.bintray.com/maven/micromanager/micro-manager/AcqEngJ/;publish=1</url>
+      </repository>
+		<snapshotRepository>
+			<id>jfrog-snapshots</id>
+			<url>http://oss.jfrog.org/artifactory/oss-snapshot-local</url>
+		</snapshotRepository>
+   </distributionManagement>
 
 </project>
