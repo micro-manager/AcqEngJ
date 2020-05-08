@@ -12,7 +12,7 @@
 
     <developers>
        <developer>
-          <id></id>
+          <id>henrypinkard</id>
           <name>Henry Pinkard</name>
           <organization>UC Berkeley</organization>
        </developer>
@@ -32,21 +32,21 @@
     </dependencies>
 
     <build>
-          <plugins>
-             <plugin>
-               <groupId>org.apache.maven.plugins</groupId>
-               <artifactId>maven-source-plugin</artifactId>
-               <version>3.2.1</version>
-               <executions>
-                 <execution>
-                   <id>attach-sources</id>
-                   <goals>
-                     <goal>jar-no-fork</goal>
-                   </goals>
-                 </execution>
-               </executions>
-             </plugin>
-          </plugins>
+       <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>3.2.1</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+       </plugins>
     </build>
 
     <repositories>
