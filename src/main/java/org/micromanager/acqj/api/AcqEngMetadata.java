@@ -86,11 +86,9 @@ public class AcqEngMetadata {
     *
     * @param tags
     * @param event
-    * @param timeIndex
     * @param camChannelIndex
     * @param elapsed_ms
     * @param exposure
-    * @param multicamera
     */
    public static void addImageMetadata(JSONObject tags, AcquisitionEvent event,
            int camChannelIndex, long elapsed_ms, double exposure) {
@@ -153,8 +151,8 @@ public class AcqEngMetadata {
     * Make the core set of tags needed in summary metadata. Specific types of
     * acquistitions can add to this as needed
     *
-    * @param savingName
-    * @return
+    * @param acq
+    * @return Summary metadata
     */
    public static JSONObject makeSummaryMD(AcquisitionInterface acq) {
       JSONObject summary = new JSONObject();

@@ -81,7 +81,7 @@ public class AcqEventModules {
    /**
     * Make an iterator for events for each active channel
     *
-    * @param channels
+    * @param channelList 
     * @return
     */
    public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>> channels(List<ChannelSetting> channelList) {
