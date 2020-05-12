@@ -261,7 +261,7 @@ public class Engine {
     * @throws HardwareControlException
     */
    private void acquireImages(final AcquisitionEvent event) throws InterruptedException, HardwareControlException {
-      System.out.println(event);
+//      System.out.println(event);
 //      double startTime = System.currentTimeMillis();
       loopHardwareCommandRetries(new Runnable() {
          @Override
