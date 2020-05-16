@@ -39,19 +39,6 @@ public abstract class FixedSettingsAcquisition extends Acquisition {
 
    protected abstract Iterator<AcquisitionEvent> buildAcqEventGenerator();
 
-   public void abort() {
-      abortRequested_ = true;
-      if (aborted_) {
-         return;
-      }
-      aborted_ = true;
-      if (this.isPaused()) {
-         this.togglePaused();
-      }
-      if (acqFuture_ != null) {
-         acqFuture_.cancel(true);
-      }
-   }
 
    @Override
    public void waitForCompletion() {

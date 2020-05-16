@@ -49,6 +49,7 @@ public class Acquisition implements AcquisitionInterface {
    protected AcquisitionEvent lastEvent_ = null;
    protected volatile boolean finished_;
    protected volatile boolean abortRequested_ = false;
+   private volatile boolean aborted_ = false;
    private JSONObject summaryMetadata_;
    private long startTime_ms_ = -1;
    private volatile boolean paused_ = false;
@@ -81,10 +82,17 @@ public class Acquisition implements AcquisitionInterface {
 
    public void abort() {
       abortRequested_ = true;
+      if (aborted_) {
+         return;
+      }
+      aborted_ = true;
       if (this.isPaused()) {
          this.togglePaused();
       }
-
+      //TODO:
+//      if (acqFuture_ != null) {
+//         acqFuture_.cancel(true);
+//      }
    }
 
    public void addToSummaryMetadata(JSONObject summaryMetadata) {
