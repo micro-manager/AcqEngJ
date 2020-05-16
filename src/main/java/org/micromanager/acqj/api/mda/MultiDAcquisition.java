@@ -1,24 +1,24 @@
 package org.micromanager.acqj.api.mda;
 
-import org.micromanager.acqj.api.FixedSettingsAcquisition;
-import org.micromanager.acqj.api.DataSink;
+import org.micromanager.acqj.api.*;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 import mmcorej.org.json.JSONObject;
-import org.micromanager.acqj.api.AcqEngMetadata;
-import org.micromanager.acqj.api.AcquisitionEvent;
 import org.micromanager.acqj.internal.acqengj.AcquisitionEventIterator;
 
 /**
  * Class for the standardize Multi-D acquisition in micro-manager
  * Has fixed number of prespecified images along Channel, Slice,
  * Frame, Position axes
+ *
+ * NOTE:: this hasn't been tested/dpesnt work yet
  * 
  * @author henrypinkard
  */
-public class MultiDAcquisition extends FixedSettingsAcquisition {
+public class MultiDAcquisition extends Acquisition {
 
    private MultiDAcqSettings settings_;
    
@@ -27,7 +27,6 @@ public class MultiDAcquisition extends FixedSettingsAcquisition {
       settings_ = settings;
    }
 
-   @Override
    protected Iterator<AcquisitionEvent> buildAcqEventGenerator() {
       List<Function<AcquisitionEvent, Iterator<AcquisitionEvent>>> functionList =
               new ArrayList<Function<AcquisitionEvent, Iterator<AcquisitionEvent>>>();

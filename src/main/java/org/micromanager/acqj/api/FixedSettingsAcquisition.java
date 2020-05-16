@@ -2,9 +2,7 @@ package org.micromanager.acqj.api;
 
 import java.util.Iterator;
 import java.util.concurrent.Future;
-import org.micromanager.acqj.api.Acquisition;
-import org.micromanager.acqj.api.AcquisitionEvent;
-import org.micromanager.acqj.api.DataSink;
+
 import org.micromanager.acqj.internal.acqengj.Engine;
 
 /**
@@ -37,9 +35,6 @@ public abstract class FixedSettingsAcquisition extends Acquisition {
       }
       Iterator<AcquisitionEvent> acqEventIterator = buildAcqEventGenerator();
       acqFuture_ = Engine.getInstance().submitEventIterator(acqEventIterator, this);
-      //This event is how the acquisition will end, whether through aborting (which cancels everything undone in the previous event)
-      //or through running its natural course
-      acqFinishedFuture_ = Engine.getInstance().finishAcquisition(this);
    }
 
    protected abstract Iterator<AcquisitionEvent> buildAcqEventGenerator();
@@ -59,12 +54,12 @@ public abstract class FixedSettingsAcquisition extends Acquisition {
    }
 
    @Override
-   public void close() {
+   public void waitForCompletion() {
       if (acqFuture_ == null) {
          //it was never successfully started
          return;
       }
-      super.close();
+      super.waitForCompletion();
    }
 
 }
