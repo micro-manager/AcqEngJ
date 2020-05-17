@@ -64,16 +64,12 @@ public class Acquisition implements AcquisitionInterface {
    private ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>> processorOutputQueues_
            = new ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>>();
 
-   public Acquisition(DataSink sink) {
-      core_ = Engine.getCore();
-      dataSink_ = sink;
-      initialize();
-   }
-
    /**
-    * Dont call this one unless you know what you're doing
+    * After calling this constructor, must set dataSink_ and call initialize befoer ready to start
+    *
     */
    public Acquisition() {
+      core_ = Engine.getCore();
    }
    
    public boolean isAbortRequested() {
@@ -89,10 +85,7 @@ public class Acquisition implements AcquisitionInterface {
       if (this.isPaused()) {
          this.togglePaused();
       }
-      //TODO:
-//      if (acqFuture_ != null) {
-//         acqFuture_.cancel(true);
-//      }
+      Engine.getInstance().finishAcquisition(this);
    }
 
    public void addToSummaryMetadata(JSONObject summaryMetadata) {
@@ -214,7 +207,10 @@ public class Acquisition implements AcquisitionInterface {
          System.err.print("Couldn't copy summaary metadata");
          ex.printStackTrace();
       }
-      dataSink_.initialize(this, summaryMetadata);
+      if (dataSink_ != null) {
+         //It could be null if not using savign and viewing and diverting with custom processor
+         dataSink_.initialize(this, summaryMetadata);
+      }
    }
 
    public void onDataSinkClosing() {
