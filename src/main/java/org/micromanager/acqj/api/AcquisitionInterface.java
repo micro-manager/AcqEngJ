@@ -24,10 +24,10 @@ public interface AcquisitionInterface {
    /**
     * Block until acquisition finished and all resources complete.
     */
-   public void close();
+   public void waitForCompletion();
 
    /**
-    * returns true if all data has been collected that will be collected
+    * returns true if all data that will be collected has been collected
     *
     * @return
     */

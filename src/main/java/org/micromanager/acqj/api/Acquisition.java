@@ -49,11 +49,11 @@ public class Acquisition implements AcquisitionInterface {
    protected AcquisitionEvent lastEvent_ = null;
    protected volatile boolean finished_;
    protected volatile boolean abortRequested_ = false;
+   private volatile boolean aborted_ = false;
    private JSONObject summaryMetadata_;
    private long startTime_ms_ = -1;
    private volatile boolean paused_ = false;
    private CopyOnWriteArrayList<String> channelNames_ = new CopyOnWriteArrayList<String>();
-   protected volatile Future<Future> acqFinishedFuture_;
    protected DataSink dataSink_;
    protected CMMCore core_;
    private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
@@ -63,18 +63,13 @@ public class Acquisition implements AcquisitionInterface {
            = new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE);
    private ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>> processorOutputQueues_
            = new ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>>();
-   private Object acqFinishedFutureLock_ = new Object();
-
-   public Acquisition(DataSink sink) {
-      core_ = Engine.getCore();
-      dataSink_ = sink;
-      initialize();
-   }
 
    /**
-    * Dont call this one unless you know what you're doing
+    * After calling this constructor, must set dataSink_ and call initialize befoer ready to start
+    *
     */
    public Acquisition() {
+      core_ = Engine.getCore();
    }
    
    public boolean isAbortRequested() {
@@ -83,12 +78,14 @@ public class Acquisition implements AcquisitionInterface {
 
    public void abort() {
       abortRequested_ = true;
+      if (aborted_) {
+         return;
+      }
+      aborted_ = true;
       if (this.isPaused()) {
          this.togglePaused();
       }
-      synchronized (acqFinishedFutureLock_) {
-         acqFinishedFuture_ = Engine.getInstance().finishAcquisition(this);
-      }
+      Engine.getInstance().finishAcquisition(this);
    }
 
    public void addToSummaryMetadata(JSONObject summaryMetadata) {
@@ -165,33 +162,16 @@ public class Acquisition implements AcquisitionInterface {
    }
 
    @Override
-   public void close() {
+   /**
+    * Block until everything finished
+    */
+   public void waitForCompletion() {
       try {
          //wait for event generation to shut down
-         synchronized (acqFinishedFutureLock_) {
-            if (acqFinishedFuture_ != null) {
-               while (!acqFinishedFuture_.isDone()) {
-                  try {
-                     Thread.sleep(1);
-                  } catch (InterruptedException ex) {
-                     throw new RuntimeException("Interrupted while waiting to cancel");
-                  }
-               }
-               //wait for final signal to be sent to saving class..cant do much byond that
-               Future executionFuture = acqFinishedFuture_.get();
-               while (!executionFuture.isDone()) {
-                  try {
-                     Thread.sleep(1);
-                  } catch (InterruptedException ex) {
-                     throw new RuntimeException("Interrupted while waiting to cancel");
-                  }
-               }
-               executionFuture.get();
-            }
+         while (!finished_) {
+            Thread.sleep(5);
          }
       } catch (InterruptedException ex) {
-         throw new RuntimeException(ex);
-      } catch (ExecutionException ex) {
          throw new RuntimeException(ex);
       }
    }
@@ -227,7 +207,10 @@ public class Acquisition implements AcquisitionInterface {
          System.err.print("Couldn't copy summaary metadata");
          ex.printStackTrace();
       }
-      dataSink_.initialize(this, summaryMetadata);
+      if (dataSink_ != null) {
+         //It could be null if not using savign and viewing and diverting with custom processor
+         dataSink_.initialize(this, summaryMetadata);
+      }
    }
 
    public void onDataSinkClosing() {
@@ -241,9 +224,7 @@ public class Acquisition implements AcquisitionInterface {
    private synchronized boolean saveImage(TaggedImage image) {
       if (image.tags == null && image.pix == null) {
          dataSink_.finished();
-         synchronized (acqFinishedFutureLock_) {
-            acqFinishedFuture_ = null;
-         }
+         finished_ = true;
          return true;
       } else {
          //Now that all data processors have run, the channel index can be inferred

@@ -114,6 +114,9 @@ public class Engine {
                   }
                }
                try {
+                  if (acq.isAbortRequested()) {
+                     return;
+                  }
                   Future imageAcquiredFuture = processAcquistionEvent(event);
                   imageAcquiredFuture.get();
                } catch (InterruptedException ex) {
