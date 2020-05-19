@@ -29,7 +29,6 @@ public interface AcquisitionInterface {
    /**
     * Signal the acquisition to complete once all events are done
     *
-    * @return
     */
    public void finish();
 
