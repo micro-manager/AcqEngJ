@@ -286,6 +286,10 @@ public class Acquisition implements AcquisitionInterface {
       firstDequeue_.putLast(ti);
    }
 
+   public void finish() {
+      Engine.getInstance().finishAcquisition(this);
+   }
+
    public void markFinished() {
       finished_ = true;
    }
