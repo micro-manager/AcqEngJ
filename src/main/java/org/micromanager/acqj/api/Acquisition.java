@@ -105,39 +105,40 @@ public class Acquisition implements AcquisitionInterface {
 
    @Override
    public void start() {
-      //TODO could avoid startin this here if not going to be using saving  
-      ThreadPoolExecutor savingAndProcessingExecutor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
-              (Runnable r) -> new Thread(r, "Acquisition image processing and saving thread"));
+      if (dataSink_ != null) {
+         ThreadPoolExecutor savingAndProcessingExecutor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+                 (Runnable r) -> new Thread(r, "Acquisition image processing and saving thread"));
 
-      savingAndProcessingExecutor.submit(() -> {
-         try {
-            while (true) {
-               boolean storageFinished;
-               if (imageProcessors_.isEmpty()) {
-                  TaggedImage img = firstDequeue_.takeFirst();
-                  storageFinished = saveImage(img);
-               } else {
-                  LinkedBlockingDeque<TaggedImage> dequeue = processorOutputQueues_.get(
-                          imageProcessors_.get(imageProcessors_.size() - 1));
-                  TaggedImage img = dequeue.takeFirst();
-                  storageFinished = saveImage(img);
-               }
-               if (storageFinished) {
-                  savingAndProcessingExecutor.shutdown();
-                  for (TaggedImageProcessor p : imageProcessors_) {
-                     p.close();
+         savingAndProcessingExecutor.submit(() -> {
+            try {
+               while (true) {
+                  boolean storageFinished;
+                  if (imageProcessors_.isEmpty()) {
+                     TaggedImage img = firstDequeue_.takeFirst();
+                     storageFinished = saveImage(img);
+                  } else {
+                     LinkedBlockingDeque<TaggedImage> dequeue = processorOutputQueues_.get(
+                             imageProcessors_.get(imageProcessors_.size() - 1));
+                     TaggedImage img = dequeue.takeFirst();
+                     storageFinished = saveImage(img);
                   }
+                  if (storageFinished) {
+                     savingAndProcessingExecutor.shutdown();
+                     for (TaggedImageProcessor p : imageProcessors_) {
+                        p.close();
+                     }
 //                  completed_ = true;
-                  return;
+                     return;
+                  }
                }
+            } catch (InterruptedException e) {
+               //this should never happen
+            } catch (Exception ex) {
+               System.err.println(ex);
+               ex.printStackTrace();
             }
-         } catch (InterruptedException e) {
-            //this should never happen
-         } catch (Exception ex) {
-            System.err.println(ex);
-            ex.printStackTrace();
-         }
-      });
+         });
+      }
    }
 
    @Override
