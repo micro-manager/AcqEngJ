@@ -27,6 +27,12 @@ public interface AcquisitionInterface {
    public void waitForCompletion();
 
    /**
+    * Signal the acquisition to complete once all events are done
+    *
+    */
+   public void finish();
+
+   /**
     * returns true if all data that will be collected has been collected
     *
     * @return
