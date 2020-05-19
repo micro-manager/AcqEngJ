@@ -65,11 +65,12 @@ public class Acquisition implements AcquisitionInterface {
            = new ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>>();
 
    /**
-    * After calling this constructor, must set dataSink_ and call initialize befoer ready to start
+    * After calling this constructor, call initialize then start
     *
     */
-   public Acquisition() {
+   public Acquisition(DataSink sink) {
       core_ = Engine.getCore();
+      dataSink_ = sink;
    }
    
    public boolean isAbortRequested() {
