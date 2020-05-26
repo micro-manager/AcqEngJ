@@ -7,6 +7,7 @@ package org.micromanager.acqj.api;
 
 import java.util.Iterator;
 import mmcorej.org.json.JSONObject;
+import org.micromanager.acqj.api.xystage.PixelStageTranslator;
 
 /**
  * General interface for acquisitions
@@ -90,4 +91,12 @@ public interface AcquisitionInterface {
     */
    public void submitEventIterator(Iterator<AcquisitionEvent> evt);
 
-}
+   /**
+    * Get the PixelStageTranslator, which maps the coordinate space of pixels to xy coordinates of the stage.
+    * Only exists if XY tiling features are enabled
+    * @return
+    */
+   public PixelStageTranslator getPixelStageTranslator();
+
+
+   }

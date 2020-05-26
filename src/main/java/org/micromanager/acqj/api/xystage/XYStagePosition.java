@@ -14,18 +14,15 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
-package org.micromanager.acqj.api.mda;
+package org.micromanager.acqj.api.xystage;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
-import java.util.ArrayList;
 import java.util.Objects;
 import mmcorej.CMMCore;
 import mmcorej.org.json.JSONArray;
 import mmcorej.org.json.JSONObject;
 import org.micromanager.acqj.internal.acqengj.Engine;
-import org.micromanager.acqj.internal.acqengj.Engine;
-import org.micromanager.acqj.internal.acqengj.AffineTransformUtils;
 import org.micromanager.acqj.internal.acqengj.AffineTransformUtils;
 
 /**
@@ -142,13 +139,13 @@ public class XYStagePosition {
       label_ = newName;
    }
 
-   public JSONObject toJSON(CMMCore core) {
+   public JSONObject toJSON(String xyStage) {
       try {
          JSONObject coordinates = new JSONObject();
          JSONArray xy = new JSONArray();
          xy.put(center_.x);
          xy.put(center_.y);
-         coordinates.put(core.getXYStageDevice(), xy);
+         coordinates.put(xyStage, xy);
          JSONObject pos = new JSONObject();
          pos.put("DeviceCoordinatesUm", coordinates);
          pos.put("GridColumnIndex", gridCol_);

@@ -1,17 +1,12 @@
-package org.micromanager.acqj.api.mda;
+package org.micromanager.acqj.api;
 
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Point2D;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import org.micromanager.acqj.api.AcqEngMetadata;
-import org.micromanager.acqj.api.AcquisitionEvent;
-import org.micromanager.acqj.api.AcquisitionEvent;
-import org.micromanager.acqj.internal.acqengj.Engine;
-import org.micromanager.acqj.internal.acqengj.AffineTransformUtils;
+
+import org.micromanager.acqj.api.channels.ChannelSetting;
+import org.micromanager.acqj.api.xystage.XYStagePosition;
 
 /**
  * A utility class with multiple "modules" functions for creating common

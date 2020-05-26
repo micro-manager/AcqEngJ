@@ -24,8 +24,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import mmcorej.DoubleVector;
-import org.micromanager.acqj.api.mda.XYStagePosition;
-import org.micromanager.acqj.internal.acqengj.Engine;
+import org.micromanager.acqj.api.xystage.XYStagePosition;
 
 public class AffineTransformUtils {
 
