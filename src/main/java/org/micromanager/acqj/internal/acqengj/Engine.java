@@ -48,15 +48,17 @@ public class Engine {
    private static CMMCore core_;
    private static Engine singleton_;
    private AcquisitionEvent lastEvent_ = null;
-   private final ExecutorService acqExecutor_;
-//   private AcqDurationEstimator acqDurationEstiamtor_; //get information about how much time different hardware moves take
-   private LinkedList<AcquisitionEvent> eventQueue_ = new LinkedList<AcquisitionEvent>();
+   //A queue that holds multiple acquisition events which are in the process of being merged into a single, hardware-triggered event
+   private LinkedList<AcquisitionEvent> sequenceBuilder_ = new LinkedList<AcquisitionEvent>();
+   //Thread on which the generation of acquisition events occurs
    private ExecutorService eventGeneratorExecutor_;
+   //Thread on which all communication with hardware occurs
+   private final ExecutorService acqExecutor_;
+
 
    public Engine(CMMCore core) {
       singleton_ = this;
       core_ = core;
-//      acqDurationEstiamtor_ = acqDurationEstiamtor;
       acqExecutor_ = Executors.newSingleThreadExecutor(r -> {
          return new Thread(r, "Acquisition Engine Thread");
       });
@@ -71,11 +73,18 @@ public class Engine {
       return singleton_;
    }
 
+   /**
+    * No more data to be collected for this acquisition. Execute a finishing event so everything shuts down properly
+    * @param acq the acquisition to be finished
+    * @return
+    */
    public Future<Future> finishAcquisition(Acquisition acq) {
       return eventGeneratorExecutor_.submit(() -> {
          Future f = acqExecutor_.submit(() -> {
             try {
-               eventQueue_.clear();
+               //clear any pending events, but since submitEventIterator occurs on the
+               //same thread, events will only be cleared in the case of an abort
+               sequenceBuilder_.clear();
                executeAcquisitionEvent(AcquisitionEvent.createAcquisitionFinishedEvent(acq));
                while (!acq.isFinished()) {
                   Thread.sleep(1);
@@ -89,11 +98,10 @@ public class Engine {
    }
 
    /**
-    * Submit a stream of events which will get lazily processed and combined
-    * into sequence events as needed. Block until all events executed
+    * Submit a stream of events which will get lazily processed and merged into multi-image hardware sequenced events
+    * as needed. Block until all events executed
     *
-    * @param eventIterator Iterator of acquisition events instructing what to
-    * acquire
+    * @param eventIterator Iterator of acquisition events that contains instructions of what to acquire
     * @param acq the acquisition
     * @return a Future that can be gotten when the event iteration is finished,
     */
@@ -110,14 +118,13 @@ public class Engine {
                      Thread.sleep(5);
                   } catch (InterruptedException ex) {
                      throw new RuntimeException(ex);
-
                   }
                }
                try {
                   if (acq.isAbortRequested()) {
                      return;
                   }
-                  Future imageAcquiredFuture = processAcquistionEvent(event);
+                  Future imageAcquiredFuture = processAcquisitionEvent(event);
                   imageAcquiredFuture.get();
                } catch (InterruptedException ex) {
                   //cancelled
@@ -130,7 +137,8 @@ public class Engine {
                }
             }
             try {
-               Future lastImageFuture = processAcquistionEvent(AcquisitionEvent.createAcquisitionSequenceEndEvent(acq));
+               //Make all events get executed from this iterator
+               Future lastImageFuture = processAcquisitionEvent(AcquisitionEvent.createAcquisitionSequenceEndEvent(acq));
                lastImageFuture.get();
             } catch (InterruptedException ex) {
                //cancelled
@@ -149,26 +157,30 @@ public class Engine {
    }
 
    /**
-    * Coalesce acquisition event with others in sequence in applicable,
-    * otherwise dispatch it to executor, get future for image/sequence fully
-    * acquired and dispatched to subsequent processing/saving
+    * Check if this event is compatible with hardware sequencing with any previous events that have been built up
+    * in a queue. If it is, merge it into the sequence. Calling this function might result in an event/sequence being
+    * dispatched to the hardware, or it might not depending on the conditions. In order to make sure events don't
+    * wait around in the queue forever, the function that calls this is required to eventually pass in a
+    * SequenceEnd event, which will flush the queue
     *
-    * @return
+    * @return eith null, if nothing dispatched, or a Future which can be gotten once the image/sequence fully
+    * acquired and images retrieved for subsequent processing/saving
     */
-   private Future processAcquistionEvent(AcquisitionEvent event) throws ExecutionException {
+   private Future processAcquisitionEvent(AcquisitionEvent event) throws ExecutionException {
       Future imageAcquiredFuture = acqExecutor_.submit(() -> {
          try {
-            if (eventQueue_.isEmpty() && !event.isAcquisitionSequenceEndEvent()) {
-               eventQueue_.add(event);
-            } else if (isSequencable(eventQueue_.getLast(), event, eventQueue_.size() + 1)) {
-               eventQueue_.add(event); //keep building up events to sequence
+            if (sequenceBuilder_.isEmpty() && !event.isAcquisitionSequenceEndEvent()) {
+               sequenceBuilder_.add(event);
+            } else if (isSequencable(sequenceBuilder_.getLast(), event, sequenceBuilder_.size() + 1)) {
+               //merge event into the sequence
+               sequenceBuilder_.add(event);
             } else {
-               // merge the sequence of events to one and send it out
-               AcquisitionEvent sequenceEvent = mergeSequenceEvent(eventQueue_);
-               eventQueue_.clear();
+               // all events
+               AcquisitionEvent sequenceEvent = mergeSequenceEvent(sequenceBuilder_);
+               sequenceBuilder_.clear();
                //Add in the start of the new sequence
                if (!event.isAcquisitionSequenceEndEvent()) {
-                  eventQueue_.add(event);
+                  sequenceBuilder_.add(event);
                }
                executeAcquisitionEvent(sequenceEvent);
             }
@@ -198,6 +210,7 @@ public class Engine {
     * @throws InterruptedException
     */
    private void executeAcquisitionEvent(AcquisitionEvent event) throws InterruptedException {
+      //check if we should pause until the minimum start time of the event has occured
       while (event.getMinimumStartTimeAbsolute() != null && 
               System.currentTimeMillis() < event.getMinimumStartTimeAbsolute()) {
          try {
@@ -210,6 +223,7 @@ public class Engine {
             return;
          }
       }
+
       if (event.isAcquisitionFinishedEvent()) {
          //signal to finish saving thread and mark acquisition as finished
          if (event.acquisition_.isFinished()) {
@@ -233,7 +247,7 @@ public class Engine {
                return; //The hook cancelled this event
             }
          }
-         updateHardware(event);
+         prepareHardware(event);
          for (AcquisitionHook h : event.acquisition_.getAfterHardwareHooks()) {
             event = h.run(event);
             if (event == null) {
@@ -241,7 +255,8 @@ public class Engine {
             }
          }
          acquireImages(event);
-         //pause here while hardware is doing stuff
+
+         //pause here while hardware is still doing stuff
          while (core_.isSequenceRunning()) {
             Thread.sleep(2);
          }
@@ -255,7 +270,8 @@ public class Engine {
    }
 
    /**
-    * Acquire 1 or more images in a sequence and signal for them to be saved.
+    * Acquire 1 or more images in a sequence, add some metadata, then
+    * put them into an output queue
     *
     * @param event
     * @return a Future that can be gotten when the last image in the sequence is
@@ -264,13 +280,18 @@ public class Engine {
     * @throws HardwareControlException
     */
    private void acquireImages(final AcquisitionEvent event) throws InterruptedException, HardwareControlException {
-//      System.out.println(event);
-//      double startTime = System.currentTimeMillis();
+
       loopHardwareCommandRetries(new Runnable() {
          @Override
          public void run() {
             try {
-               core_.startSequenceAcquisition(1, 0, true);
+               if (event.getSequence() != null && event.getSequence().size() > 1) {
+                  //start hardware sequence
+                  core_.startSequenceAcquisition(event.getSequence().size(), 0, true);
+               } else {
+                  //snap one image with no sequencing
+                  core_.startSequenceAcquisition(1, 0, true);
+               }
             } catch (Exception ex) {
                throw new HardwareControlException(ex.getMessage());
             }
@@ -284,6 +305,8 @@ public class Engine {
          event.acquisition_.setStartTime_ms(currentTime);
       }
 
+      //Loop through and collect all acquired images. There will be
+      // (# of images in sequence) x (# of camera channels) of them
       for (int i = 0; i < (event.getSequence() == null ? 1 : event.getSequence().size()); i++) {
          double exposure;
          try {
@@ -299,24 +322,28 @@ public class Engine {
                } catch (Exception ex) {
                }
             }
-
+            //add metadata
             AcqEngMetadata.addImageMetadata(ti.tags, event, camIndex,
                     currentTime - event.acquisition_.getStartTime_ms(), exposure);
             event.acquisition_.addToImageMetadata(ti.tags);
+
             event.acquisition_.addToOutput(ti);
          }
-
-         //keep track of how long it takes to acquire an image for acquisition duration estimation
-//         try {
-//            acqDurationEstiamtor_.storeImageAcquisitionTime(
-//                    exposure, System.currentTimeMillis() - startTime);
-//         } catch (Exception ex) {
-//            throw new RuntimeException(ex);
-//         }
       }
    }
 
-   private void updateHardware(final AcquisitionEvent event) throws InterruptedException, HardwareControlException {
+   /**
+    * Move all the hardware to the proper positions in preparation for the next phase of the acquisitiion event
+    * (i.e. collecting images, or maybe to be added in the future, projecting slm patterns). If this event represents
+    * a single event, the Engine will talk to each piece of hardware in series. If this event represents a sequence,
+    * it will load all the values of that sequence into each hardware component, and wait for the sequence to be
+    * triggered to start, which will happen in another function
+    *
+    * @param event
+    * @throws InterruptedException
+    * @throws HardwareControlException
+    */
+   private void prepareHardware(final AcquisitionEvent event) throws InterruptedException, HardwareControlException {
       //Get the hardware specific to this acquisition
       final String xyStage = event.acquisition_.getXYStageName();
       final String zStage = event.acquisition_.getZStageName();
@@ -380,7 +407,6 @@ public class Engine {
          lastEvent_ = null; //update all hardware if switching to a new acquisition
       }
       /////////////////////////////Z stage////////////////////////////////////////////
-//      double startTime = System.currentTimeMillis();
       loopHardwareCommandRetries(new Runnable() {
          @Override
          public void run() {
@@ -407,11 +433,9 @@ public class Engine {
 
          }
       }, "Moving Z device");
-//      acqDurationEstiamtor_.storeZMoveTime(System.currentTimeMillis() - startTime);
 
       /////////////////////////////XY Stage////////////////////////////////////////////////////
       if (event.getXPosition() != null && event.getYPosition() != null) {
-//         startTime = System.currentTimeMillis();
          loopHardwareCommandRetries(new Runnable() {
             @Override
             public void run() {
@@ -439,13 +463,10 @@ public class Engine {
                   ex.printStackTrace();
                   throw new HardwareControlException(ex.getMessage());
                }
-
             }
          }, "Moving XY stage");
-//         acqDurationEstiamtor_.storeXYMoveTime(System.currentTimeMillis() - startTime);
       }
       /////////////////////////////Channels//////////////////////////////////////////////////
-//      startTime = System.currentTimeMillis();
       loopHardwareCommandRetries(new Runnable() {
          @Override
          public void run() {
@@ -478,10 +499,8 @@ public class Engine {
 
          }
       }, "Changing channels");
-//      acqDurationEstiamtor_.storeChannelSwitchTime(System.currentTimeMillis() - startTime);
 
       /////////////////////////////Camera exposure//////////////////////////////////////////////
-//      startTime = System.currentTimeMillis();
       loopHardwareCommandRetries(new Runnable() {
          @Override
          public void run() {
@@ -523,9 +542,17 @@ public class Engine {
 
       //keep track of last event to know what state the hardware was in without having to query it
       lastEvent_ = event.getSequence() == null ? event : event.getSequence().get(event.getSequence().size() - 1);
-
    }
 
+   /**
+    * Attempt a hardware command multiple times if it throws an exception. If still doesn't
+    * work after those tries, give up and declare exception
+    *
+    * @param r runnable containing the command
+    * @param commandName name given to the command for loggin purposes
+    * @throws InterruptedException
+    * @throws HardwareControlException
+    */
    private void loopHardwareCommandRetries(Runnable r, String commandName) throws InterruptedException, HardwareControlException {
       for (int i = 0; i < HARDWARE_ERROR_RETRIES; i++) {
          try {
@@ -534,7 +561,7 @@ public class Engine {
          } catch (Exception e) {
             e.printStackTrace();
 
-            System.out.println(getCurrentDateAndTime() + ": Problem "
+            System.err.println(getCurrentDateAndTime() + ": Problem "
                     + commandName + "\n Retry #" + i + " in " + DELAY_BETWEEN_RETRIES_MS + " ms");
             Thread.sleep(DELAY_BETWEEN_RETRIES_MS);
          }
@@ -546,15 +573,15 @@ public class Engine {
       DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
       Calendar calobj = Calendar.getInstance();
       return df.format(calobj.getTime());
-
    }
 
    /**
-    * Check if two events can be sequenced into one
+    * Check if all the hardware changes between one event and the next compatible with hardware sequencing.
+    * If so, they can be merged into a single event which will take place with hardware triggering
     *
-    * @param e1
-    * @param e2
-    * @return
+    * @param e1 first event
+    * @param e2 second event
+    * @return true if they can be combined
     */
    private static boolean isSequencable(AcquisitionEvent e1, AcquisitionEvent e2, int newSeqLength) {
       try {
@@ -579,7 +606,7 @@ public class Engine {
                }
             }
          }
-         //TODO arbitrary additional properties in acq event
+         //TODO check for arbitrary additional properties in the acq event for being sequencable
 
          //z stage
          if (e1.getZPosition() != e2.getZPosition()) {
@@ -620,6 +647,13 @@ public class Engine {
       }
    }
 
+   /**
+    * If it's a sequence length of one, just return the acquisition event. If it's a longer sequence,
+    * create a special acquisition event corresponding to a multi-image hardware-triggered setup
+    *
+    * @param eventList list of one or more AcquisitionEvents
+    * @return
+    */
    private AcquisitionEvent mergeSequenceEvent(List<AcquisitionEvent> eventList) {
       if (eventList.size() == 1) {
          return eventList.get(0);

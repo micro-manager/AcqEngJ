@@ -18,6 +18,8 @@ package org.micromanager.acqj.api;
 
 import java.awt.geom.AffineTransform;
 import java.text.DateFormat;
+import java.text.DecimalFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -299,23 +301,6 @@ public class AcqEngMetadata {
          map.put(WIDTH, width);
       } catch (JSONException ex) {
          throw new RuntimeException("Couldn set image width");
-      }
-   }
-
-   public static JSONArray getInitialPositionList(JSONObject map) {
-      try {
-         return map.getJSONArray(INITIAL_POS_LIST);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Couldn get Initial position list");
-
-      }
-   }
-
-   public static void setInitialPositionList(JSONObject map, JSONArray initialPositionList) {
-      try {
-         map.put(INITIAL_POS_LIST, initialPositionList);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Couldn set Initial position list");
       }
    }
 
@@ -662,6 +647,34 @@ public class AcqEngMetadata {
          return summaryMD.getString(AFFINE_TRANSFORM);
       } catch (JSONException ex) {
          throw new RuntimeException("Affine transform missing from summary metadata");
+      }
+   }
+
+   public static AffineTransform getAffineTransform(JSONObject summaryMD) {
+      try {
+         return stringToTransform(summaryMD.getString(AFFINE_TRANSFORM));
+      } catch (JSONException ex) {
+         throw new RuntimeException("Affine transform missing from summary metadata");
+      }
+   }
+
+   private static AffineTransform stringToTransform(String s) {
+      if (s.equals("Undefined")) {
+         return null;
+      }
+      double[] mat = new double[4];
+      String[] vals = s.split("_");
+      for (int i = 0; i < 4; i++) {
+         mat[i] = parseDouble(vals[i]);
+      }
+      return new AffineTransform(mat);
+   }
+
+   private static double parseDouble(String s) {
+      try {
+         return DecimalFormat.getNumberInstance().parse(s).doubleValue();
+      } catch (ParseException ex) {
+         throw new RuntimeException(ex);
       }
    }
    

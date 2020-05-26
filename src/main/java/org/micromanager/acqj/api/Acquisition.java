@@ -29,6 +29,7 @@ import mmcorej.CMMCore;
 import mmcorej.TaggedImage;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
+import org.micromanager.acqj.api.xystage.PixelStageTranslator;
 import org.micromanager.acqj.internal.acqengj.Engine;
 
 /**
@@ -46,7 +47,6 @@ public class Acquisition implements AcquisitionInterface {
    protected String xyStage_, zStage_;
    protected boolean zStageHasLimits_ = false;
    protected double zStageLowerLimit_, zStageUpperLimit_;
-   protected AcquisitionEvent lastEvent_ = null;
    protected volatile boolean finished_;
    protected volatile boolean abortRequested_ = false;
    private volatile boolean aborted_ = false;
@@ -54,6 +54,7 @@ public class Acquisition implements AcquisitionInterface {
    private long startTime_ms_ = -1;
    private volatile boolean paused_ = false;
    private CopyOnWriteArrayList<String> channelNames_ = new CopyOnWriteArrayList<String>();
+   private PixelStageTranslator pixelStageTranslator_;
    protected DataSink dataSink_;
    protected CMMCore core_;
    private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
@@ -90,14 +91,12 @@ public class Acquisition implements AcquisitionInterface {
    }
 
    public void addToSummaryMetadata(JSONObject summaryMetadata) {
+      //This can be overriden by subclasses to add additional metadata
    }
-
-   ;
 
    public void addToImageMetadata(JSONObject tags) {
+      //This can be overriden by subclasses to add additional metadata
    }
-
-   ;
 
    public void submitEventIterator(Iterator<AcquisitionEvent> evt) {
       Engine.getInstance().submitEventIterator(evt, this);
@@ -127,7 +126,6 @@ public class Acquisition implements AcquisitionInterface {
                      for (TaggedImageProcessor p : imageProcessors_) {
                         p.close();
                      }
-//                  completed_ = true;
                      return;
                   }
                }
@@ -179,14 +177,21 @@ public class Acquisition implements AcquisitionInterface {
    }
 
    /**
+    * Generic version with no XY tiling
+    */
+   protected void initialize() {
+      initialize(null, null);
+   }
+
+   /**
     * 1) Get the names or core devices to be used in acquistion 2) Create
     * Summary metadata 3) Initialize data sink
     */
-   protected void initialize() {
+   protected void initialize(Integer overlapX, Integer overlapY) {
       xyStage_ = core_.getXYStageDevice();
       zStage_ = core_.getFocusDevice();
-      //"postion" is not generic name..and as of right now there is now way of getting generic z positions
-      //from a z deviec in MM
+      //"postion" is not generic name...and as of right now there is now way of getting generic z positions
+      //from a z deviec in MM, but the following code works for some devices
       String positionName = "Position";
       try {
          if (core_.hasProperty(zStage_, positionName)) {
@@ -200,6 +205,19 @@ public class Acquisition implements AcquisitionInterface {
          throw new RuntimeException("Problem communicating with core to get Z stage limits");
       }
       JSONObject summaryMetadata = AcqEngMetadata.makeSummaryMD(this);
+
+      //Optional additional summary metadata if doing tiling in XY
+      if (overlapX != null && overlapY != null) {
+         AcqEngMetadata.setPixelOverlapX(summaryMetadata, overlapX);
+         AcqEngMetadata.setPixelOverlapY(summaryMetadata, overlapY);
+         if (AcqEngMetadata.getAffineTransformString(summaryMetadata).equals("Undefined")) {
+            throw new RuntimeException("Cannot run acquisition with XY tiling without first defining" +
+                    "affine transform between camera and stage. Check pixel size calibration");
+         }
+         pixelStageTranslator_ = new PixelStageTranslator(AcqEngMetadata.getAffineTransform(summaryMetadata), xyStage_,
+                 (int) core_.getImageWidth(), (int) core_.getImageHeight(), overlapX, overlapY);
+      }
+
       addToSummaryMetadata(summaryMetadata);
 
       try {
@@ -213,10 +231,6 @@ public class Acquisition implements AcquisitionInterface {
          //It could be null if not using savign and viewing and diverting with custom processor
          dataSink_.initialize(this, summaryMetadata);
       }
-   }
-
-   public void onDataSinkClosing() {
-      dataSink_ = null;
    }
 
    /**
@@ -237,10 +251,14 @@ public class Acquisition implements AcquisitionInterface {
          }
          AcqEngMetadata.setAxisPosition(image.tags, AcqEngMetadata.CHANNEL_AXIS,
                  channelNames_.indexOf(channelName));
-         //this method doesnt return until all images have been writtent to disk
+         //this method doesnt return until all images have been written to disk
          dataSink_.putImage(image);
          return false;
       }
+   }
+
+   public PixelStageTranslator getPixelStageTranslator() {
+      return pixelStageTranslator_;
    }
 
    public String getXYStageName() {

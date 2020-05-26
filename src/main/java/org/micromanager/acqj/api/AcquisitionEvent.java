@@ -27,7 +27,6 @@ import java.util.TreeSet;
 import mmcorej.org.json.JSONArray;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
-import org.micromanager.acqj.api.mda.XYStagePosition;
 import org.micromanager.acqj.internal.acqengj.AffineTransformUtils;
 import org.micromanager.acqj.internal.acqengj.Engine;
 
@@ -58,7 +57,6 @@ public class AcquisitionEvent {
    private Double zPosition_ = null, xPosition_ = null, yPosition_ = null;
    //info for xy positions arranged in a grid
    private Integer gridRow_ = null, gridCol_ = null;
-   private Integer overlapX_ = null, overlapY_ = null;
    //TODO: SLM, Galvo, etc
 
    //Arbitary additional properties
@@ -114,8 +112,6 @@ public class AcquisitionEvent {
       e.yPosition_ = yPosition_;
       e.gridRow_ = gridRow_;
       e.gridCol_ = gridCol_;
-      e.overlapX_ = overlapX_;
-      e.overlapY_ = overlapY_;
       e.miniumumStartTime_ms_ = miniumumStartTime_ms_;
       e.properties_ = new TreeSet<ThreeTuple>(this.properties_);
       return e;
@@ -166,22 +162,15 @@ public class AcquisitionEvent {
          if (yPosition_ != null) {
             json.put("y", yPosition_);
          }
-
          if (gridRow_ != null) {
             json.put("row", gridRow_);
          }
          if (gridCol_ != null) {
             json.put("col", gridCol_);
          }
-         if (overlapX_ != null) {
-            json.put("overlap_x", overlapX_);
-         }
-         if (overlapY_ != null) {
-            json.put("overlap_y", overlapY_);
-         }
 
          //TODO: SLM, galvo, etc
-         //TODO:ability to do API calls (like SLM set image)
+         //TODO: more support for imperative API calls (i.e. SLM set image)
          //Arbitrary extra properties
          JSONArray props = new JSONArray();
          for (ThreeTuple t : properties_) {
@@ -236,15 +225,9 @@ public class AcquisitionEvent {
             event.exposure_ = json.getDouble("exposure");
          }
 
-         //Things for which a generic device type exists in MMCore
+         //Things for which a generic device type and imperative API exists in MMCore
          if (json.has("z")) {
             event.zPosition_ = json.getDouble("z");
-         }
-         if (json.has("x")) {
-            event.xPosition_ = json.getDouble("x");
-         }
-         if (json.has("y")) {
-            event.yPosition_ = json.getDouble("y");
          }
          if (json.has("row")) {
             event.gridRow_ = json.getInt("row");
@@ -252,15 +235,26 @@ public class AcquisitionEvent {
          if (json.has("col")) {
             event.gridCol_ = json.getInt("col");
          }
-         if (json.has("overlap_x")) {
-            event.overlapX_ = json.getInt("overlap_x");
+         if (event.gridRow_ != null && event.gridCol_ != null) {
+            int posIndex = acq.getPixelStageTranslator().getPositionIndices(
+                    new int[]{event.gridRow_}, new int[]{event.gridCol_})[0];
+            //add position axis for this row/col
+            event.axisPositions_.put(AcqEngMetadata.POSITION_AXIS, posIndex);
+            //infer XY stage position based on affine transform
+            Point2D.Double xyPos = acq.getPixelStageTranslator().getXYPosition(posIndex).getCenter();
+            event.xPosition_ = xyPos.x;
+            event.yPosition_ = xyPos.y;
          }
-         if (json.has("overlap_y")) {
-            event.overlapY_ = json.getInt("overlap_y");
+         if (json.has("x")) {
+            event.xPosition_ = json.getDouble("x");
          }
-         //TODO: SLM, galvo, etc
+         if (json.has("y")) {
+            event.yPosition_ = json.getDouble("y");
+         }
 
-         //Arbitrary additional properties
+         //TODO: SLM, galvo, etc (i.e. other aspects of imperative API)
+
+         //Arbitrary additional properties (i.e. state based API)
          if (json.has("properties")) {
             JSONArray propList = json.getJSONArray("properties");
             for (int i = 0; i < propList.length(); i++) {
@@ -417,8 +411,10 @@ public class AcquisitionEvent {
       }
       int width = (int) Engine.getCore().getImageWidth();
       int height = (int) Engine.getCore().getImageHeight();
-      int displayTileWidth = width - (overlapX_ != null ? overlapX_ : 0);
-      int displayTileHeight = height - (overlapY_ != null ? overlapY_ : 0);
+      Integer overlapX = AcqEngMetadata.getPixelOverlapX(acquisition_.getSummaryMetadata());
+      Integer overlapY = AcqEngMetadata.getPixelOverlapY(acquisition_.getSummaryMetadata());
+      int displayTileWidth = width - (overlapX != null ? overlapX : 0);
+      int displayTileHeight = height - (overlapY != null ? overlapY : 0);
       Point2D.Double[] displayedTileCorners = new Point2D.Double[4];
       displayedTileCorners[0] = new Point2D.Double();
       displayedTileCorners[1] = new Point2D.Double();
