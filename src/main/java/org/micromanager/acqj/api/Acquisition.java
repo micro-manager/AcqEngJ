@@ -194,11 +194,13 @@ public class Acquisition implements AcquisitionInterface {
       //from a z deviec in MM, but the following code works for some devices
       String positionName = "Position";
       try {
-         if (core_.hasProperty(zStage_, positionName)) {
-            zStageHasLimits_ = core_.hasPropertyLimits(zStage_, positionName);
-            if (zStageHasLimits_) {
-               zStageLowerLimit_ = core_.getPropertyLowerLimit(zStage_, positionName);
-               zStageUpperLimit_ = core_.getPropertyUpperLimit(zStage_, positionName);
+         if (core_.getFocusDevice() != null && core_.getFocusDevice().length() > 0) {
+            if (core_.hasProperty(zStage_, positionName)) {
+               zStageHasLimits_ = core_.hasPropertyLimits(zStage_, positionName);
+               if (zStageHasLimits_) {
+                  zStageLowerLimit_ = core_.getPropertyLowerLimit(zStage_, positionName);
+                  zStageUpperLimit_ = core_.getPropertyUpperLimit(zStage_, positionName);
+               }
             }
          }
       } catch (Exception ex) {
