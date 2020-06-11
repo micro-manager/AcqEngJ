@@ -318,12 +318,23 @@ public class Engine {
             TaggedImage ti = null;
             while (ti == null) {
                try {
-                  ti = core_.popNextTaggedImage(camIndex);
+                  //The version which takes camera channel as an argument appears to be broken so call this instead
+                  ti = core_.popNextTaggedImage();
                } catch (Exception ex) {
                }
             }
+            //TODO: this is apparently required to compensate for the popNextTaggedImage function above not
+            // working for multi camera
+            int actualCamIndex = camIndex;
+            if (ti.tags.has("Multi Camera-CameraChannelIndex")) {
+               try {
+                  actualCamIndex = ti.tags.getInt("Multi Camera-CameraChannelIndex");
+               } catch (Exception e) {
+                  throw new RuntimeException(e);
+               }
+            }
             //add metadata
-            AcqEngMetadata.addImageMetadata(ti.tags, event, camIndex,
+            AcqEngMetadata.addImageMetadata(ti.tags, event, actualCamIndex,
                     currentTime - event.acquisition_.getStartTime_ms(), exposure);
             event.acquisition_.addToImageMetadata(ti.tags);
 

@@ -109,9 +109,10 @@ public class AcqEngMetadata {
          AcqEngMetadata.createAxes(tags);
 
          ////////  Channels /////////
-         String channelName = event.getChannelConfig();
+         String channelName = event.getChannelConfig() == null ? "" : event.getChannelConfig() ;
          if (Engine.getCore().getNumberOfCameraChannels() > 1) {
-            channelName += "_" + Engine.getCore().getCameraChannelName(camChannelIndex);
+            channelName = channelName.length() > 0 ? channelName + "_" +
+                    Engine.getCore().getCameraChannelName(camChannelIndex) : Engine.getCore().getCameraChannelName(camChannelIndex);
          }
          //infer channel index at runtime based on name
 //         int cIndex = event.acquisition_.getChannelIndexFromName(channelName);
