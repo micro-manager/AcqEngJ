@@ -82,6 +82,7 @@ public class AcquisitionEvent {
     * @param sequence
     */
    public AcquisitionEvent(List<AcquisitionEvent> sequence) {
+      acquisition_ = sequence.get(0).acquisition_;
       sequence_ = new ArrayList<>();
       sequence_.addAll(sequence);
       TreeSet<Double> zPosSet = new TreeSet<Double>();
@@ -90,11 +91,21 @@ public class AcquisitionEvent {
       TreeSet<Double> exposureSet = new TreeSet<Double>();
       TreeSet<String> configSet = new TreeSet<String>();
       for (int i = 0; i < sequence_.size(); i++) {
-         zPosSet.add(sequence_.get(i).zPosition_);
-         xPosSet.add(sequence_.get(i).getXPosition());
-         yPosSet.add(sequence_.get(i).getYPosition());
-         exposureSet.add(sequence_.get(i).getExposure());
-         configSet.add(sequence_.get(i).getChannelConfig());
+         if (sequence_.get(i).zPosition_ != null) {
+            zPosSet.add(sequence_.get(i).zPosition_);
+         }
+         if (sequence_.get(i).xPosition_ != null) {
+            xPosSet.add(sequence_.get(i).getXPosition());
+         }
+         if (sequence_.get(i).yPosition_ != null) {
+            yPosSet.add(sequence_.get(i).getYPosition());
+         }
+         if (sequence_.get(i).exposure_ != null) {
+            exposureSet.add(sequence_.get(i).getExposure());
+         }
+         if (sequence_.get(i).channelConfig_ != null) {
+            configSet.add(sequence_.get(i).getChannelConfig());
+         }
       }
       exposureSequenced_ = exposureSet.size() > 1;
       channelSequenced_ = configSet.size() > 1;
