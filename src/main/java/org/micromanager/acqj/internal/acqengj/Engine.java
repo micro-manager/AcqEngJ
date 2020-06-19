@@ -25,12 +25,9 @@ import org.micromanager.acqj.api.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import mmcorej.CMMCore;
@@ -305,6 +302,19 @@ public class Engine {
          event.acquisition_.setStartTime_ms(currentTime);
       }
 
+      //need to assign events to images as they come out, assuming they might be in arbitrary order,
+      //but that each camera itself is ordered
+      HashMap<Integer, LinkedList<AcquisitionEvent>> cameraEventLists = null;
+      if (event.getSequence() != null) {
+         cameraEventLists = new HashMap<Integer, LinkedList<AcquisitionEvent>>();
+         for (int camIndex = 0; camIndex < core_.getNumberOfCameraChannels(); camIndex++) {
+            cameraEventLists.put(camIndex, new LinkedList<AcquisitionEvent>());
+            for (AcquisitionEvent e: event.getSequence()) {
+               cameraEventLists.get(camIndex).add(e);
+            }
+         }
+      }
+
       //Loop through and collect all acquired images. There will be
       // (# of images in sequence) x (# of camera channels) of them
       for (int i = 0; i < (event.getSequence() == null ? 1 : event.getSequence().size()); i++) {
@@ -314,6 +324,7 @@ public class Engine {
          } catch (Exception ex) {
             throw new RuntimeException("Couldnt get exposure form core");
          }
+
          for (int camIndex = 0; camIndex < core_.getNumberOfCameraChannels(); camIndex++) {
             TaggedImage ti = null;
             while (ti == null) {
@@ -333,12 +344,16 @@ public class Engine {
                   throw new RuntimeException(e);
                }
             }
+            AcquisitionEvent correspondingEvent = event;
+            if (event.getSequence() != null) {
+               correspondingEvent = cameraEventLists.get(actualCamIndex).remove(0);
+            }
             //add metadata
-            AcqEngMetadata.addImageMetadata(ti.tags, event, actualCamIndex,
-                    currentTime - event.acquisition_.getStartTime_ms(), exposure);
-            event.acquisition_.addToImageMetadata(ti.tags);
+            AcqEngMetadata.addImageMetadata(ti.tags, correspondingEvent, actualCamIndex,
+                    currentTime - correspondingEvent.acquisition_.getStartTime_ms(), exposure);
+            correspondingEvent.acquisition_.addToImageMetadata(ti.tags);
 
-            event.acquisition_.addToOutput(ti);
+            correspondingEvent.acquisition_.addToOutput(ti);
          }
       }
    }
@@ -361,31 +376,41 @@ public class Engine {
       //prepare sequences if applicable
       if (event.getSequence() != null) {
          try {
-            DoubleVector zSequence = new DoubleVector();
-            DoubleVector xSequence = new DoubleVector();
-            DoubleVector ySequence = new DoubleVector();
-            DoubleVector exposureSequence_ms = new DoubleVector();
+            DoubleVector zSequence = event.isZSequenced() ? new DoubleVector() : null;
+            DoubleVector xSequence = event.isXYSequenced() ? new DoubleVector() : null;
+            DoubleVector ySequence = event.isXYSequenced() ? new DoubleVector() : null;
+            DoubleVector exposureSequence_ms =event.isExposureSequenced() ? new DoubleVector() : null;
             String group = event.getSequence().get(0).getChannelGroup();
-            Configuration config = core_.getConfigData(group, event.getSequence().get(0).getChannelConfig());
-            LinkedList<StrVector> propSequences = new LinkedList<StrVector>();
+            Configuration config = event.getSequence().get(0).getChannelConfig() == null ? null :
+                    core_.getConfigData(group, event.getSequence().get(0).getChannelConfig());
+            LinkedList<StrVector> propSequences = event.isChannelSequenced() ? new LinkedList<StrVector>() : null;
             for (AcquisitionEvent e : event.getSequence()) {
-               zSequence.add(event.getZPosition());
-               xSequence.add(event.getXPosition());
-               ySequence.add(event.getYPosition());
-               //TODO: what if exposure is null 
-               exposureSequence_ms.add(event.getExposure());
+               if (zSequence != null) {
+                  zSequence.add(event.getZPosition());
+               }
+               if (xSequence != null) {
+                  xSequence.add(event.getXPosition());
+               }
+               if (ySequence != null) {
+                  ySequence.add(event.getYPosition());
+               }
+               if (exposureSequence_ms != null) {
+                  exposureSequence_ms.add(event.getExposure());
+               }
                //et sequences for all channel properties
-               for (int i = 0; i < config.size(); i++) {
-                  PropertySetting ps = config.getSetting(i);
-                  String deviceName = ps.getDeviceLabel();
-                  String propName = ps.getPropertyName();
-                  if (e == event.getSequence().get(0)) { //first property
-                     propSequences.add(new StrVector());
+               if (propSequences != null) {
+                  for (int i = 0; i < config.size(); i++) {
+                     PropertySetting ps = config.getSetting(i);
+                     String deviceName = ps.getDeviceLabel();
+                     String propName = ps.getPropertyName();
+                     if (e == event.getSequence().get(0)) { //first property
+                        propSequences.add(new StrVector());
+                     }
+                     Configuration channelPresetConfig = core_.getConfigData(group,
+                             event.getChannelConfig());
+                     String propValue = channelPresetConfig.getSetting(deviceName, propName).getPropertyValue();
+                     propSequences.get(i).add(propValue);
                   }
-                  Configuration channelPresetConfig = core_.getConfigData(group,
-                          event.getChannelConfig());
-                  String propValue = channelPresetConfig.getSetting(deviceName, propName).getPropertyValue();
-                  propSequences.get(i).add(propValue);
                }
             }
             //Now have built up all the sequences, apply them
@@ -638,10 +663,11 @@ public class Engine {
             }
          }
          //camera
-         if (!core_.isExposureSequenceable(core_.getCameraDevice())) {
+         if (e1.getExposure() != e2.getExposure() && !core_.isExposureSequenceable(core_.getCameraDevice())) {
             return false;
          }
-         if (core_.getExposureSequenceMaxLength(core_.getCameraDevice()) > newSeqLength) {
+         if (core_.isExposureSequenceable(core_.getCameraDevice()) &&
+                 core_.getExposureSequenceMaxLength(core_.getCameraDevice()) > newSeqLength) {
             return false;
          }
          //timelapse
@@ -653,8 +679,6 @@ public class Engine {
          return true;
       } catch (Exception ex) {
          throw new RuntimeException(ex);
-      } finally {
-         return false;
       }
    }
 
