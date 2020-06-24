@@ -333,13 +333,11 @@ public class Engine {
             TaggedImage ti = null;
             while (ti == null) {
                try {
-                  //The version which takes camera channel as an argument appears to be broken so call this instead
                   ti = core_.popNextTaggedImage();
                } catch (Exception ex) {
                }
             }
-            //TODO: this is apparently required to compensate for the popNextTaggedImage function above not
-            // working for multi camera
+            //Doesnt seem to be a version in the API in which you dont have to do this
             int actualCamIndex = camIndex;
             if (ti.tags.has("Multi Camera-CameraChannelIndex")) {
                try {
