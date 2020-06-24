@@ -101,9 +101,12 @@ public class AcqEngMetadata {
 
          //////// Info about all hardware that the core specifically knows about ///////
          // e.g. Core focus, core XYStage, core Camera etc
-         AcqEngMetadata.setStageX(tags, Engine.getCore().getXPosition());
-         AcqEngMetadata.setStageY(tags, Engine.getCore().getYPosition());
-         AcqEngMetadata.setZPositionUm(tags, Engine.getCore().getPosition());
+
+         // Theses are too slow to call presumably because they communicate with hardware
+         //.setStageX(tags, Engine.getCore().getXPosition());
+         //AcqEngMetadata.setStageY(tags, Engine.getCore().getYPosition());
+         //AcqEngMetadata.setZPositionUm(tags, Engine.getCore().getPosition());
+
 
          //Axes (i.e. channel. z, t, or arbitray other indices)
          AcqEngMetadata.createAxes(tags);
