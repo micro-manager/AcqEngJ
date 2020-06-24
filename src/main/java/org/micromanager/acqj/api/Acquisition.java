@@ -39,7 +39,7 @@ import org.micromanager.acqj.internal.acqengj.Engine;
  */
 public class Acquisition implements AcquisitionInterface {
 
-   private static final int IMAGE_QUEUE_SIZE = 10;
+   private static final int IMAGE_QUEUE_SIZE = 30;
 
    public static final int BEFORE_HARDWARE_HOOK = 0;
    public static final int AFTER_HARDWARE_HOOK = 1;
@@ -112,6 +112,7 @@ public class Acquisition implements AcquisitionInterface {
             try {
                while (true) {
                   boolean storageFinished;
+                  //System.out.println("Image queue size: " + firstDequeue_.size());
                   if (imageProcessors_.isEmpty()) {
                      TaggedImage img = firstDequeue_.takeFirst();
                      storageFinished = saveImage(img);

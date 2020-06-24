@@ -319,23 +319,25 @@ public class Engine {
       // (# of images in sequence) x (# of camera channels) of them
       for (int i = 0; i < (event.getSequence() == null ? 1 : event.getSequence().size()); i++) {
          double exposure;
+
          try {
             exposure = event.getExposure() == null ? core_.getExposure() : core_.getExposure();
          } catch (Exception ex) {
             throw new RuntimeException("Couldnt get exposure form core");
          }
 
-         for (int camIndex = 0; camIndex < core_.getNumberOfCameraChannels(); camIndex++) {
+
+
+         long numCamChannels = core_.getNumberOfCameraChannels();
+         for (int camIndex = 0; camIndex < numCamChannels; camIndex++) {
             TaggedImage ti = null;
             while (ti == null) {
                try {
-                  //The version which takes camera channel as an argument appears to be broken so call this instead
                   ti = core_.popNextTaggedImage();
                } catch (Exception ex) {
                }
             }
-            //TODO: this is apparently required to compensate for the popNextTaggedImage function above not
-            // working for multi camera
+            //Doesnt seem to be a version in the API in which you dont have to do this
             int actualCamIndex = camIndex;
             if (ti.tags.has("Multi Camera-CameraChannelIndex")) {
                try {
@@ -353,7 +355,11 @@ public class Engine {
                     currentTime - correspondingEvent.acquisition_.getStartTime_ms(), exposure);
             correspondingEvent.acquisition_.addToImageMetadata(ti.tags);
 
+
             correspondingEvent.acquisition_.addToOutput(ti);
+
+            System.out.println( System.currentTimeMillis());
+
          }
       }
    }
