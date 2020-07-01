@@ -355,11 +355,7 @@ public class Engine {
                     currentTime - correspondingEvent.acquisition_.getStartTime_ms(), exposure);
             correspondingEvent.acquisition_.addToImageMetadata(ti.tags);
 
-
             correspondingEvent.acquisition_.addToOutput(ti);
-
-            System.out.println( System.currentTimeMillis());
-
          }
       }
    }
