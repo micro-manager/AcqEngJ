@@ -287,7 +287,8 @@ public class Engine {
                   core_.startSequenceAcquisition(event.getSequence().size(), 0, true);
                } else {
                   //snap one image with no sequencing
-                  core_.startSequenceAcquisition(1, 0, true);
+//                  core_.startSequenceAcquisition(1, 0, true);
+                  core_.snapImage();
                }
             } catch (Exception ex) {
                throw new HardwareControlException(ex.getMessage());
@@ -315,6 +316,12 @@ public class Engine {
          }
       }
 
+      //Run a hook after the camera sequence acquistion has started. This is used for setups
+      //where an external device is used to trigger the camera
+      for (AcquisitionHook h : event.acquisition_.getAfterCameraHooks()) {
+         h.run(event);
+      }
+
       //Loop through and collect all acquired images. There will be
       // (# of images in sequence) x (# of camera channels) of them
       for (int i = 0; i < (event.getSequence() == null ? 1 : event.getSequence().size()); i++) {
@@ -326,14 +333,16 @@ public class Engine {
             throw new RuntimeException("Couldnt get exposure form core");
          }
 
-
-
          long numCamChannels = core_.getNumberOfCameraChannels();
          for (int camIndex = 0; camIndex < numCamChannels; camIndex++) {
             TaggedImage ti = null;
             while (ti == null) {
                try {
-                  ti = core_.popNextTaggedImage();
+                  if (event.getSequence() != null && event.getSequence().size() > 1) {
+                     ti = core_.popNextTaggedImage();
+                  } else {
+                     ti = core_.getTaggedImage(camIndex);
+                  }
                } catch (Exception ex) {
                }
             }
@@ -355,11 +364,7 @@ public class Engine {
                     currentTime - correspondingEvent.acquisition_.getStartTime_ms(), exposure);
             correspondingEvent.acquisition_.addToImageMetadata(ti.tags);
 
-
             correspondingEvent.acquisition_.addToOutput(ti);
-
-            System.out.println( System.currentTimeMillis());
-
          }
       }
    }
