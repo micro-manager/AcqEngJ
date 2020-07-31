@@ -43,6 +43,7 @@ public class Acquisition implements AcquisitionInterface {
 
    public static final int BEFORE_HARDWARE_HOOK = 0;
    public static final int AFTER_HARDWARE_HOOK = 1;
+   public static final int AFTER_CAMERA_HOOK = 1;
 
    protected String xyStage_, zStage_;
    protected boolean zStageHasLimits_ = false;
@@ -59,6 +60,7 @@ public class Acquisition implements AcquisitionInterface {
    protected CMMCore core_;
    private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<AcquisitionHook> afterHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
+   private CopyOnWriteArrayList<AcquisitionHook> afterCameraHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<TaggedImageProcessor> imageProcessors_ = new CopyOnWriteArrayList<TaggedImageProcessor>();
    private LinkedBlockingDeque<TaggedImage> firstDequeue_
            = new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE);
@@ -159,6 +161,8 @@ public class Acquisition implements AcquisitionInterface {
          beforeHardwareHooks_.add(h);
       } else if (type == AFTER_HARDWARE_HOOK) {
          afterHardwareHooks_.add(h);
+      } else if (type == AFTER_CAMERA_HOOK) {
+         afterCameraHooks_.add(h);
       }
    }
 
@@ -300,9 +304,9 @@ public class Acquisition implements AcquisitionInterface {
       return beforeHardwareHooks_;
    }
 
-   public Iterable<AcquisitionHook> getAfterHardwareHooks() {
-      return afterHardwareHooks_;
-   }
+   public Iterable<AcquisitionHook> getAfterHardwareHooks() { return afterHardwareHooks_; }
+
+   public Iterable<AcquisitionHook> getAfterCameraHooks() { return afterCameraHooks_; }
 
    public void addToOutput(TaggedImage ti) throws InterruptedException {
       firstDequeue_.putLast(ti);

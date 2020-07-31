@@ -316,6 +316,12 @@ public class Engine {
          }
       }
 
+      //Run a hook after the camera sequence acquistion has started. This is used for setups
+      //where an external device is used to trigger the camera
+      for (AcquisitionHook h : event.acquisition_.getAfterCameraHooks()) {
+         h.run(event);
+      }
+
       //Loop through and collect all acquired images. There will be
       // (# of images in sequence) x (# of camera channels) of them
       for (int i = 0; i < (event.getSequence() == null ? 1 : event.getSequence().size()); i++) {
