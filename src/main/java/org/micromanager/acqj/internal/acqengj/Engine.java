@@ -287,7 +287,8 @@ public class Engine {
                   core_.startSequenceAcquisition(event.getSequence().size(), 0, true);
                } else {
                   //snap one image with no sequencing
-                  core_.startSequenceAcquisition(1, 0, true);
+//                  core_.startSequenceAcquisition(1, 0, true);
+                  core_.snapImage();
                }
             } catch (Exception ex) {
                throw new HardwareControlException(ex.getMessage());
@@ -326,14 +327,16 @@ public class Engine {
             throw new RuntimeException("Couldnt get exposure form core");
          }
 
-
-
          long numCamChannels = core_.getNumberOfCameraChannels();
          for (int camIndex = 0; camIndex < numCamChannels; camIndex++) {
             TaggedImage ti = null;
             while (ti == null) {
                try {
-                  ti = core_.popNextTaggedImage();
+                  if (event.getSequence() != null && event.getSequence().size() > 1) {
+                     ti = core_.popNextTaggedImage();
+                  } else {
+                     ti = core_.getTaggedImage(camIndex);
+                  }
                } catch (Exception ex) {
                }
             }
