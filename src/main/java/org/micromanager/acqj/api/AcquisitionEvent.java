@@ -352,7 +352,7 @@ public class AcquisitionEvent {
       zPosition_ = position;
    }
 
-   public int getTIndex() {
+   public Integer getTIndex() {
       return getAxisPosition(AcqEngMetadata.TIME_AXIS);
    }
 
