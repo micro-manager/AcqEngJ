@@ -254,13 +254,15 @@ public class Engine {
          acquireImages(event);
 
          //pause here while hardware is still doing stuff
-         while (core_.isSequenceRunning()) {
-            Thread.sleep(2);
-         }
-         try {
-            core_.stopSequenceAcquisition();
-         } catch (Exception ex) {
-            throw new RuntimeException("Couldn't stop sequence acquisition");
+         if (event.getSequence() != null) {
+            while (core_.isSequenceRunning()) {
+               Thread.sleep(2);
+            }
+            try {
+               core_.stopSequenceAcquisition();
+            } catch (Exception ex) {
+               throw new RuntimeException("Couldn't stop sequence acquisition");
+            }
          }
       }
       return;
