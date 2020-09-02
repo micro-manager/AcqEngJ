@@ -531,11 +531,12 @@ public class Engine {
                      String propName = ps.getPropertyName();
                      core_.startPropertySequence(deviceName, propName);
                   }
-               } else if (event.getChannelGroup() == null && event.hasChannel() && (lastEvent_ == null
-                       || event.getChannelConfig() != null && lastEvent_.getChannelConfig() != null
-                       && !event.getChannelConfig().equals(lastEvent_.getChannelConfig()) && event.hasChannel())) {
+               } else if (event.hasChannel() && (lastEvent_ == null || !lastEvent_.hasChannel() ||
+                        !event.getChannelConfig().equals(lastEvent_.getChannelConfig()))) {
                   //set exposure
-                  core_.setExposure(event.getExposure());
+                  if (event.getExposure() != null) {
+                     core_.setExposure(event.getExposure());
+                  }
                   //set other channel props
                   core_.setConfig(event.getChannelGroup(), event.getChannelConfig());
                   core_.waitForConfig(event.getChannelGroup(), event.getChannelConfig());
