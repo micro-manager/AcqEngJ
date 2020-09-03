@@ -290,7 +290,7 @@ public class AcquisitionEvent {
    }
 
    public boolean hasChannel() {
-      return channelConfig_ != null && channelConfig_ != null;
+      return channelConfig_ != null && channelGroup_ != null;
    }
 
    public String getChannelConfig() {
