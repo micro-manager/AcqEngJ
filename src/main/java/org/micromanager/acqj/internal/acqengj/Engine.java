@@ -353,6 +353,10 @@ public class Engine {
             if (ti.tags.has("Multi Camera-CameraChannelIndex")) {
                try {
                   actualCamIndex = ti.tags.getInt("Multi Camera-CameraChannelIndex");
+                  if (numCamChannels == 1) {
+                     //probably a mistake in the core....
+                     actualCamIndex = 0; // Override index because not using multi cam mode right now
+                  }
                } catch (Exception e) {
                   throw new RuntimeException(e);
                }
