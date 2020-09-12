@@ -228,12 +228,15 @@ public class Engine {
          }
          event.acquisition_.markFinished();
          event.acquisition_.addToOutput(new TaggedImage(null, null));
-         //signal hooks to shutdown
          for (AcquisitionHook h : event.acquisition_.getBeforeHardwareHooks()) {
             event = h.run(event);
             h.close();
          }
          for (AcquisitionHook h : event.acquisition_.getAfterHardwareHooks()) {
+            event = h.run(event);
+            h.close();
+         }
+         for (AcquisitionHook h : event.acquisition_.getAfterCameraHooks()) {
             event = h.run(event);
             h.close();
          }
@@ -251,19 +254,22 @@ public class Engine {
                return; //The hook cancelled this event
             }
          }
-         acquireImages(event);
+         if (event.shouldAcquireImage()) {
+            acquireImages(event);
 
-         //pause here while hardware is still doing stuff
-         if (event.getSequence() != null) {
-            while (core_.isSequenceRunning()) {
-               Thread.sleep(2);
-            }
-            try {
-               core_.stopSequenceAcquisition();
-            } catch (Exception ex) {
-               throw new RuntimeException("Couldn't stop sequence acquisition");
+            //pause here while hardware is still doing stuff
+            if (event.getSequence() != null) {
+               while (core_.isSequenceRunning()) {
+                  Thread.sleep(2);
+               }
+               try {
+                  core_.stopSequenceAcquisition();
+               } catch (Exception ex) {
+                  throw new RuntimeException("Couldn't stop sequence acquisition");
+               }
             }
          }
+
       }
       return;
    }
@@ -376,7 +382,7 @@ public class Engine {
    }
 
    /**
-    * Move all the hardware to the proper positions in preparation for the next phase of the acquisitiion event
+    * Move all the hardware to the proper positions in preparation for the next phase of the acquisition event
     * (i.e. collecting images, or maybe to be added in the future, projecting slm patterns). If this event represents
     * a single event, the Engine will talk to each piece of hardware in series. If this event represents a sequence,
     * it will load all the values of that sequence into each hardware component, and wait for the sequence to be
@@ -571,6 +577,28 @@ public class Engine {
 
          }
       }, "Changing exposure");
+
+
+      ////////////////////////  Autoshutter ///////////////////////////
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               if (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen()
+                       && (core_.getAutoShutter() || !core_.getShutterOpen()) ) {
+                  core_.setAutoShutter(false);
+                  core_.setShutterOpen(true);
+               } else if (event.shouldKeepShutterOpen() != null && !event.shouldKeepShutterOpen()
+                       && (!core_.getAutoShutter() || core_.getShutterOpen())) {
+                  core_.setShutterOpen(false);
+               }
+
+            } catch (Exception ex) {
+               throw new HardwareControlException(ex.getMessage());
+            }
+
+         }
+      }, "Autoshutter control");
 
       //////////////////////////   Arbitrary Properties //////////////////////////////////
       loopHardwareCommandRetries(new Runnable() {

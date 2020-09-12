@@ -740,7 +740,7 @@ public class AcqEngMetadata {
       try {
          return smd.getInt(GRID_ROW);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set grid row");
+         throw new RuntimeException("Couldnt get grid row");
 
       }
    }
@@ -749,7 +749,7 @@ public class AcqEngMetadata {
       try {
          return smd.getInt(GRID_COL);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set grid row");
+         throw new RuntimeException("Couldnt g et grid row");
 
       }
    }

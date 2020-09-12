@@ -36,6 +36,7 @@ import org.micromanager.acqj.internal.acqengj.Engine;
  */
 public class AcquisitionEvent {
 
+
    enum SpecialFlag {
       AcqusitionFinished,
       AcqusitionSequenceEnd
@@ -58,6 +59,12 @@ public class AcquisitionEvent {
    //info for xy positions arranged in a grid
    private Integer gridRow_ = null, gridCol_ = null;
    //TODO: SLM, Galvo, etc
+
+   //Keep shutter open during non sequence acquisition
+   private Boolean keepShutterOpen_ = null;
+
+   //Option to not acquire an image for shutter only and SLM events
+   private Boolean acquireImage_ = null;
 
    //Arbitary additional properties
    private TreeSet<ThreeTuple> properties_ = new TreeSet<ThreeTuple>();
@@ -124,67 +131,77 @@ public class AcquisitionEvent {
       e.gridRow_ = gridRow_;
       e.gridCol_ = gridCol_;
       e.miniumumStartTime_ms_ = miniumumStartTime_ms_;
+      e.keepShutterOpen_ = keepShutterOpen_;
+      e.acquireImage_ = acquireImage_;
       e.properties_ = new TreeSet<ThreeTuple>(this.properties_);
       return e;
    }
 
-   public JSONObject toJSON() {
+   private static JSONObject eventToJSON(AcquisitionEvent e) {
       try {
          JSONObject json = new JSONObject();
-         if (this.isAcquisitionFinishedEvent()) {
+         if (e.isAcquisitionFinishedEvent()) {
             json.put("special", "acquisition-end");
             return json;
-         } else if (this.isAcquisitionSequenceEndEvent()) {
+         } else if (e.isAcquisitionSequenceEndEvent()) {
             json.put("special", "sequence-end");
             return json;
          }
 
          //timelpases
-         if (miniumumStartTime_ms_ != null) {
-            json.put("min_start_time", miniumumStartTime_ms_ / 1000);
+         if (e.miniumumStartTime_ms_ != null) {
+            json.put("min_start_time", e.miniumumStartTime_ms_ / 1000);
          }
 
-         if (hasChannel()) {
+         if (e.hasChannel()) {
             JSONObject channel = new JSONObject();
-            channel.put("group", channelGroup_);
-            channel.put("config", channelConfig_);
+            channel.put("group", e.channelGroup_);
+            channel.put("config", e.channelConfig_);
             json.put("channel", channel);
          }
 
-         if (exposure_ != null) {
-            json.put("exposure", exposure_);
+         if (e.exposure_ != null) {
+            json.put("exposure", e.exposure_);
+         }
+
+         if (e.keepShutterOpen_) {
+            json.put("keep_shutter_open", true);
+         }
+
+         if (!e.acquireImage_) {
+            json.put("acquire_image", false);
          }
 
          //Coordinate indices
          JSONObject axes = new JSONObject();
-         for (String axis : axisPositions_.keySet()) {
-            axes.put(axis, axisPositions_.get(axis));
+         for (String axis : e.axisPositions_.keySet()) {
+            axes.put(axis, e.axisPositions_.get(axis));
          }
          json.put("axes", axes);
 
          //Things for which a generic device tyoe and functions to operate on
          //it exists in MMCore
-         if (zPosition_ != null) {
-            json.put("z", zPosition_);
+         if (e.zPosition_ != null) {
+            json.put("z", e.zPosition_);
          }
-         if (xPosition_ != null) {
-            json.put("x", xPosition_);
+         if (e.xPosition_ != null) {
+            json.put("x", e.xPosition_);
          }
-         if (yPosition_ != null) {
-            json.put("y", yPosition_);
+         if (e.yPosition_ != null) {
+            json.put("y", e.yPosition_);
          }
-         if (gridRow_ != null) {
-            json.put("row", gridRow_);
+         if (e.gridRow_ != null) {
+            json.put("row", e.gridRow_);
          }
-         if (gridCol_ != null) {
-            json.put("col", gridCol_);
+         if (e.gridCol_ != null) {
+            json.put("col", e.gridCol_);
          }
 
          //TODO: SLM, galvo, etc
          //TODO: more support for imperative API calls (i.e. SLM set image)
          //Arbitrary extra properties
          JSONArray props = new JSONArray();
-         for (ThreeTuple t : properties_) {
+         for (ThreeTuple t : e.properties_) {
             JSONArray prop = new JSONArray();
             prop.put(t.dev);
             prop.put(t.prop);
@@ -199,7 +216,7 @@ public class AcquisitionEvent {
       }
    }
 
-   public static AcquisitionEvent fromJSON(JSONObject json, AcquisitionInterface acq) {
+   private static AcquisitionEvent eventFromJSON(JSONObject json, AcquisitionInterface acq) {
       try {
          if (json.has("special")) {
             if (json.getString("special").equals("acquisition-end")) {
@@ -265,6 +282,14 @@ public class AcquisitionEvent {
 
          //TODO: SLM, galvo, etc (i.e. other aspects of imperative API)
 
+         if (json.has("keep_shutter_open")) {
+            event.keepShutterOpen_ = json.getBoolean("keep_shutter_open");
+         }
+
+         if (json.has("acquire_image")) {
+            event.acquireImage_ = json.getBoolean("acquire_image");
+         }
+
          //Arbitrary additional properties (i.e. state based API)
          if (json.has("properties")) {
             JSONArray propList = json.getJSONArray("properties");
@@ -281,12 +306,55 @@ public class AcquisitionEvent {
       }
    }
 
+   /**
+    * Return JSONArray or JSONObject for sequence vs single event
+    * @return
+    */
+   public JSONObject toJSON() {
+      try {
+         if (sequence_ != null) {
+            JSONArray array = new JSONArray();
+            for (AcquisitionEvent e : sequence_) {
+               array.put(eventToJSON(e));
+            }
+            JSONObject json = new JSONObject();
+            json.put("events", array);
+            return json;
+         } else {
+            return eventToJSON(this);
+         }
+      } catch (JSONException e) {
+         throw new RuntimeException(e);
+      }
+   }
+
+   public static AcquisitionEvent fromJSON(JSONObject json, AcquisitionInterface acq)  {
+      try {
+         if (!json.has("events")) {
+            return eventFromJSON((JSONObject) json, acq);
+         } else {
+            ArrayList<AcquisitionEvent> sequence = new ArrayList<AcquisitionEvent>();
+            JSONArray arr = (JSONArray) json.getJSONArray("events");
+            for (int i = 0; i < arr.length(); i++) {
+               sequence.add(eventFromJSON(arr.getJSONObject(i), acq));
+            }
+            return new AcquisitionEvent(sequence);
+         }
+      } catch (JSONException e) {
+         throw new RuntimeException(e);
+      }
+   }
+
    public List<String[]> getAdditonalProperties() {
       ArrayList<String[]> list = new ArrayList<String[]>();
       for (ThreeTuple t : properties_) {
          list.add(new String[]{t.dev, t.prop, t.val});
       }
       return list;
+   }
+
+   public boolean shouldAcquireImage() {
+      return acquireImage_ == null || acquireImage_;
    }
 
    public boolean hasChannel() {
@@ -324,6 +392,10 @@ public class AcquisitionEvent {
     */
    public void setMinimumStartTime(Long l) {
       miniumumStartTime_ms_ = l;
+   }
+
+   public Boolean shouldKeepShutterOpen() {
+      return keepShutterOpen_;
    }
 
    public Set<String> getDefinedAxes() {
