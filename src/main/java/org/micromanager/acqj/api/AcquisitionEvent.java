@@ -164,11 +164,11 @@ public class AcquisitionEvent {
             json.put("exposure", e.exposure_);
          }
 
-         if (e.keepShutterOpen_) {
+         if (e.keepShutterOpen_ != null && e.keepShutterOpen_) {
             json.put("keep_shutter_open", true);
          }
 
-         if (!e.acquireImage_) {
+         if (e.acquireImage_ != null && !e.acquireImage_) {
             json.put("acquire_image", false);
          }
 
