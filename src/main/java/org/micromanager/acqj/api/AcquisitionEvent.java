@@ -168,16 +168,14 @@ public class AcquisitionEvent {
             json.put("keep_shutter_open", true);
          }
 
-         if (e.acquireImage_ != null && !e.acquireImage_) {
-            json.put("acquire_image", false);
-         }
-
          //Coordinate indices
          JSONObject axes = new JSONObject();
          for (String axis : e.axisPositions_.keySet()) {
             axes.put(axis, e.axisPositions_.get(axis));
          }
-         json.put("axes", axes);
+         if (axes.length() > 0) {
+            json.put("axes", axes);
+         }
 
          //Things for which a generic device tyoe and functions to operate on
          //it exists in MMCore
@@ -286,10 +284,6 @@ public class AcquisitionEvent {
             event.keepShutterOpen_ = json.getBoolean("keep_shutter_open");
          }
 
-         if (json.has("acquire_image")) {
-            event.acquireImage_ = json.getBoolean("acquire_image");
-         }
-
          //Arbitrary additional properties (i.e. state based API)
          if (json.has("properties")) {
             JSONArray propList = json.getJSONArray("properties");
@@ -354,7 +348,7 @@ public class AcquisitionEvent {
    }
 
    public boolean shouldAcquireImage() {
-      return acquireImage_ == null || acquireImage_;
+      return channelConfig_ != null || axisPositions_.keySet().size() > 0;
    }
 
    public boolean hasChannel() {
