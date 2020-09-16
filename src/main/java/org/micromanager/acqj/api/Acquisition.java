@@ -75,6 +75,13 @@ public class Acquisition implements AcquisitionInterface {
       core_ = Engine.getCore();
       dataSink_ = sink;
    }
+
+   /**
+    * Don't delete, called by python side
+    */
+   public DataSink getDataSink() {
+      return dataSink_;
+   }
    
    public boolean isAbortRequested() {
       return abortRequested_;
