@@ -779,6 +779,14 @@ public class AcqEngMetadata {
       }
    }
 
+   public static double getStageZIntended(JSONObject smd) {
+      try {
+         return smd.getDouble(Z_UM_INTENDED);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Couldnt get stage Z");
+      }
+   }
+
    public static void setStageX(JSONObject smd, double x) {
       try {
          smd.put(X_UM, x);
