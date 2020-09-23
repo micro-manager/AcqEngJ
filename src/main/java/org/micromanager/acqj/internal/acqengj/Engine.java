@@ -695,7 +695,7 @@ public class Engine {
             if (!core_.isStageSequenceable(core_.getFocusDevice())) {
                return false;
             }
-            if (core_.getStageSequenceMaxLength(core_.getFocusDevice()) > newSeqLength) {
+            if (newSeqLength > core_.getStageSequenceMaxLength(core_.getFocusDevice())) {
                return false;
             }
          }
@@ -704,7 +704,7 @@ public class Engine {
             if (!core_.isXYStageSequenceable(core_.getXYStageDevice())) {
                return false;
             }
-            if (core_.getXYStageSequenceMaxLength(core_.getXYStageDevice()) > newSeqLength) {
+            if (newSeqLength > core_.getXYStageSequenceMaxLength(core_.getXYStageDevice())) {
                return false;
             }
          }
@@ -713,7 +713,7 @@ public class Engine {
             return false;
          }
          if (core_.isExposureSequenceable(core_.getCameraDevice()) &&
-                 core_.getExposureSequenceMaxLength(core_.getCameraDevice()) > newSeqLength) {
+                 newSeqLength > core_.getExposureSequenceMaxLength(core_.getCameraDevice())) {
             return false;
          }
          //timelapse
