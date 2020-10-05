@@ -588,9 +588,11 @@ public class Engine {
                        && (core_.getAutoShutter() || !core_.getShutterOpen()) ) {
                   core_.setAutoShutter(false);
                   core_.setShutterOpen(true);
-               } else if (event.shouldKeepShutterOpen() != null && !event.shouldKeepShutterOpen()
-                       && (!core_.getAutoShutter() || core_.getShutterOpen())) {
-                  core_.setShutterOpen(false);
+               } else if (event.shouldKeepShutterOpen() != null && !event.shouldKeepShutterOpen()) {
+                  core_.setAutoShutter(true);
+                  if (core_.getShutterOpen()) {
+                     core_.setShutterOpen(false);
+                  }
                }
 
             } catch (Exception ex) {
