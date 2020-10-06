@@ -226,7 +226,7 @@ public class Engine {
          if (event.acquisition_.isFinished()) {
             return; //Duplicate finishing event, possibly from x-ing out viewer
          }
-         event.acquisition_.markFinished();
+         event.acquisition_.eventsFinished();
          event.acquisition_.addToOutput(new TaggedImage(null, null));
          for (AcquisitionHook h : event.acquisition_.getBeforeHardwareHooks()) {
             event = h.run(event);
@@ -584,13 +584,13 @@ public class Engine {
          @Override
          public void run() {
             try {
-               if (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen()
-                       && (core_.getAutoShutter() || !core_.getShutterOpen()) ) {
-                  core_.setAutoShutter(false);
-                  core_.setShutterOpen(true);
-               } else if (event.shouldKeepShutterOpen() != null && !event.shouldKeepShutterOpen()) {
-                  core_.setAutoShutter(true);
-                  if (core_.getShutterOpen()) {
+               if (event.acquisition_.initialAutoshutterState_) { //only do any of this if autoshutter on
+                  if (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen() ) {
+                     core_.setAutoShutter(false);
+                     core_.setShutterOpen(true);
+                  } else if (event.shouldKeepShutterOpen() == null ||
+                          (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen()) {
+                     core_.setAutoShutter(true);
                      core_.setShutterOpen(false);
                   }
                }
