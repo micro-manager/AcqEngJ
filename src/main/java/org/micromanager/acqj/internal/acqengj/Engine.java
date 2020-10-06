@@ -589,7 +589,7 @@ public class Engine {
                      core_.setAutoShutter(false);
                      core_.setShutterOpen(true);
                   } else if (event.shouldKeepShutterOpen() == null ||
-                          (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen()) {
+                          (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen())) {
                      core_.setAutoShutter(true);
                      core_.setShutterOpen(false);
                   }
