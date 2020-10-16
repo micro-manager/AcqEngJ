@@ -409,16 +409,16 @@ public class Engine {
             LinkedList<StrVector> propSequences = event.isChannelSequenced() ? new LinkedList<StrVector>() : null;
             for (AcquisitionEvent e : event.getSequence()) {
                if (zSequence != null) {
-                  zSequence.add(event.getZPosition());
+                  zSequence.add(e.getZPosition());
                }
                if (xSequence != null) {
-                  xSequence.add(event.getXPosition());
+                  xSequence.add(e.getXPosition());
                }
                if (ySequence != null) {
-                  ySequence.add(event.getYPosition());
+                  ySequence.add(e.getYPosition());
                }
                if (exposureSequence_ms != null) {
-                  exposureSequence_ms.add(event.getExposure());
+                  exposureSequence_ms.add(e.getExposure());
                }
                //et sequences for all channel properties
                if (propSequences != null) {
@@ -426,11 +426,11 @@ public class Engine {
                      PropertySetting ps = config.getSetting(i);
                      String deviceName = ps.getDeviceLabel();
                      String propName = ps.getPropertyName();
-                     if (e == event.getSequence().get(0)) { //first property
+                     if (e == e.getSequence().get(0)) { //first property
                         propSequences.add(new StrVector());
                      }
                      Configuration channelPresetConfig = core_.getConfigData(group,
-                             event.getChannelConfig());
+                             e.getChannelConfig());
                      String propValue = channelPresetConfig.getSetting(deviceName, propName).getPropertyValue();
                      propSequences.get(i).add(propValue);
                   }
