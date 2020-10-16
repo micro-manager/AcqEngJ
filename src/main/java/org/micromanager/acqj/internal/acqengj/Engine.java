@@ -226,7 +226,7 @@ public class Engine {
          if (event.acquisition_.isFinished()) {
             return; //Duplicate finishing event, possibly from x-ing out viewer
          }
-         event.acquisition_.markFinished();
+         event.acquisition_.eventsFinished();
          event.acquisition_.addToOutput(new TaggedImage(null, null));
          for (AcquisitionHook h : event.acquisition_.getBeforeHardwareHooks()) {
             event = h.run(event);
@@ -409,16 +409,16 @@ public class Engine {
             LinkedList<StrVector> propSequences = event.isChannelSequenced() ? new LinkedList<StrVector>() : null;
             for (AcquisitionEvent e : event.getSequence()) {
                if (zSequence != null) {
-                  zSequence.add(event.getZPosition());
+                  zSequence.add(e.getZPosition());
                }
                if (xSequence != null) {
-                  xSequence.add(event.getXPosition());
+                  xSequence.add(e.getXPosition());
                }
                if (ySequence != null) {
-                  ySequence.add(event.getYPosition());
+                  ySequence.add(e.getYPosition());
                }
                if (exposureSequence_ms != null) {
-                  exposureSequence_ms.add(event.getExposure());
+                  exposureSequence_ms.add(e.getExposure());
                }
                //et sequences for all channel properties
                if (propSequences != null) {
@@ -426,11 +426,11 @@ public class Engine {
                      PropertySetting ps = config.getSetting(i);
                      String deviceName = ps.getDeviceLabel();
                      String propName = ps.getPropertyName();
-                     if (e == event.getSequence().get(0)) { //first property
+                     if (e == e.getSequence().get(0)) { //first property
                         propSequences.add(new StrVector());
                      }
                      Configuration channelPresetConfig = core_.getConfigData(group,
-                             event.getChannelConfig());
+                             e.getChannelConfig());
                      String propValue = channelPresetConfig.getSetting(deviceName, propName).getPropertyValue();
                      propSequences.get(i).add(propValue);
                   }
@@ -584,13 +584,15 @@ public class Engine {
          @Override
          public void run() {
             try {
-               if (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen()
-                       && (core_.getAutoShutter() || !core_.getShutterOpen()) ) {
-                  core_.setAutoShutter(false);
-                  core_.setShutterOpen(true);
-               } else if (event.shouldKeepShutterOpen() != null && !event.shouldKeepShutterOpen()
-                       && (!core_.getAutoShutter() || core_.getShutterOpen())) {
-                  core_.setShutterOpen(false);
+               if (event.acquisition_.initialAutoshutterState_) { //only do any of this if autoshutter on
+                  if (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen() ) {
+                     core_.setAutoShutter(false);
+                     core_.setShutterOpen(true);
+                  } else if (event.shouldKeepShutterOpen() == null ||
+                          (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen())) {
+                     core_.setAutoShutter(true);
+                     core_.setShutterOpen(false);
+                  }
                }
 
             } catch (Exception ex) {
@@ -695,7 +697,7 @@ public class Engine {
             if (!core_.isStageSequenceable(core_.getFocusDevice())) {
                return false;
             }
-            if (core_.getStageSequenceMaxLength(core_.getFocusDevice()) > newSeqLength) {
+            if (newSeqLength > core_.getStageSequenceMaxLength(core_.getFocusDevice())) {
                return false;
             }
          }
@@ -704,7 +706,7 @@ public class Engine {
             if (!core_.isXYStageSequenceable(core_.getXYStageDevice())) {
                return false;
             }
-            if (core_.getXYStageSequenceMaxLength(core_.getXYStageDevice()) > newSeqLength) {
+            if (newSeqLength > core_.getXYStageSequenceMaxLength(core_.getXYStageDevice())) {
                return false;
             }
          }
@@ -713,7 +715,7 @@ public class Engine {
             return false;
          }
          if (core_.isExposureSequenceable(core_.getCameraDevice()) &&
-                 core_.getExposureSequenceMaxLength(core_.getCameraDevice()) > newSeqLength) {
+                 newSeqLength > core_.getExposureSequenceMaxLength(core_.getCameraDevice())) {
             return false;
          }
          //timelapse

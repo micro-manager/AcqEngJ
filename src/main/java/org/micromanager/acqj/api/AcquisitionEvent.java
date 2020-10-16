@@ -348,7 +348,11 @@ public class AcquisitionEvent {
    }
 
    public boolean shouldAcquireImage() {
-      return channelConfig_ != null || axisPositions_.keySet().size() > 0;
+      if (sequence_ != null) {
+         return true;
+      } else {
+         return channelConfig_ != null || axisPositions_.keySet().size() > 0;
+      }
    }
 
    public boolean hasChannel() {

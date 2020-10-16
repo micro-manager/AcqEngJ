@@ -19,8 +19,6 @@ package org.micromanager.acqj.api;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -48,9 +46,10 @@ public class Acquisition implements AcquisitionInterface {
    protected String xyStage_, zStage_;
    protected boolean zStageHasLimits_ = false;
    protected double zStageLowerLimit_, zStageUpperLimit_;
-   protected volatile boolean finished_;
+   protected volatile boolean eventsFinished_;
    protected volatile boolean abortRequested_ = false;
    private volatile boolean aborted_ = false;
+   public final boolean initialAutoshutterState_;
    private JSONObject summaryMetadata_;
    private long startTime_ms_ = -1;
    private volatile boolean paused_ = false;
@@ -73,6 +72,7 @@ public class Acquisition implements AcquisitionInterface {
     */
    public Acquisition(DataSink sink) {
       core_ = Engine.getCore();
+      initialAutoshutterState_ = core_.getAutoShutter();
       dataSink_ = sink;
    }
 
@@ -180,7 +180,7 @@ public class Acquisition implements AcquisitionInterface {
    public void waitForCompletion() {
       try {
          //wait for event generation to shut down
-         while (!finished_) {
+         while (!eventsFinished_) {
             Thread.sleep(5);
          }
       } catch (InterruptedException ex) {
@@ -254,7 +254,7 @@ public class Acquisition implements AcquisitionInterface {
    private synchronized boolean saveImage(TaggedImage image) {
       if (image.tags == null && image.pix == null) {
          dataSink_.finished();
-         finished_ = true;
+         eventsFinished_ = true; //should have already been done, but just in case
          return true;
       } else {
          //Now that all data processors have run, the channel index can be inferred
@@ -323,11 +323,13 @@ public class Acquisition implements AcquisitionInterface {
       Engine.getInstance().finishAcquisition(this);
    }
 
-   public void markFinished() {
-      finished_ = true;
+   public void eventsFinished() {
+      eventsFinished_ = true;
+      //TODO: could add more restoration of inital settings at begginning of acquisition
+      core_.setAutoShutter(initialAutoshutterState_);
    }
 
    public boolean isFinished() {
-      return finished_;
+      return eventsFinished_;
    }
 }

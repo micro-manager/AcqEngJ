@@ -48,9 +48,9 @@ public class AcqEngMetadata {
    private static final String HEIGHT = "Height";
    private static final String PIX_SIZE = "PixelSize_um";
    private static final String POS_NAME = "PositionName";
-   private static final String X_UM_INTENDED = "XPosition_umIntended";
-   private static final String Y_UM_INTENDED = "YPosition_umIntended";
-   private static final String Z_UM_INTENDED = "ZPosition_umIntended";
+   private static final String X_UM_INTENDED = "XPosition_um_Intended";
+   private static final String Y_UM_INTENDED = "YPosition_um_Intended";
+   private static final String Z_UM_INTENDED = "ZPosition_um_Intended";
    private static final String X_UM = "XPosition_um";
    private static final String Y_UM = "YPosition_um";
    private static final String Z_UM = "ZPosition_um";
