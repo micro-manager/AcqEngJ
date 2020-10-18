@@ -41,7 +41,7 @@ public class Acquisition implements AcquisitionInterface {
 
    public static final int BEFORE_HARDWARE_HOOK = 0;
    public static final int AFTER_HARDWARE_HOOK = 1;
-   public static final int AFTER_CAMERA_HOOK = 1;
+   public static final int AFTER_CAMERA_HOOK = 2;
 
    protected String xyStage_, zStage_;
    protected boolean zStageHasLimits_ = false;

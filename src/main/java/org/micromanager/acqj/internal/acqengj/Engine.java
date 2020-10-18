@@ -228,16 +228,17 @@ public class Engine {
          }
          event.acquisition_.eventsFinished();
          event.acquisition_.addToOutput(new TaggedImage(null, null));
+         //send message acquisition finished message so things shut down properly
          for (AcquisitionHook h : event.acquisition_.getBeforeHardwareHooks()) {
-            event = h.run(event);
+            h.run(event);
             h.close();
          }
          for (AcquisitionHook h : event.acquisition_.getAfterHardwareHooks()) {
-            event = h.run(event);
+            h.run(event);
             h.close();
          }
          for (AcquisitionHook h : event.acquisition_.getAfterCameraHooks()) {
-            event = h.run(event);
+            h.run(event);
             h.close();
          }
       } else {
