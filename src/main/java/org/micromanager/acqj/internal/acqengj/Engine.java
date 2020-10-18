@@ -703,7 +703,7 @@ public class Engine {
             }
          }
          //xy stage
-         if (e1.getXPosition() != e2.getYPosition() || e1.getYPosition() != e2.getXPosition()) {
+         if (e1.getXPosition() != e2.getXPosition() || e1.getYPosition() != e2.getYPosition()) {
             if (!core_.isXYStageSequenceable(core_.getXYStageDevice())) {
                return false;
             }
