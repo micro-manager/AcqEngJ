@@ -694,7 +694,8 @@ public class Engine {
          //TODO check for arbitrary additional properties in the acq event for being sequencable
 
          //z stage
-         if (e1.getZPosition() != e2.getZPosition()) {
+         if (e1.getZPosition() != null && e2.getZPosition() != null &&
+                 (double)e1.getZPosition() != (double)e2.getZPosition()) {
             if (!core_.isStageSequenceable(core_.getFocusDevice())) {
                return false;
             }
@@ -703,7 +704,8 @@ public class Engine {
             }
          }
          //xy stage
-         if (e1.getXPosition() != e2.getYPosition() || e1.getYPosition() != e2.getXPosition()) {
+         if (e1.getXPosition() != null && e2.getXPosition() != null &&
+                 (double) e1.getXPosition() != (double) e2.getXPosition() || (double) e1.getYPosition() != (double) e2.getYPosition()) {
             if (!core_.isXYStageSequenceable(core_.getXYStageDevice())) {
                return false;
             }
@@ -712,7 +714,8 @@ public class Engine {
             }
          }
          //camera
-         if (e1.getExposure() != e2.getExposure() && !core_.isExposureSequenceable(core_.getCameraDevice())) {
+         if (e1.getExposure() != null && e2.getExposure() != null &&
+                 e1.getExposure() != e2.getExposure() && !core_.isExposureSequenceable(core_.getCameraDevice())) {
             return false;
          }
          if (core_.isExposureSequenceable(core_.getCameraDevice()) &&
