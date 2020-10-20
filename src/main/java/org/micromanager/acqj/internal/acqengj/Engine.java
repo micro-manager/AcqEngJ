@@ -585,7 +585,9 @@ public class Engine {
          @Override
          public void run() {
             try {
-               if (event.acquisition_.initialAutoshutterState_) { //only do any of this if autoshutter on
+               if (event.acquisition_.initialAutoshutterState_ &&
+                        event.getSequence() == null) {
+                  //only do any of this if autoshutter on. Also sequences handle their own shutter behavior
                   if (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen() ) {
                      core_.setAutoShutter(false);
                      core_.setShutterOpen(true);
