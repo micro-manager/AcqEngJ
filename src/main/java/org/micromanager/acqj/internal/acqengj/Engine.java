@@ -473,15 +473,24 @@ public class Engine {
             try {
                if (event.isZSequenced()) {
                   core_.startStageSequence(zStage);
-               } else if (event.getZPosition() != null
-                       && (lastEvent_ == null || event.getZPosition()
-                       != lastEvent_.getZPosition())) {
+               } else  {
+                  Double previousZ = lastEvent_ == null ? null : lastEvent_.getSequence() == null ? lastEvent_.getZPosition() :
+                          lastEvent_.getSequence().get(0).getZPosition();
+                  Double currentZ =  event.getSequence() == null ? event.getZPosition() : event.getSequence().get(0).getZPosition();
+                  if (currentZ == null) {
+                     return;
+                  }
+                  boolean change = previousZ == null || !previousZ.equals(currentZ);
+                  if (!change) {
+                     return;
+                  }
+
                   //wait for it to not be busy (is this even needed?)   
                   while (core_.deviceBusy(zStage)) {
                      Thread.sleep(1);
                   }
                   //Move Z
-                  core_.setPosition(zStage, event.getZPosition());
+                  core_.setPosition(zStage, currentZ);
                   //wait for move to finish
                   while (core_.deviceBusy(zStage)) {
                      Thread.sleep(1);
@@ -495,37 +504,47 @@ public class Engine {
       }, "Moving Z device");
 
       /////////////////////////////XY Stage////////////////////////////////////////////////////
-      if (event.getXPosition() != null && event.getYPosition() != null) {
-         loopHardwareCommandRetries(new Runnable() {
-            @Override
-            public void run() {
-               try {
-                  boolean noCurrentXY = lastEvent_ == null || lastEvent_.getXPosition() == null
-                          || lastEvent_.getYPosition() == null;
-                  boolean currentXY = event.getXPosition() != null && event.getYPosition() != null;
-                  boolean xyChanged = !noCurrentXY && event.getXPosition() != lastEvent_.getXPosition()
-                          && event.getYPosition() != lastEvent_.getYPosition();
-                  if (event.isXYSequenced()) {
-                     core_.startXYStageSequence(xyStage);
-                  } else if ((noCurrentXY && currentXY) || xyChanged) {
-                     //wait for it to not be busy (is this even needed?)   
-                     while (core_.deviceBusy(xyStage)) {
-                        Thread.sleep(1);
-                     }
-                     //Move XY
-                     core_.setXYPosition(xyStage, event.getXPosition(), event.getYPosition());
-                     //wait for move to finish
-                     while (core_.deviceBusy(xyStage)) {
-                        Thread.sleep(1);
-                     }
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               if (event.isXYSequenced()) {
+                  core_.startXYStageSequence(xyStage);
+               } else  {
+                  //could be sequenced over other devices, in that case get xy position from first in sequence
+                  Double prevXPosition = lastEvent_ == null ? null :
+                          lastEvent_.getSequence() == null ? lastEvent_.getXPosition() : lastEvent_.getSequence().get(0).getXPosition();
+                  Double xPosition = event.getSequence() == null ? event.getXPosition() : event.getSequence().get(0).getXPosition();
+                  Double prevYPosition = lastEvent_ == null ? null :
+                          lastEvent_.getSequence() == null ? lastEvent_.getYPosition() : lastEvent_.getSequence().get(0).getYPosition();
+                  Double yPosition = event.getSequence() == null ? event.getYPosition() : event.getSequence().get(0).getYPosition();
+                  boolean previousXYDefined = event != null && prevXPosition != null && prevYPosition != null;
+                  boolean currentXYDefined = event != null && xPosition != null && yPosition != null;
+                  if (!currentXYDefined) {
+                     return;
                   }
-               } catch (Exception ex) {
-                  ex.printStackTrace();
-                  throw new HardwareControlException(ex.getMessage());
+                  boolean xyChanged = !previousXYDefined || !prevXPosition.equals(xPosition) || !prevYPosition.equals(yPosition);
+                  if (!xyChanged) {
+                     return;
+                  }
+                  //wait for it to not be busy (is this even needed?)
+                  while (core_.deviceBusy(xyStage)) {
+                     Thread.sleep(1);
+                  }
+                  //Move XY
+                  core_.setXYPosition(xyStage, xPosition, yPosition);
+                  //wait for move to finish
+                  while (core_.deviceBusy(xyStage)) {
+                     Thread.sleep(1);
+                  }
                }
+            } catch (Exception ex) {
+               ex.printStackTrace();
+               throw new HardwareControlException(ex.getMessage());
             }
-         }, "Moving XY stage");
-      }
+         }
+      }, "Moving XY stage");
+
       /////////////////////////////Channels//////////////////////////////////////////////////
       loopHardwareCommandRetries(new Runnable() {
          @Override
@@ -585,7 +604,9 @@ public class Engine {
          @Override
          public void run() {
             try {
-               if (event.acquisition_.initialAutoshutterState_) { //only do any of this if autoshutter on
+               if (event.acquisition_.initialAutoshutterState_ &&
+                        event.getSequence() == null) {
+                  //only do any of this if autoshutter on. Also sequences handle their own shutter behavior
                   if (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen() ) {
                      core_.setAutoShutter(false);
                      core_.setShutterOpen(true);
