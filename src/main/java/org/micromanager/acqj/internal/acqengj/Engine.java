@@ -725,8 +725,8 @@ public class Engine {
             }
          }
          //xy stage
-         if (e1.getXPosition() != null && e2.getXPosition() != null &&
-                 (double) e1.getXPosition() != (double) e2.getXPosition() || (double) e1.getYPosition() != (double) e2.getYPosition()) {
+         if ((e1.getXPosition() != null && e2.getXPosition() != null && (double) e1.getXPosition() != (double) e2.getXPosition()) ||
+                 (e1.getYPosition() != null && e2.getYPosition() != null && (double) e1.getYPosition() != (double) e2.getYPosition())) {
             if (!core_.isXYStageSequenceable(core_.getXYStageDevice())) {
                return false;
             }
