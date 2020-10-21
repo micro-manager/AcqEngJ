@@ -561,16 +561,26 @@ public class Engine {
                      String propName = ps.getPropertyName();
                      core_.startPropertySequence(deviceName, propName);
                   }
-               } else if (event.hasChannel() && (lastEvent_ == null || !lastEvent_.hasChannel() ||
-                        !event.getChannelConfig().equals(lastEvent_.getChannelConfig()))) {
-                  //set exposure
-                  if (event.getExposure() != null) {
-                     core_.setExposure(event.getExposure());
-                  }
-                  //set other channel props
-                  core_.setConfig(event.getChannelGroup(), event.getChannelConfig());
-                  core_.waitForConfig(event.getChannelGroup(), event.getChannelConfig());
+               } else {
+                  //Get the values of current channel, pulling from the first event in a sequence if one is present
+                  String currentConfig = event.getSequence() == null ?
+                          event.getChannelConfig() : event.getSequence().get(0).getChannelConfig();
+                  String currentGroup = event.getSequence() == null ?
+                          event.getChannelGroup() : event.getSequence().get(0).getChannelGroup();
+                  String previousConfig = lastEvent_ == null ? null : lastEvent_.getSequence() == null ?
+                          lastEvent_.getChannelConfig() : lastEvent_.getSequence().get(0).getChannelConfig();
 
+                  boolean newChannel = currentConfig != null && (previousConfig == null || !previousConfig.equals(currentConfig));
+                  if ( newChannel ) {
+                     //set exposure
+                     if (event.getExposure() != null) {
+                        core_.setExposure(event.getExposure());
+                     }
+                     //set other channel props
+                     core_.setConfig(event.getChannelGroup(), event.getChannelConfig());
+                     // TODO: haven't tested if this is actually needed
+                     core_.waitForConfig(event.getChannelGroup(), event.getChannelConfig());
+                  }
                }
             } catch (Exception ex) {
                ex.printStackTrace();
@@ -587,9 +597,14 @@ public class Engine {
             try {
                if (event.isExposureSequenced()) {
                   core_.startExposureSequence(core_.getCameraDevice());
-               } else if ((lastEvent_ == null || lastEvent_.getExposure()
-                       != event.getExposure()) && event.getExposure() != null) {
-                  core_.setExposure(event.getExposure());
+               } else {
+                  Double currentExposure = event.getExposure();
+                  Double prevExposure = lastEvent_ == null ? null : lastEvent_.getExposure();
+                  boolean changeExposure = currentExposure != null &&
+                          (prevExposure == null || !prevExposure.equals(currentExposure));
+                  if (changeExposure) {
+                     core_.setExposure(event.getExposure());
+                  }
                }
             } catch (Exception ex) {
                throw new HardwareControlException(ex.getMessage());
