@@ -577,9 +577,9 @@ public class Engine {
                         core_.setExposure(event.getExposure());
                      }
                      //set other channel props
-                     core_.setConfig(event.getChannelGroup(), event.getChannelConfig());
+                     core_.setConfig(currentGroup, currentConfig);
                      // TODO: haven't tested if this is actually needed
-                     core_.waitForConfig(event.getChannelGroup(), event.getChannelConfig());
+                     core_.waitForConfig(currentGroup, currentConfig);
                   }
                }
             } catch (Exception ex) {
@@ -603,7 +603,7 @@ public class Engine {
                   boolean changeExposure = currentExposure != null &&
                           (prevExposure == null || !prevExposure.equals(currentExposure));
                   if (changeExposure) {
-                     core_.setExposure(event.getExposure());
+                     core_.setExposure(currentExposure);
                   }
                }
             } catch (Exception ex) {
