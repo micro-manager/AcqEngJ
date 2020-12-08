@@ -66,6 +66,9 @@ public class AcquisitionEvent {
    //Option to not acquire an image for shutter only and SLM events
    private Boolean acquireImage_ = null;
 
+   //Pattern to project onto SLM. Can either be int[] or byte[]
+   private Object slmImage_ = null;
+
    //Arbitary additional properties
    private TreeSet<ThreeTuple> properties_ = new TreeSet<ThreeTuple>();
 
@@ -114,6 +117,7 @@ public class AcquisitionEvent {
             configSet.add(sequence_.get(i).getChannelConfig());
          }
       }
+      //TODO: add SLM sequences
       exposureSequenced_ = exposureSet.size() > 1;
       channelSequenced_ = configSet.size() > 1;
       xySequenced_ = xPosSet.size() > 1 && yPosSet.size() > 1;
@@ -132,6 +136,7 @@ public class AcquisitionEvent {
       e.gridCol_ = gridCol_;
       e.miniumumStartTime_ms_ = miniumumStartTime_ms_;
       e.keepShutterOpen_ = keepShutterOpen_;
+      e.slmImage_ = slmImage_;
       e.acquireImage_ = acquireImage_;
       e.properties_ = new TreeSet<ThreeTuple>(this.properties_);
       return e;
@@ -168,6 +173,10 @@ public class AcquisitionEvent {
             json.put("keep_shutter_open", true);
          }
 
+         if (e.slmImage_ != null) {
+            json.put("slm_pattern", e.slmImage_);
+         }
+
          //Coordinate indices
          JSONObject axes = new JSONObject();
          for (String axis : e.axisPositions_.keySet()) {
@@ -195,7 +204,7 @@ public class AcquisitionEvent {
             json.put("col", e.gridCol_);
          }
 
-         //TODO: SLM, galvo, etc
+         //TODO: galvo
          //TODO: more support for imperative API calls (i.e. SLM set image)
          //Arbitrary extra properties
          JSONArray props = new JSONArray();
@@ -278,7 +287,11 @@ public class AcquisitionEvent {
             event.yPosition_ = json.getDouble("y");
          }
 
-         //TODO: SLM, galvo, etc (i.e. other aspects of imperative API)
+         if (json.has("slm_pattern")) {
+            event.slmImage_ = json.get("slm_pattern");
+         }
+
+         //TODO: galvo, etc (i.e. other aspects of imperative API)
 
          if (json.has("keep_shutter_open")) {
             event.keepShutterOpen_ = json.getBoolean("keep_shutter_open");
@@ -415,6 +428,10 @@ public class AcquisitionEvent {
       setAxisPosition(AcqEngMetadata.TIME_AXIS, index);
    }
 
+   public Object getSLMImage() {
+      return slmImage_;
+   }
+
    public void setZ(Integer index, Double position) {
       if (index != null) {
          setAxisPosition(AcqEngMetadata.Z_AXIS, index);
@@ -486,6 +503,10 @@ public class AcquisitionEvent {
       return zSequenced_;
    }
 
+   /**
+    * Get the stage coordinates of the corners of the camera field of view
+    * @return
+    */
    public Point2D.Double[] getDisplayPositionCorners() {
       if (xPosition_ == null || yPosition_ == null) {
          throw new RuntimeException("xy position undefined");

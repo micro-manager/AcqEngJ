@@ -39,11 +39,12 @@ public class Acquisition implements AcquisitionInterface {
 
    private static final int IMAGE_QUEUE_SIZE = 30;
 
-   public static final int BEFORE_HARDWARE_HOOK = 0;
-   public static final int AFTER_HARDWARE_HOOK = 1;
-   public static final int AFTER_CAMERA_HOOK = 2;
+   public static final int EVENT_GENERATION_HOOK = 0;
+   public static final int BEFORE_HARDWARE_HOOK = 1;
+   public static final int AFTER_HARDWARE_HOOK = 2;
+   public static final int AFTER_CAMERA_HOOK = 3;
 
-   protected String xyStage_, zStage_;
+   protected String xyStage_, zStage_, slm_;
    protected boolean zStageHasLimits_ = false;
    protected double zStageLowerLimit_, zStageUpperLimit_;
    protected volatile boolean eventsFinished_;
@@ -57,6 +58,7 @@ public class Acquisition implements AcquisitionInterface {
    private PixelStageTranslator pixelStageTranslator_;
    protected DataSink dataSink_;
    protected CMMCore core_;
+   private CopyOnWriteArrayList<AcquisitionHook> eventGenerationHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<AcquisitionHook> afterHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<AcquisitionHook> afterCameraHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
@@ -164,7 +166,9 @@ public class Acquisition implements AcquisitionInterface {
 
    @Override
    public void addHook(AcquisitionHook h, int type) {
-      if (type == BEFORE_HARDWARE_HOOK) {
+      if (type == EVENT_GENERATION_HOOK) {
+         eventGenerationHooks_.add(h);
+      } else if (type == BEFORE_HARDWARE_HOOK) {
          beforeHardwareHooks_.add(h);
       } else if (type == AFTER_HARDWARE_HOOK) {
          afterHardwareHooks_.add(h);
@@ -202,6 +206,7 @@ public class Acquisition implements AcquisitionInterface {
    protected void initialize(Integer overlapX, Integer overlapY) {
       xyStage_ = core_.getXYStageDevice();
       zStage_ = core_.getFocusDevice();
+      slm_ = core_.getSLMDevice();
       //"postion" is not generic name...and as of right now there is now way of getting generic z positions
       //from a z deviec in MM, but the following code works for some devices
       String positionName = "Position";
@@ -283,6 +288,10 @@ public class Acquisition implements AcquisitionInterface {
       return zStage_;
    }
 
+   public String getSLMName() {
+      return slm_;
+   }
+
    public long getStartTime_ms() {
       return startTime_ms_;
    }
@@ -305,6 +314,10 @@ public class Acquisition implements AcquisitionInterface {
 
    public boolean anythingAcquired() {
       return dataSink_ == null ? true : dataSink_.anythingAcquired();
+   }
+
+   public Iterable<AcquisitionHook> getEventGenerationHooks() {
+      return eventGenerationHooks_;
    }
 
    public Iterable<AcquisitionHook> getBeforeHardwareHooks() {
