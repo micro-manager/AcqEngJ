@@ -109,6 +109,13 @@ public class Engine {
             while (eventIterator.hasNext()) {
                AcquisitionEvent event = eventIterator.next();
 
+               for (AcquisitionHook h : event.acquisition_.getEventGenerationHooks()) {
+                  event = h.run(event);
+                  if (event == null) {
+                     return; //The hook cancelled this event
+                  }
+               }
+
                //Wait here is acquisition is paused
                while (event.acquisition_.isPaused()) {
                   try {
@@ -229,6 +236,10 @@ public class Engine {
          event.acquisition_.eventsFinished();
          event.acquisition_.addToOutput(new TaggedImage(null, null));
          //send message acquisition finished message so things shut down properly
+         for (AcquisitionHook h : event.acquisition_.getEventGenerationHooks()) {
+            h.run(event);
+            h.close();
+         }
          for (AcquisitionHook h : event.acquisition_.getBeforeHardwareHooks()) {
             h.run(event);
             h.close();
@@ -265,6 +276,9 @@ public class Engine {
                }
                try {
                   core_.stopSequenceAcquisition();
+                  if (event.isZSequenced()) {
+                     core_.stopStageSequence(event.acquisition_.getZStageName());
+                  }
                } catch (Exception ex) {
                   throw new RuntimeException("Couldn't stop sequence acquisition");
                }
@@ -397,6 +411,7 @@ public class Engine {
       //Get the hardware specific to this acquisition
       final String xyStage = event.acquisition_.getXYStageName();
       final String zStage = event.acquisition_.getZStageName();
+      final String slm = event.acquisition_.getSLMName();
       //prepare sequences if applicable
       if (event.getSequence() != null) {
          try {
@@ -638,6 +653,27 @@ public class Engine {
 
          }
       }, "Autoshutter control");
+
+      /////////////////////////////   SLM    //////////////////////////////////////////////
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               if (event.getSLMImage() != null) {
+                  if (event.getSLMImage() instanceof byte[]) {
+                     core_.setSLMImage(slm, (byte[]) event.getSLMImage());
+                  } else if (event.getSLMImage() instanceof int[]) {
+                     core_.setSLMImage(slm, (int[]) event.getSLMImage());
+                  } else {
+                     throw new RuntimeException("SLM api only supports 8 bit and 32 bit patterns");
+                  }
+               }
+            } catch (Exception ex) {
+               throw new HardwareControlException(ex.getMessage());
+            }
+
+         }
+      }, "Setting SLM pattern");
 
       //////////////////////////   Arbitrary Properties //////////////////////////////////
       loopHardwareCommandRetries(new Runnable() {

@@ -14,7 +14,7 @@ import org.micromanager.acqj.api.xystage.PixelStageTranslator;
  *
  * @author henrypinkard
  */
-public interface AcquisitionInterface {
+public interface AcquisitionAPI {
 
    /**
     * Commence acquisition or prepare it to receive externally generated events

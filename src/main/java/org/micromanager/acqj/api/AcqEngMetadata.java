@@ -24,8 +24,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
 import mmcorej.org.json.JSONArray;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
@@ -160,7 +159,7 @@ public class AcqEngMetadata {
     * @param acq acquisition
     * @return Summary metadata
     */
-   public static JSONObject makeSummaryMD(AcquisitionInterface acq) {
+   public static JSONObject makeSummaryMD(AcquisitionAPI acq) {
       JSONObject summary = new JSONObject();
 
       AcqEngMetadata.setAcqDate(summary, getCurrentDateAndTime());
