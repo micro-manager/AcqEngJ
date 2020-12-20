@@ -79,7 +79,7 @@ public class AcquisitionEvent {
    //To specify end of acquisition or end of sequence
    private SpecialFlag specialFlag_;
 
-   public AcquisitionEvent(AcquisitionInterface acq) {
+   public AcquisitionEvent(AcquisitionAPI acq) {
       acquisition_ = (Acquisition) acq;
    }
 
@@ -223,7 +223,7 @@ public class AcquisitionEvent {
       }
    }
 
-   private static AcquisitionEvent eventFromJSON(JSONObject json, AcquisitionInterface acq) {
+   private static AcquisitionEvent eventFromJSON(JSONObject json, AcquisitionAPI acq) {
       try {
          if (json.has("special")) {
             if (json.getString("special").equals("acquisition-end")) {
@@ -335,7 +335,7 @@ public class AcquisitionEvent {
       }
    }
 
-   public static AcquisitionEvent fromJSON(JSONObject json, AcquisitionInterface acq)  {
+   public static AcquisitionEvent fromJSON(JSONObject json, AcquisitionAPI acq)  {
       try {
          if (!json.has("events")) {
             return eventFromJSON((JSONObject) json, acq);
@@ -447,7 +447,7 @@ public class AcquisitionEvent {
       return getAxisPosition(AcqEngMetadata.Z_AXIS);
    }
 
-   public static AcquisitionEvent createAcquisitionFinishedEvent(AcquisitionInterface acq) {
+   public static AcquisitionEvent createAcquisitionFinishedEvent(AcquisitionAPI acq) {
       AcquisitionEvent evt = new AcquisitionEvent(acq);
       evt.specialFlag_ = SpecialFlag.AcqusitionFinished;
       return evt;
@@ -457,7 +457,7 @@ public class AcquisitionEvent {
       return specialFlag_ == SpecialFlag.AcqusitionFinished;
    }
 
-   public static AcquisitionEvent createAcquisitionSequenceEndEvent(AcquisitionInterface acq) {
+   public static AcquisitionEvent createAcquisitionSequenceEndEvent(AcquisitionAPI acq) {
       AcquisitionEvent evt = new AcquisitionEvent(acq);
       evt.specialFlag_ = SpecialFlag.AcqusitionSequenceEnd;
       return evt;

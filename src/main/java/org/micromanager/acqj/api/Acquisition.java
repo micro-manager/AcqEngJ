@@ -35,7 +35,7 @@ import org.micromanager.acqj.internal.acqengj.Engine;
  * types of acquisition. Minimal set of assumptions that mirror those in the
  * core. For example, assumes one Z stage, one XY stage, one channel group, etc
  */
-public class Acquisition implements AcquisitionInterface {
+public class Acquisition implements AcquisitionAPI {
 
    private static final int IMAGE_QUEUE_SIZE = 30;
 
