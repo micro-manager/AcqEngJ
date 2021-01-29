@@ -83,7 +83,7 @@ public class Engine {
                //same thread, events will only be cleared in the case of an abort
                sequenceBuilder_.clear();
                executeAcquisitionEvent(AcquisitionEvent.createAcquisitionFinishedEvent(acq));
-               while (!acq.isFinished()) {
+               while (!acq.areEventsFinished()) {
                   Thread.sleep(1);
                }
             } catch (InterruptedException ex) {
@@ -230,7 +230,7 @@ public class Engine {
 
       if (event.isAcquisitionFinishedEvent()) {
          //signal to finish saving thread and mark acquisition as finished
-         if (event.acquisition_.isFinished()) {
+         if (event.acquisition_.areEventsFinished()) {
             return; //Duplicate finishing event, possibly from x-ing out viewer
          }
          event.acquisition_.eventsFinished();

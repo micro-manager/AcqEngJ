@@ -22,6 +22,11 @@ public interface DataSink {
    public void finished();
 
    /**
+    * Is this sink and all associated resources complete (e.g. all data written to disk)
+    */
+   public boolean isFinished();
+
+   /**
     * Add a new image to saving/display etc
     * @param image 
     */

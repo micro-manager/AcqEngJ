@@ -38,7 +38,7 @@ public interface AcquisitionAPI {
     *
     * @return
     */
-   public boolean isFinished();
+   public boolean areEventsFinished();
 
    /**
     * return if acquisition is paused (i.e. not acquiring new data but not

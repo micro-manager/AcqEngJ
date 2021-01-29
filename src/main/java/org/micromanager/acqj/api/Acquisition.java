@@ -67,6 +67,7 @@ public class Acquisition implements AcquisitionAPI {
            = new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE);
    private ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>> processorOutputQueues_
            = new ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>>();
+   private boolean debugMode_ = false;
 
    /**
     * After calling this constructor, call initialize then start
@@ -84,7 +85,14 @@ public class Acquisition implements AcquisitionAPI {
    public DataSink getDataSink() {
       return dataSink_;
    }
-   
+
+   /**
+    * Don't delete, called by python side
+    */
+   public void setDebugMode(boolean debug) {debugMode_ = debug; }
+
+   public boolean isDebugMode() {return debugMode_;}
+
    public boolean isAbortRequested() {
       return abortRequested_;
    }
@@ -123,7 +131,9 @@ public class Acquisition implements AcquisitionAPI {
             try {
                while (true) {
                   boolean storageFinished;
-                  //System.out.println("Image queue size: " + firstDequeue_.size());
+                  if (debugMode_) {
+                     core_.logMessage("Image queue size: " + firstDequeue_.size());
+                  }
                   if (imageProcessors_.isEmpty()) {
                      TaggedImage img = firstDequeue_.takeFirst();
                      storageFinished = saveImage(img);
@@ -131,7 +141,13 @@ public class Acquisition implements AcquisitionAPI {
                      LinkedBlockingDeque<TaggedImage> dequeue = processorOutputQueues_.get(
                              imageProcessors_.get(imageProcessors_.size() - 1));
                      TaggedImage img = dequeue.takeFirst();
+                     if (debugMode_) {
+                        core_.logMessage("Saving image");
+                     }
                      storageFinished = saveImage(img);
+                     if (debugMode_) {
+                        core_.logMessage("Finished saving image");
+                     }
                   }
                   if (storageFinished) {
                      savingAndProcessingExecutor.shutdown();
@@ -253,10 +269,9 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    /**
-    * Called by acquisition engine to save an image, shoudn't return until it as
-    * been written to disk
+    * Called by acquisition engine to save an image
     */
-   private synchronized boolean saveImage(TaggedImage image) {
+   private boolean saveImage(TaggedImage image) {
       if (image.tags == null && image.pix == null) {
          dataSink_.finished();
          eventsFinished_ = true; //should have already been done, but just in case
@@ -342,7 +357,7 @@ public class Acquisition implements AcquisitionAPI {
       core_.setAutoShutter(initialAutoshutterState_);
    }
 
-   public boolean isFinished() {
+   public boolean areEventsFinished() {
       return eventsFinished_;
    }
 }
