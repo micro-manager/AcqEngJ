@@ -126,7 +126,9 @@ public class AcqEventModules {
                posEvent.setY(positions.get(index).getCenter().y);
                posEvent.setGridRow(positions.get(index).getGridRow());
                posEvent.setGridCol(positions.get(index).getGridCol());
-               posEvent.setAxisPosition(AcqEngMetadata.POSITION_AXIS, index);
+               posEvent.setAxisPosition(AcqEngMetadata.AXES_GRID_ROW, positions.get(index).getGridRow());
+               posEvent.setAxisPosition(AcqEngMetadata.AXES_GRID_COL, positions.get(index).getGridCol());
+//               posEvent.setAxisPosition(AcqEngMetadata.POSITION_AXIS, index);
                builder.accept(posEvent);
             }
          }

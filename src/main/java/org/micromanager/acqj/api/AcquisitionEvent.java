@@ -273,8 +273,7 @@ public class AcquisitionEvent {
          if (event.gridRow_ != null && event.gridCol_ != null) {
             int posIndex = acq.getPixelStageTranslator().getPositionIndices(
                     new int[]{event.gridRow_}, new int[]{event.gridCol_})[0];
-            //add position axis for this row/col
-            event.axisPositions_.put(AcqEngMetadata.POSITION_AXIS, posIndex);
+
             //infer XY stage position based on affine transform
             Point2D.Double xyPos = acq.getPixelStageTranslator().getXYPosition(posIndex).getCenter();
             event.xPosition_ = xyPos.x;
@@ -362,6 +361,8 @@ public class AcquisitionEvent {
 
    public boolean shouldAcquireImage() {
       if (sequence_ != null) {
+         return true;
+      } else if (gridRow_ != null && gridCol_ != null) {
          return true;
       } else {
          return channelConfig_ != null || axisPositions_.keySet().size() > 0;
