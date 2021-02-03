@@ -25,6 +25,9 @@ import org.micromanager.acqj.internal.acqengj.Engine;
  */
 public class PixelStageTranslator {
 
+   //TODO: Much of this class could be removed, since position index is no longer a thing that is needed for
+   // tiled axes. They are now indexed by row and col axes
+
    private static final String COORDINATES_KEY = "DeviceCoordinatesUm";
    
    private AffineTransform affine_;

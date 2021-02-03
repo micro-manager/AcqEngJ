@@ -63,7 +63,7 @@ public class Acquisition implements AcquisitionAPI {
    private CopyOnWriteArrayList<AcquisitionHook> afterHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<AcquisitionHook> afterCameraHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<TaggedImageProcessor> imageProcessors_ = new CopyOnWriteArrayList<TaggedImageProcessor>();
-   private LinkedBlockingDeque<TaggedImage> firstDequeue_
+   protected LinkedBlockingDeque<TaggedImage> firstDequeue_
            = new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE);
    private ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>> processorOutputQueues_
            = new ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>>();
@@ -132,7 +132,7 @@ public class Acquisition implements AcquisitionAPI {
                while (true) {
                   boolean storageFinished;
                   if (debugMode_) {
-                     core_.logMessage("Image queue size: " + firstDequeue_.size());
+//                     core_.logMessage("Image queue size: " + firstDequeue_.size());
                   }
                   if (imageProcessors_.isEmpty()) {
                      TaggedImage img = firstDequeue_.takeFirst();

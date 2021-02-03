@@ -65,9 +65,11 @@ public class AcqEngMetadata {
    private static final String BIT_DEPTH = "BitDepth";
    private static final String ELAPSED_TIME_MS = "ElapsedTime-ms";
    private static final String Z_STEP_UM = "z-step_um";
-   private static final String GRID_COL = "GridColumnIndex";
-   private static final String GRID_ROW = "GridRowIndex";
-      private static final String OVERLAP_X = "GridPixelOverlapX";
+   public static final String GRID_COL = "GridColumnIndex";
+   public static final String GRID_ROW = "GridRowIndex";
+   public static final String AXES_GRID_COL = "column";
+   public static final String AXES_GRID_ROW = "row";
+   private static final String OVERLAP_X = "GridPixelOverlapX";
    private static final String OVERLAP_Y = "GridPixelOverlapY";
    private static final String AFFINE_TRANSFORM = "AffineTransform";
    private static final String PIX_TYPE_GRAY8 = "GRAY8";
@@ -79,7 +81,6 @@ public class AcqEngMetadata {
    public static final String CHANNEL_AXIS = "channel";
    public static final String TIME_AXIS = "time";
    public static final String Z_AXIS = "z";
-   public static final String POSITION_AXIS = "position";
 
    /**
     * Add the core set of image metadata that should be present in any
@@ -94,6 +95,9 @@ public class AcqEngMetadata {
    public static void addImageMetadata(JSONObject tags, AcquisitionEvent event,
            int camChannelIndex, long elapsed_ms, double exposure) {
       try {
+
+         AcqEngMetadata.setPixelSizeUm(tags, Engine.getCore().getPixelSizeUm());
+
          //////////  Date and time   //////////////
          AcqEngMetadata.setElapsedTimeMs(tags, elapsed_ms);
          AcqEngMetadata.setImageTime(tags, (new SimpleDateFormat("yyyy-MM-dd HH:mm:ss -")).format(Calendar.getInstance().getTime()));
@@ -166,9 +170,9 @@ public class AcqEngMetadata {
 
       //General information the core-camera
       AcqEngMetadata.setPixelTypeFromByteDepth(summary, (int) Engine.getCore().getBytesPerPixel());
-      AcqEngMetadata.setBitDepth(summary, (int) Engine.getCore().getImageBitDepth());
-      AcqEngMetadata.setWidth(summary, (int) Engine.getCore().getImageWidth());
-      AcqEngMetadata.setHeight(summary, (int) Engine.getCore().getImageHeight());
+//      AcqEngMetadata.setBitDepth(summary, (int) Engine.getCore().getImageBitDepth());
+//      AcqEngMetadata.setWidth(summary, (int) Engine.getCore().getImageWidth());
+//      AcqEngMetadata.setHeight(summary, (int) Engine.getCore().getImageHeight());
       AcqEngMetadata.setPixelSizeUm(summary, Engine.getCore().getPixelSizeUm());
 
       /////// Info about core devices ////////
@@ -265,14 +269,6 @@ public class AcqEngMetadata {
       } catch (JSONException ex) {
          throw new RuntimeException("couldnt set core focus tag");
       }
-   }
-
-   public static int getPositionIndex(JSONObject map) {
-      return getAxisPosition(map, POSITION_AXIS);
-   }
-
-   public static void setPositionIndex(JSONObject map, int positionIndex) {
-      setAxisPosition(map, POSITION_AXIS, positionIndex);
    }
 
    public static void setBitDepth(JSONObject map, int bitDepth) {
@@ -455,10 +451,6 @@ public class AcqEngMetadata {
    public static boolean isRGB(JSONObject map) {
       return (isRGB32(map));
 //              || isRGB64(map));
-   }
-
-   public static String generateLabel(int channel, int slice, int frame, int position) {
-      return channel + "_" + slice + "_" + frame + "_" + position;
    }
 
    public static String[] getKeys(JSONObject md) {
