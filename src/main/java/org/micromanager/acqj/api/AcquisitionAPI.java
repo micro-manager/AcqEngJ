@@ -6,6 +6,8 @@
 package org.micromanager.acqj.api;
 
 import java.util.Iterator;
+import java.util.concurrent.Future;
+
 import mmcorej.org.json.JSONObject;
 import org.micromanager.acqj.api.xystage.PixelStageTranslator;
 
@@ -89,7 +91,7 @@ public interface AcquisitionAPI {
     * will automatically optimize over this list (i.e. implement hardware sequencing).
     * @param evt 
     */
-   public void submitEventIterator(Iterator<AcquisitionEvent> evt);
+   public Future submitEventIterator(Iterator<AcquisitionEvent> evt);
 
    /**
     * Get the PixelStageTranslator, which maps the coordinate space of pixels to xy coordinates of the stage.

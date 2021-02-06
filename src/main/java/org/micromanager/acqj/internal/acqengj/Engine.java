@@ -300,24 +300,19 @@ public class Engine {
     * @throws HardwareControlException
     */
    private void acquireImages(final AcquisitionEvent event) throws InterruptedException, HardwareControlException {
-
-      loopHardwareCommandRetries(new Runnable() {
-         @Override
-         public void run() {
-            try {
-               if (event.getSequence() != null && event.getSequence().size() > 1) {
-                  //start hardware sequence
-                  core_.startSequenceAcquisition(event.getSequence().size(), 0, true);
-               } else {
-                  //snap one image with no sequencing
+      try {
+         if (event.getSequence() != null && event.getSequence().size() > 1) {
+            //start hardware sequence
+//            core_.clearCircularBuffer();
+            core_.startSequenceAcquisition(event.getSequence().size(), 0, true);
+         } else {
+            //snap one image with no sequencing
 //                  core_.startSequenceAcquisition(1, 0, true);
-                  core_.snapImage();
-               }
-            } catch (Exception ex) {
-               throw new HardwareControlException(ex.getMessage());
-            }
+            core_.snapImage();
          }
-      }, "snapping image");
+      } catch (Exception ex) {
+         throw new HardwareControlException(ex.getMessage());
+      }
 
       //get elapsed time
       final long currentTime = System.currentTimeMillis();
@@ -362,11 +357,24 @@ public class Engine {
             while (ti == null) {
                try {
                   if (event.getSequence() != null && event.getSequence().size() > 1) {
-                     ti = core_.popNextTaggedImage();
+                     if (core_.isBufferOverflowed()) {
+
+                        throw new RuntimeException("Sequence buffer overflow");
+                     }
+                     try {
+                        ti = core_.popNextTaggedImage();
+                     } catch (Exception e) {
+                        //continue waiting
+                     }
                   } else {
-                     ti = core_.getTaggedImage(camIndex);
+                     try {
+                        ti = core_.getTaggedImage(camIndex);
+                     } catch (Exception e) {
+                        //continue waiting
+                     }
                   }
                } catch (Exception ex) {
+                  throw new HardwareControlException(ex.toString());
                }
             }
             //Doesnt seem to be a version in the API in which you dont have to do this
