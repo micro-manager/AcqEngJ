@@ -95,8 +95,7 @@ public class AffineTransformUtils {
 
    public static AffineTransform getAffineTransform(double xTranslation, double yTranslation) {
       try {
-         AffineTransform transform = doubleToAffine(Engine.getCore().getPixelSizeAffineByID(
-                 Engine.getCore().getCurrentPixelSizeConfig()));
+         AffineTransform transform = doubleToAffine(Engine.getCore().getPixelSizeAffine());
          //set map origin to current stage position
          double[] matrix = new double[6];
          transform.getMatrix(matrix);
