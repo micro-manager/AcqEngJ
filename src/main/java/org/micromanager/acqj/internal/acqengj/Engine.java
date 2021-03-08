@@ -23,6 +23,9 @@ package org.micromanager.acqj.internal.acqengj;
 import org.micromanager.acqj.api.Acquisition;
 import org.micromanager.acqj.api.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -562,6 +565,7 @@ public class Engine {
                   }
                }
             } catch (Exception ex) {
+               core_.logMessage(stackTraceToString(ex));
                ex.printStackTrace();
                throw new HardwareControlException(ex.getMessage());
             }
@@ -724,8 +728,7 @@ public class Engine {
             r.run();
             return;
          } catch (Exception e) {
-            e.printStackTrace();
-
+            core_.logMessage(stackTraceToString(e));
             System.err.println(getCurrentDateAndTime() + ": Problem "
                     + commandName + "\n Retry #" + i + " in " + DELAY_BETWEEN_RETRIES_MS + " ms");
             Thread.sleep(DELAY_BETWEEN_RETRIES_MS);
@@ -827,7 +830,17 @@ public class Engine {
       }
       return new AcquisitionEvent(eventList);
    }
+
+   public static String stackTraceToString(Exception ex) {
+      StringWriter sw = new StringWriter();
+      PrintWriter pw = new PrintWriter(sw);
+      ex.printStackTrace(pw);
+      String sStackTrace = sw.toString();
+      return sStackTrace;
+   }
 }
+
+
 
 class HardwareControlException extends RuntimeException {
 

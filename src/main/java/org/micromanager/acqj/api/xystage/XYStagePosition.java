@@ -97,23 +97,6 @@ public class XYStagePosition {
       return corners;
    }
 
-   public boolean isInGrid() {
-      return inGrid_;
-   }
-
-   //OVerride these methods so positions can be compared
-   @Override
-   public boolean equals(Object o) {
-      if (this == o) {
-         return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-         return false;
-      }
-
-      return center_.equals(((XYStagePosition) o).center_);
-   }
-
    @Override
    public int hashCode() {
       return Objects.hash(center_);

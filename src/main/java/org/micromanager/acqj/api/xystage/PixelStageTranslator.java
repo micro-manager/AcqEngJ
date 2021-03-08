@@ -56,30 +56,24 @@ public class PixelStageTranslator {
     * @return stage coordinates of the given pixel position
     */
    public synchronized Point2D.Double getStageCoordsFromPixelCoords(long xAbsolute, long yAbsolute) {
-      try {
-         if (positionList_.size() == 0) {
-            throw new RuntimeException("No positions yet defined");
-         }
-         JSONObject existingPosition = positionList_.get(0).toJSON(xyStageName_);
-         double exisitngX = existingPosition.getJSONObject(COORDINATES_KEY).getJSONArray(xyStageName_).getDouble(0);
-         double exisitngY = existingPosition.getJSONObject(COORDINATES_KEY).getJSONArray(xyStageName_).getDouble(1);
-         long existingRow = AcqEngMetadata.getGridRow(existingPosition);
-         long existingColumn = AcqEngMetadata.getGridCol(existingPosition);
-         //get pixel displacement from center of the tile we have coordinates for
-         long dxPix = (long) (xAbsolute - (existingColumn + 0.5) * displayTileWidth_);
-         long dyPix = (long) (yAbsolute - (existingRow + 0.5) * displayTileHeight_);
-
-         Point2D.Double stagePos = new Point2D.Double();
-         double[] mat = new double[4];
-         affine_.getMatrix(mat);
-         AffineTransform transform = new AffineTransform(mat[0], mat[1], mat[2], mat[3], exisitngX, exisitngY);
-         transform.transform(new Point2D.Double(dxPix, dyPix), stagePos);
-         return stagePos;
-      } catch (JSONException ex) {
-         ex.printStackTrace();;
-         throw new RuntimeException("Problem with current position metadata");
+      if (positionList_.size() == 0) {
+         throw new RuntimeException("No positions yet defined");
       }
+      XYStagePosition existingPosition = positionList_.get(0);
+      double existingX = existingPosition.getCenter().x;
+      double existingY = existingPosition.getCenter().y;
+      double existingRow = existingPosition.getGridRow();
+      double existingColumn = existingPosition.getGridCol();
+      //get pixel displacement from center of the tile we have coordinates for
+      long dxPix = (long) (xAbsolute - (existingColumn + 0.5) * displayTileWidth_);
+      long dyPix = (long) (yAbsolute - (existingRow + 0.5) * displayTileHeight_);
 
+      Point2D.Double stagePos = new Point2D.Double();
+      double[] mat = new double[4];
+      affine_.getMatrix(mat);
+      AffineTransform transform = new AffineTransform(mat[0], mat[1], mat[2], mat[3], existingX, existingY);
+      transform.transform(new Point2D.Double(dxPix, dyPix), stagePos);
+      return stagePos;
    }
 
    /**
@@ -88,15 +82,15 @@ public class PixelStageTranslator {
     */
    public synchronized Point getPixelCoordsFromStageCoords(double stageX, double stageY) {
       try {
-         JSONObject existingPosition = new JSONObject(positionList_.get(0).toJSON(xyStageName_).toString());
-         double exisitngX = existingPosition.getJSONObject(COORDINATES_KEY).getJSONArray(xyStageName_).getDouble(0);
-         double exisitngY = existingPosition.getJSONObject(COORDINATES_KEY).getJSONArray(xyStageName_).getDouble(1);
-         long existingRow = AcqEngMetadata.getGridRow(existingPosition);
-         long existingColumn = AcqEngMetadata.getGridCol(existingPosition);
+         XYStagePosition existingPosition = positionList_.get(0);
+         double existingX = existingPosition.getCenter().x;
+         double existingY = existingPosition.getCenter().y;
+         double existingRow = existingPosition.getGridRow();
+         double existingColumn = existingPosition.getGridCol();
 
          //get stage displacement from center of the tile we have coordinates for
-         double dx = stageX - exisitngX;
-         double dy = stageY - exisitngY;
+         double dx = stageX - existingX;
+         double dy = stageY - existingY;
          AffineTransform transform = (AffineTransform) affine_.clone();
          Point2D.Double pixelOffset = new Point2D.Double(); // offset in number of pixels from the center of this tile
          transform.inverseTransform(new Point2D.Double(dx, dy), pixelOffset);
@@ -104,25 +98,22 @@ public class PixelStageTranslator {
          int xPixel = (int) ((existingColumn + 0.5) * displayTileWidth_ + pixelOffset.x);
          int yPixel = (int) ((existingRow + 0.5) * displayTileHeight_ + pixelOffset.y);
          return new Point(xPixel, yPixel);
-      } catch (JSONException ex) {
-         ex.printStackTrace();
-         throw new RuntimeException("Problem with current position metadata");
       } catch (NoninvertibleTransformException e) {
          throw new RuntimeException("Problem using affine transform to convert stage coordinates to pixel coordinates");
       }
    }
 
    public synchronized XYStagePosition getXYPosition(int index) {
-      try {
-         JSONArray jsonPos = new JSONArray(positionList_.get(index).toJSON(xyStageName_).getJSONObject(
-                 "DeviceCoordinatesUm").getJSONArray(xyStageName_).toString());
-         Point2D.Double posCenter = new Point2D.Double(jsonPos.getDouble(0), jsonPos.getDouble(1));
-         int gridRow = (int) AcqEngMetadata.getGridRow(positionList_.get(index).toJSON(xyStageName_));
-         int gridCol = (int) AcqEngMetadata.getGridCol(positionList_.get(index).toJSON(xyStageName_));
-         return new XYStagePosition(posCenter, gridRow, gridCol);
-      } catch (JSONException ex) {
-         throw new RuntimeException("problem with position metadata");
-      }
+      return new XYStagePosition(positionList_.get(index).getCenter(),
+              positionList_.get(index).getGridRow(), positionList_.get(index).getGridCol() );
+//
+//         JSONArray jsonPos = new JSONArray(positionList_.get(index).toJSON(xyStageName_).getJSONObject(
+//                 "DeviceCoordinatesUm").getJSONArray(xyStageName_).toString());
+//         Point2D.Double posCenter = new Point2D.Double(jsonPos.getDouble(0), jsonPos.getDouble(1));
+//         int gridRow = (int) AcqEngMetadata.getGridRow(positionList_.get(index).toJSON(xyStageName_));
+//         int gridCol = (int) AcqEngMetadata.getGridCol(positionList_.get(index).toJSON(xyStageName_));
+//         return new XYStagePosition(posCenter, gridRow, gridCol);
+
    }
 
    public int getFullResPositionIndexFromStageCoords(double x, double y) {
@@ -151,58 +142,29 @@ public class PixelStageTranslator {
     * @return
     */
    private synchronized Point2D.Double getStagePositionCoordinates(int row, int col, int pixelOverlapX, int pixelOverlapY) {
-      try {
-         if (positionList_.size() == 0) {
-            try {
-               //create position 0 based on current XY stage position--happens at start of explore acquisition
-               return new Point2D.Double(Engine.getCore().getXPosition(xyStageName_), Engine.getCore().getYPosition(xyStageName_));
-            } catch (Exception ex) {
-               throw new RuntimeException("Couldn't create position 0");
-            }
-         } else {
-            JSONObject existingPosition = positionList_.get(0).toJSON(xyStageName_);
-
-            double exisitngX = existingPosition.getJSONObject(COORDINATES_KEY).getJSONArray(xyStageName_).getDouble(0);
-            double exisitngY = existingPosition.getJSONObject(COORDINATES_KEY).getJSONArray(xyStageName_).getDouble(1);
-            long existingRow = AcqEngMetadata.getGridRow(existingPosition);
-            long existingColumn = AcqEngMetadata.getGridCol(existingPosition);
-
-            double xPixelOffset = (col - existingColumn) * (Engine.getCore().getImageWidth() - pixelOverlapX);
-            double yPixelOffset = (row - existingRow) * (Engine.getCore().getImageHeight() - pixelOverlapY);
-
-            Point2D.Double stagePos = new Point2D.Double();
-            double[] mat = new double[4];
-            affine_.getMatrix(mat);
-            AffineTransform transform = new AffineTransform(mat[0], mat[1], mat[2], mat[3], exisitngX, exisitngY);
-            transform.transform(new Point2D.Double(xPixelOffset, yPixelOffset), stagePos);
-            return stagePos;
+      if (positionList_.size() == 0) {
+         try {
+            //create position 0 based on current XY stage position--happens at start of explore acquisition
+            return new Point2D.Double(Engine.getCore().getXPosition(xyStageName_), Engine.getCore().getYPosition(xyStageName_));
+         } catch (Exception ex) {
+            throw new RuntimeException("Couldn't create position 0");
          }
+      } else {
+         XYStagePosition existingPosition = positionList_.get(0);
+         double existingX = existingPosition.getCenter().x;
+         double existingY = existingPosition.getCenter().y;
+         double existingRow = existingPosition.getGridRow();
+         double existingColumn = existingPosition.getGridCol();
 
-      } catch (JSONException ex) {
-         ex.printStackTrace();
-         throw new RuntimeException("Problem with current position metadata");
-      }
-   }
-   
-   
-     
-   private JSONObject createPosition(int row, int col) {
-      try {
-         JSONArray xy = new JSONArray();
-         Point2D.Double stageCoords = getStagePositionCoordinates(row, col, overlapX_, overlapY_);
+         double xPixelOffset = (col - existingColumn) * (Engine.getCore().getImageWidth() - pixelOverlapX);
+         double yPixelOffset = (row - existingRow) * (Engine.getCore().getImageHeight() - pixelOverlapY);
 
-         JSONObject coords = new JSONObject();
-         xy.put(stageCoords.x);
-         xy.put(stageCoords.y);
-         coords.put(xyStageName_, xy);
-         JSONObject pos = new JSONObject();
-         pos.put(COORDINATES_KEY, coords);
-         AcqEngMetadata.setGridCol(pos, col);
-         AcqEngMetadata.setGridRow(pos, row);
-
-         return pos;
-      } catch (Exception e) {
-         throw new RuntimeException("Couldn't create XY position");
+         Point2D.Double stagePos = new Point2D.Double();
+         double[] mat = new double[4];
+         affine_.getMatrix(mat);
+         AffineTransform transform = new AffineTransform(mat[0], mat[1], mat[2], mat[3], existingX, existingY);
+         transform.transform(new Point2D.Double(xPixelOffset, yPixelOffset), stagePos);
+         return stagePos;
       }
    }
 
