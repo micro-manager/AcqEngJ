@@ -17,12 +17,8 @@
 package org.micromanager.acqj.api;
 
 import java.util.Iterator;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+
 import mmcorej.CMMCore;
 import mmcorej.TaggedImage;
 import mmcorej.org.json.JSONException;
@@ -117,8 +113,9 @@ public class Acquisition implements AcquisitionAPI {
       //This can be overriden by subclasses to add additional metadata
    }
 
-   public void submitEventIterator(Iterator<AcquisitionEvent> evt) {
-      Engine.getInstance().submitEventIterator(evt, this);
+   @Override
+   public Future submitEventIterator(Iterator<AcquisitionEvent> evt) {
+      return Engine.getInstance().submitEventIterator(evt, this);
    }
 
    @Override

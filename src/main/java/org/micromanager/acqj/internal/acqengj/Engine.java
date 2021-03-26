@@ -23,6 +23,9 @@ package org.micromanager.acqj.internal.acqengj;
 import org.micromanager.acqj.api.Acquisition;
 import org.micromanager.acqj.api.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -300,24 +303,19 @@ public class Engine {
     * @throws HardwareControlException
     */
    private void acquireImages(final AcquisitionEvent event) throws InterruptedException, HardwareControlException {
-
-      loopHardwareCommandRetries(new Runnable() {
-         @Override
-         public void run() {
-            try {
-               if (event.getSequence() != null && event.getSequence().size() > 1) {
-                  //start hardware sequence
-                  core_.startSequenceAcquisition(event.getSequence().size(), 0, true);
-               } else {
-                  //snap one image with no sequencing
+      try {
+         if (event.getSequence() != null && event.getSequence().size() > 1) {
+            //start hardware sequence
+//            core_.clearCircularBuffer();
+            core_.startSequenceAcquisition(event.getSequence().size(), 0, true);
+         } else {
+            //snap one image with no sequencing
 //                  core_.startSequenceAcquisition(1, 0, true);
-                  core_.snapImage();
-               }
-            } catch (Exception ex) {
-               throw new HardwareControlException(ex.getMessage());
-            }
+            core_.snapImage();
          }
-      }, "snapping image");
+      } catch (Exception ex) {
+         throw new HardwareControlException(ex.getMessage());
+      }
 
       //get elapsed time
       final long currentTime = System.currentTimeMillis();
@@ -362,11 +360,24 @@ public class Engine {
             while (ti == null) {
                try {
                   if (event.getSequence() != null && event.getSequence().size() > 1) {
-                     ti = core_.popNextTaggedImage();
+                     if (core_.isBufferOverflowed()) {
+
+                        throw new RuntimeException("Sequence buffer overflow");
+                     }
+                     try {
+                        ti = core_.popNextTaggedImage();
+                     } catch (Exception e) {
+                        //continue waiting
+                     }
                   } else {
-                     ti = core_.getTaggedImage(camIndex);
+                     try {
+                        ti = core_.getTaggedImage(camIndex);
+                     } catch (Exception e) {
+                        //continue waiting
+                     }
                   }
                } catch (Exception ex) {
+                  throw new HardwareControlException(ex.toString());
                }
             }
             //Doesnt seem to be a version in the API in which you dont have to do this
@@ -554,6 +565,7 @@ public class Engine {
                   }
                }
             } catch (Exception ex) {
+               core_.logMessage(stackTraceToString(ex));
                ex.printStackTrace();
                throw new HardwareControlException(ex.getMessage());
             }
@@ -716,8 +728,7 @@ public class Engine {
             r.run();
             return;
          } catch (Exception e) {
-            e.printStackTrace();
-
+            core_.logMessage(stackTraceToString(e));
             System.err.println(getCurrentDateAndTime() + ": Problem "
                     + commandName + "\n Retry #" + i + " in " + DELAY_BETWEEN_RETRIES_MS + " ms");
             Thread.sleep(DELAY_BETWEEN_RETRIES_MS);
@@ -819,7 +830,17 @@ public class Engine {
       }
       return new AcquisitionEvent(eventList);
    }
+
+   public static String stackTraceToString(Exception ex) {
+      StringWriter sw = new StringWriter();
+      PrintWriter pw = new PrintWriter(sw);
+      ex.printStackTrace(pw);
+      String sStackTrace = sw.toString();
+      return sStackTrace;
+   }
 }
+
+
 
 class HardwareControlException extends RuntimeException {
 
