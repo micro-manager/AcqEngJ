@@ -53,7 +53,7 @@ public class Acquisition implements AcquisitionAPI {
    private CopyOnWriteArrayList<String> channelNames_ = new CopyOnWriteArrayList<String>();
    private PixelStageTranslator pixelStageTranslator_;
    protected DataSink dataSink_;
-   protected CMMCore core_;
+   final public CMMCore core_;
    private CopyOnWriteArrayList<AcquisitionHook> eventGenerationHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<AcquisitionHook> afterHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
@@ -63,7 +63,7 @@ public class Acquisition implements AcquisitionAPI {
            = new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE);
    private ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>> processorOutputQueues_
            = new ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>>();
-   private boolean debugMode_ = false;
+   public boolean debugMode_ = false;
 
    /**
     * After calling this constructor, call initialize then start
