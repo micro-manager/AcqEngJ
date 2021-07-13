@@ -131,6 +131,8 @@ public class AcqEngMetadata {
             AcqEngMetadata.setStageXIntended(tags, event.getXPosition());
             AcqEngMetadata.setStageYIntended(tags, event.getYPosition());
             if (event.getGridRow() != null && event.getGridCol() != null) {
+               AcqEngMetadata.setAxisPosition(tags, AcqEngMetadata.AXES_GRID_ROW, event.getGridRow());
+               AcqEngMetadata.setAxisPosition(tags, AcqEngMetadata.AXES_GRID_COL, event.getGridCol());
                AcqEngMetadata.setGridRow(tags, event.getGridRow());
                AcqEngMetadata.setGridCol(tags, event.getGridCol());
 //               TODO: add overlap here?
