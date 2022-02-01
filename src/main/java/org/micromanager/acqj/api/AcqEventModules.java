@@ -97,7 +97,7 @@ public class AcqEventModules {
                channelEvent.setZ(channelEvent.getZIndex(), 
                    channelEvent.getZPosition() != null ? 
                            channelEvent.getZPosition()  + channelList.get(index).offset_ :
-                           channelList.get(index).offset_);
+                           null);
                channelEvent.setExposure(channelList.get(index).exposure_);
                index++;
                return channelEvent;
