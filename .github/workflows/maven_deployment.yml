@@ -35,7 +35,7 @@ jobs:
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
           
       - name: Get color
-        run: echo "helllllo" echo $OSSRH_USERNAME && echo $OSSRH_PASSWORD && echo $MAVEN_GPG_PASSPHRASE && echo $OSSRH_USERNAME
+        run:  echo $MAVEN_GPG_PASSPHRASE 
 
      # - name: Set projects Maven version to GitHub Action GUI set version
       #  run: mvn versions:set "-DnewVersion=${{ github.event.inputs.releaseversion }}"
