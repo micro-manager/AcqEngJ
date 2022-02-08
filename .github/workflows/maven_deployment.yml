@@ -36,7 +36,7 @@ jobs:
 
 
       - name: Publish to Apache Maven Central
-        run: mvn --batch-mode clean deploy -P central-deploy -DskipTests=true
+        run: mvn --batch-mode deploy 
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
