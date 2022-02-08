@@ -3,10 +3,13 @@ package org.micromanager.acqj.api;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.micromanager.acqj.api.channels.ChannelSetting;
 import org.micromanager.acqj.api.xystage.XYStagePosition;
+import org.micromanager.acqj.internal.acqengj.Engine;
 
 /**
  * A utility class with multiple "modules" functions for creating common
@@ -94,10 +97,34 @@ public class AcqEventModules {
                AcquisitionEvent channelEvent = event.copy();
                channelEvent.setChannelGroup(channelList.get(index).group_);
                channelEvent.setChannelConfig(channelList.get(index).config_);
-               channelEvent.setZ(channelEvent.getZIndex(), 
-                   channelEvent.getZPosition() != null ? 
-                           channelEvent.getZPosition()  + channelList.get(index).offset_ :
-                           null);
+               boolean hasZOffsets = channelList.stream().map(t -> t.offset_).
+                       filter(t -> t != 0).collect(Collectors.toList()).size() > 0;
+               Double zPos;
+               if (channelEvent.getZPosition() == null) {
+                  if (hasZOffsets) {
+                     try {
+                        zPos = Engine.getCore().getPosition() + channelList.get(index).offset_;
+                     } catch (Exception e) {
+                        throw new RuntimeException(e);
+                     }
+                  } else {
+                     zPos = null;
+                  }
+               } else {
+                  zPos = channelEvent.getZPosition() + channelList.get(index).offset_;
+               }
+               channelEvent.setZ(channelEvent.getZIndex(), zPos);
+
+//               try {
+//                  channelEvent.setZ(channelEvent.getZIndex(),
+//                          channelEvent.getZPosition() == null ?
+//                                  hasZOffsets ?
+//                                          Engine.getCore().getPosition() + channelList.get(index).offset_ : null
+//                                  : channelEvent.getZPosition() + channelList.get(index).offset_
+//                  );
+//               } catch (Exception e) {
+//                  throw new RuntimeException(e);
+//               }
                channelEvent.setExposure(channelList.get(index).exposure_);
                index++;
                return channelEvent;
