@@ -34,14 +34,8 @@ jobs:
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
           
-      - name: Get color
-        run:  echo $MAVEN_GPG_PASSPHRASE 
-
-     # - name: Set projects Maven version to GitHub Action GUI set version
-      #  run: mvn versions:set "-DnewVersion=${{ github.event.inputs.releaseversion }}"
-
       - name: Publish to Apache Maven Central
-        run: mvn deploy
+        run: mvn deploy -Dgpg.passphrase=$${{ secrets.MAVEN_GPG_PASSPHRASE }}
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
