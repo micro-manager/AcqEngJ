@@ -4,7 +4,7 @@ Java-based acquisition engine for Micro-manager. Used by [Micro-Magellan](https:
 
 ### Creating acquisition engine
 ```
-import org.micromanager.acqj.internal.acqengj.Engine;
+import Engine;
 
 ...
 //Get Micro-manager core

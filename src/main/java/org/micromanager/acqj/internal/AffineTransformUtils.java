@@ -14,7 +14,7 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
-package org.micromanager.acqj.internal.acqengj;
+package org.micromanager.acqj.internal;
 
 /*
  * To change this template, choose Tools | Templates
@@ -24,7 +24,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import mmcorej.DoubleVector;
-import org.micromanager.acqj.api.xystage.XYStagePosition;
+import org.micromanager.acqj.util.xytiling.XYStagePosition;
 
 public class AffineTransformUtils {
 

@@ -9,7 +9,8 @@ import java.util.Iterator;
 import java.util.concurrent.Future;
 
 import mmcorej.org.json.JSONObject;
-import org.micromanager.acqj.api.xystage.PixelStageTranslator;
+import org.micromanager.acqj.main.AcquisitionEvent;
+import org.micromanager.acqj.util.xytiling.PixelStageTranslator;
 
 /**
  * General interface for acquisitions

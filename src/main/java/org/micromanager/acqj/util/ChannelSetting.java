@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.micromanager.acqj.api.channels;
+package org.micromanager.acqj.util;
 
 /**
  * Convenience class that encapsulates a single channel setting

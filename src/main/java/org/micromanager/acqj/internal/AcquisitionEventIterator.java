@@ -1,11 +1,10 @@
-package org.micromanager.acqj.internal.acqengj;
+package org.micromanager.acqj.internal;
 
-import org.micromanager.acqj.api.AcquisitionEvent;
+import org.micromanager.acqj.main.AcquisitionEvent;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import org.micromanager.acqj.api.AcquisitionEvent;
 
 /**
  * Takes a list of iterators representing levels of a tree, where each level

@@ -1,7 +1,6 @@
 package org.micromanager.acqj.api;
 
-import mmcorej.TaggedImage;
-import org.micromanager.acqj.api.AcquisitionEvent;
+import org.micromanager.acqj.main.AcquisitionEvent;
 
 /**
  *

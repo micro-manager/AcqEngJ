@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.micromanager.acqj.api.xystage;
+package org.micromanager.acqj.util.xytiling;
 
 import java.awt.Point;
 import java.awt.geom.AffineTransform;
@@ -11,11 +11,9 @@ import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
-import mmcorej.org.json.JSONArray;
-import mmcorej.org.json.JSONException;
-import mmcorej.org.json.JSONObject;
-import org.micromanager.acqj.api.AcqEngMetadata;
-import org.micromanager.acqj.internal.acqengj.Engine;
+
+import org.micromanager.acqj.main.AcqEngMetadata;
+import org.micromanager.acqj.internal.Engine;
 
 /**
  * Convenience class for using an Affine transform to translate between pixel coordinates and stage coordinates
