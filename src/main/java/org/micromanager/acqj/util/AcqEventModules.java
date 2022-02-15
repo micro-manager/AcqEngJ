@@ -1,15 +1,15 @@
-package org.micromanager.acqj.api;
+package org.micromanager.acqj.util;
 
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.micromanager.acqj.api.channels.ChannelSetting;
-import org.micromanager.acqj.api.xystage.XYStagePosition;
-import org.micromanager.acqj.internal.acqengj.Engine;
+import org.micromanager.acqj.main.AcqEngMetadata;
+import org.micromanager.acqj.main.AcquisitionEvent;
+import org.micromanager.acqj.util.xytiling.XYStagePosition;
+import org.micromanager.acqj.internal.Engine;
 
 /**
  * A utility class with multiple "modules" functions for creating common

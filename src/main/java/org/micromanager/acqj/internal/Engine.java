@@ -14,14 +14,14 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
-package org.micromanager.acqj.internal.acqengj;
+package org.micromanager.acqj.internal;
 
 /*
  * To change this template, choose Tools | Templates and open the template in
  * the editor.
  */
-import org.micromanager.acqj.api.Acquisition;
-import org.micromanager.acqj.api.AcquisitionEvent;
+import org.micromanager.acqj.main.Acquisition;
+import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
 
 import java.io.PrintWriter;
@@ -39,7 +39,7 @@ import mmcorej.DoubleVector;
 import mmcorej.PropertySetting;
 import mmcorej.StrVector;
 import mmcorej.TaggedImage;
-import org.micromanager.acqj.api.AcqEngMetadata;
+import org.micromanager.acqj.main.AcqEngMetadata;
 
 public class Engine {
 

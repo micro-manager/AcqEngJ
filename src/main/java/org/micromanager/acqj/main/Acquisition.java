@@ -14,7 +14,7 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
-package org.micromanager.acqj.api;
+package org.micromanager.acqj.main;
 
 import java.util.Iterator;
 import java.util.concurrent.*;
@@ -23,8 +23,12 @@ import mmcorej.CMMCore;
 import mmcorej.TaggedImage;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
-import org.micromanager.acqj.api.xystage.PixelStageTranslator;
-import org.micromanager.acqj.internal.acqengj.Engine;
+import org.micromanager.acqj.api.AcquisitionAPI;
+import org.micromanager.acqj.api.AcquisitionHook;
+import org.micromanager.acqj.api.DataSink;
+import org.micromanager.acqj.api.TaggedImageProcessor;
+import org.micromanager.acqj.util.xytiling.PixelStageTranslator;
+import org.micromanager.acqj.internal.Engine;
 
 /**
  * Abstract class that manages a generic acquisition. Subclassed into specific

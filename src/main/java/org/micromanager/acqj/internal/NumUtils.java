@@ -20,7 +20,7 @@
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
 //
-package org.micromanager.acqj.internal.acqengj;
+package org.micromanager.acqj.internal;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;

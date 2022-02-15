@@ -14,16 +14,16 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
-package org.micromanager.acqj.api.xystage;
+package org.micromanager.acqj.util.xytiling;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.util.Objects;
-import mmcorej.CMMCore;
+
 import mmcorej.org.json.JSONArray;
 import mmcorej.org.json.JSONObject;
-import org.micromanager.acqj.internal.acqengj.Engine;
-import org.micromanager.acqj.internal.acqengj.AffineTransformUtils;
+import org.micromanager.acqj.internal.Engine;
+import org.micromanager.acqj.internal.AffineTransformUtils;
 
 /**
  * Immutable object representing single XY stage position

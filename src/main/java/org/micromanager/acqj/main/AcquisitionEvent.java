@@ -14,7 +14,7 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
-package org.micromanager.acqj.api;
+package org.micromanager.acqj.main;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
@@ -27,8 +27,9 @@ import java.util.TreeSet;
 import mmcorej.org.json.JSONArray;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
-import org.micromanager.acqj.internal.acqengj.AffineTransformUtils;
-import org.micromanager.acqj.internal.acqengj.Engine;
+import org.micromanager.acqj.api.AcquisitionAPI;
+import org.micromanager.acqj.internal.AffineTransformUtils;
+import org.micromanager.acqj.internal.Engine;
 
 /**
  * Information about the acquisition of a single image or a sequence of image
