@@ -49,7 +49,6 @@ public class Acquisition implements AcquisitionAPI {
    protected double zStageLowerLimit_, zStageUpperLimit_;
    protected volatile boolean eventsFinished_;
    protected volatile boolean abortRequested_ = false;
-   private volatile boolean aborted_ = false;
    public final boolean initialAutoshutterState_;
    private JSONObject summaryMetadata_;
    private long startTime_ms_ = -1;
@@ -68,6 +67,7 @@ public class Acquisition implements AcquisitionAPI {
    private ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>> processorOutputQueues_
            = new ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>>();
    public boolean debugMode_ = false;
+   private ThreadPoolExecutor savingAndProcessingExecutor_ = null;
 
    /**
     * After calling this constructor, call initialize then start
@@ -98,11 +98,10 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    public void abort() {
-      abortRequested_ = true;
-      if (aborted_) {
+      if (abortRequested_) {
          return;
       }
-      aborted_ = true;
+      abortRequested_ = true;
       if (this.isPaused()) {
          this.togglePaused();
       }
@@ -125,10 +124,10 @@ public class Acquisition implements AcquisitionAPI {
    @Override
    public void start() {
       if (dataSink_ != null) {
-         ThreadPoolExecutor savingAndProcessingExecutor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+         savingAndProcessingExecutor_ = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
                  (Runnable r) -> new Thread(r, "Acquisition image processing and saving thread"));
 
-         savingAndProcessingExecutor.submit(() -> {
+         savingAndProcessingExecutor_.submit(() -> {
             try {
                while (true) {
                   boolean storageFinished;
@@ -151,7 +150,7 @@ public class Acquisition implements AcquisitionAPI {
                      }
                   }
                   if (storageFinished) {
-                     savingAndProcessingExecutor.shutdown();
+                     savingAndProcessingExecutor_.shutdown();
                      for (TaggedImageProcessor p : imageProcessors_) {
                         p.close();
                      }
@@ -202,6 +201,10 @@ public class Acquisition implements AcquisitionAPI {
       try {
          //wait for event generation to shut down
          while (!eventsFinished_) {
+            Thread.sleep(5);
+         }
+         // Waiting for saving to finish and all resources to complete
+         while (!savingAndProcessingExecutor_.isTerminated()) {
             Thread.sleep(5);
          }
       } catch (InterruptedException ex) {

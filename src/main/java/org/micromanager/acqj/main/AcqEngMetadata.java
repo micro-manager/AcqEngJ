@@ -172,7 +172,11 @@ public class AcqEngMetadata {
       AcqEngMetadata.setAcqDate(summary, getCurrentDateAndTime());
 
       //General information the core-camera
-      AcqEngMetadata.setPixelTypeFromByteDepth(summary, (int) Engine.getCore().getBytesPerPixel());
+      int byteDepth = (int) Engine.getCore().getBytesPerPixel();
+      if (byteDepth ==0) {
+         throw new RuntimeException("Camera byte depth cannot be zero");
+      }
+      AcqEngMetadata.setPixelTypeFromByteDepth(summary, byteDepth);
 //      AcqEngMetadata.setBitDepth(summary, (int) Engine.getCore().getImageBitDepth());
 //      AcqEngMetadata.setWidth(summary, (int) Engine.getCore().getImageWidth());
 //      AcqEngMetadata.setHeight(summary, (int) Engine.getCore().getImageHeight());
