@@ -82,9 +82,15 @@ public class Engine {
       return eventGeneratorExecutor_.submit(() -> {
          Future f = acqExecutor_.submit(() -> {
             try {
+               if (acq.isDebugMode()) {
+                  core_.logMessage("recieved acquisition finished signal");
+               }
                //clear any pending events, but since submitEventIterator occurs on the
                //same thread, events will only be cleared in the case of an abort
                sequenceBuilder_.clear();
+               if (acq.isDebugMode()) {
+                  core_.logMessage("creating acquisition finished event");
+               }
                executeAcquisitionEvent(AcquisitionEvent.createAcquisitionFinishedEvent(acq));
                while (!acq.areEventsFinished()) {
                   Thread.sleep(1);
@@ -110,7 +116,13 @@ public class Engine {
          try {
 
             while (eventIterator.hasNext()) {
+               if (acq.isDebugMode()) {
+                  core_.logMessage("waiting for next acq event" );
+               }
                AcquisitionEvent event = eventIterator.next();
+               if (acq.isDebugMode()) {
+                  core_.logMessage("got event: " + event.toString()  );
+               }
 
                for (AcquisitionHook h : event.acquisition_.getEventGenerationHooks()) {
                   event = h.run(event);
@@ -129,6 +141,9 @@ public class Engine {
                }
                try {
                   if (acq.isAbortRequested()) {
+                     if (acq.isDebugMode()) {
+                        core_.logMessage("acquisition aborted" );
+                     }
                      return;
                   }
                   Future imageAcquiredFuture = processAcquisitionEvent(event);
@@ -176,6 +191,9 @@ public class Engine {
    private Future processAcquisitionEvent(AcquisitionEvent event) throws ExecutionException {
       Future imageAcquiredFuture = acqExecutor_.submit(() -> {
          try {
+            if (event.acquisition_.isDebugMode()) {
+               core_.logMessage("checking for sequencing" );
+            }
             if (sequenceBuilder_.isEmpty() && !event.isAcquisitionSequenceEndEvent()) {
                sequenceBuilder_.add(event);
             } else if (isSequencable(sequenceBuilder_.getLast(), event, sequenceBuilder_.size() + 1)) {
@@ -188,6 +206,9 @@ public class Engine {
                //Add in the start of the new sequence
                if (!event.isAcquisitionSequenceEndEvent()) {
                   sequenceBuilder_.add(event);
+               }
+               if (event.acquisition_.isDebugMode()) {
+                  core_.logMessage("executing acquisition event" );
                }
                executeAcquisitionEvent(sequenceEvent);
             }
@@ -270,6 +291,9 @@ public class Engine {
             }
          }
          if (event.shouldAcquireImage()) {
+            if (event.acquisition_.isDebugMode()) {
+               core_.logMessage("acquiring image(s)" );
+            }
             acquireImages(event);
 
             //pause here while hardware is still doing stuff
@@ -343,6 +367,9 @@ public class Engine {
          h.run(event);
       }
 
+      if (event.acquisition_.isDebugMode()) {
+         core_.logMessage("images acquired, adding to output" );
+      }
       //Loop through and collect all acquired images. There will be
       // (# of images in sequence) x (# of camera channels) of them
       for (int i = 0; i < (event.getSequence() == null ? 1 : event.getSequence().size()); i++) {

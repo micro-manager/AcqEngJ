@@ -132,17 +132,26 @@ public class Acquisition implements AcquisitionAPI {
                while (true) {
                   boolean storageFinished;
                   if (debugMode_) {
-//                     core_.logMessage("Image queue size: " + firstDequeue_.size());
+                     core_.logMessage("Image queue size: " + firstDequeue_.size());
                   }
                   if (imageProcessors_.isEmpty()) {
+                     if (debugMode_) {
+                        core_.logMessage("waiting for image to save" );
+                     }
                      TaggedImage img = firstDequeue_.takeFirst();
+                     if (debugMode_) {
+                        core_.logMessage("got image to save" );
+                     }
                      storageFinished = saveImage(img);
+                     if (debugMode_) {
+                        core_.logMessage("image saved; finished = " + storageFinished );
+                     }
                   } else {
                      LinkedBlockingDeque<TaggedImage> dequeue = processorOutputQueues_.get(
                              imageProcessors_.get(imageProcessors_.size() - 1));
                      TaggedImage img = dequeue.takeFirst();
                      if (debugMode_) {
-                        core_.logMessage("Saving image");
+                        core_.logMessage("Saving image" );
                      }
                      storageFinished = saveImage(img);
                      if (debugMode_) {
