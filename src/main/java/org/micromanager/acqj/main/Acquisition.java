@@ -68,6 +68,7 @@ public class Acquisition implements AcquisitionAPI {
            = new ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>>();
    public boolean debugMode_ = false;
    private ThreadPoolExecutor savingAndProcessingExecutor_ = null;
+   private Exception abortException_ = null;
 
    /**
     * After calling this constructor, call initialize then start
@@ -95,6 +96,21 @@ public class Acquisition implements AcquisitionAPI {
 
    public boolean isAbortRequested() {
       return abortRequested_;
+   }
+
+   /**
+    * Auto abort caused by an exception during acquisition
+    * @param e
+    */
+   public void abort(Exception e) {
+      abortException_ = e;
+      abort();
+   }
+
+   public void checkForExceptions() throws Exception {
+      if (abortException_ != null) {
+         throw abortException_;
+      }
    }
 
    public void abort() {
