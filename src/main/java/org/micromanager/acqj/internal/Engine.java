@@ -210,7 +210,11 @@ public class Engine {
                if (event.acquisition_.isDebugMode()) {
                   core_.logMessage("executing acquisition event" );
                }
-               executeAcquisitionEvent(sequenceEvent);
+               try {
+                  executeAcquisitionEvent(sequenceEvent);
+               } catch (HardwareControlException e) {
+                  throw e;
+               }
             }
          } catch (InterruptedException e) {
             if (core_.isSequenceRunning()) {
@@ -283,7 +287,11 @@ public class Engine {
                return; //The hook cancelled this event
             }
          }
-         prepareHardware(event);
+         try {
+            prepareHardware(event);
+         } catch (HardwareControlException e) {
+            throw e;
+         }
          for (AcquisitionHook h : event.acquisition_.getAfterHardwareHooks()) {
             event = h.run(event);
             if (event == null) {
