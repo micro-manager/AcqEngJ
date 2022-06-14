@@ -139,57 +139,59 @@ public class Acquisition implements AcquisitionAPI {
 
    @Override
    public void start() {
-      if (dataSink_ != null) {
-         savingAndProcessingExecutor_ = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
-                 (Runnable r) -> new Thread(r, "Acquisition image processing and saving thread"));
+      savingAndProcessingExecutor_ = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+              (Runnable r) -> new Thread(r, "Acquisition image processing and saving thread"));
 
-         savingAndProcessingExecutor_.submit(() -> {
-            try {
-               while (true) {
-                  boolean storageFinished;
+      savingAndProcessingExecutor_.submit(() -> {
+         try {
+            while (true) {
+               if (debugMode_) {
+                  core_.logMessage("Image queue size: " + firstDequeue_.size());
+               }
+               TaggedImage img;
+               if (imageProcessors_.isEmpty()) {
                   if (debugMode_) {
-                     core_.logMessage("Image queue size: " + firstDequeue_.size());
+                     core_.logMessage("waiting for image to save" );
                   }
-                  if (imageProcessors_.isEmpty()) {
+                  img = firstDequeue_.takeFirst();
+                  if (debugMode_) {
+                     core_.logMessage("got image to save" );
+                  }
+                  saveImage(img);
+                  if (debugMode_) {
+                     core_.logMessage("image saved; finished = " +
+                             (img.pix == null && img.tags == null));
+                  }
+               } else {
+                  // get the last processor
+                  LinkedBlockingDeque<TaggedImage> dequeue = processorOutputQueues_.get(
+                          imageProcessors_.get(imageProcessors_.size() - 1));
+                  img = dequeue.takeFirst();
+                  if (dataSink_ != null) {
                      if (debugMode_) {
-                        core_.logMessage("waiting for image to save" );
+                        core_.logMessage("Saving image");
                      }
-                     TaggedImage img = firstDequeue_.takeFirst();
-                     if (debugMode_) {
-                        core_.logMessage("got image to save" );
-                     }
-                     storageFinished = saveImage(img);
-                     if (debugMode_) {
-                        core_.logMessage("image saved; finished = " + storageFinished );
-                     }
-                  } else {
-                     LinkedBlockingDeque<TaggedImage> dequeue = processorOutputQueues_.get(
-                             imageProcessors_.get(imageProcessors_.size() - 1));
-                     TaggedImage img = dequeue.takeFirst();
-                     if (debugMode_) {
-                        core_.logMessage("Saving image" );
-                     }
-                     storageFinished = saveImage(img);
+                     saveImage(img);
                      if (debugMode_) {
                         core_.logMessage("Finished saving image");
                      }
                   }
-                  if (storageFinished) {
-                     savingAndProcessingExecutor_.shutdown();
-                     for (TaggedImageProcessor p : imageProcessors_) {
-                        p.close();
-                     }
-                     return;
-                  }
                }
-            } catch (InterruptedException e) {
-               //this should never happen
-            } catch (Exception ex) {
-               System.err.println(ex);
-               ex.printStackTrace();
+               if (img.pix == null && img.tags == null) {
+                  // Last image because acquisition is shutting down.
+                  // Storage and image processors will also recieve this
+                  // signal and shut down on their own
+                  savingAndProcessingExecutor_.shutdown();
+                  return;
+               }
             }
-         });
-      }
+         } catch (InterruptedException e) {
+            //this should never happen
+         } catch (Exception ex) {
+            System.err.println(ex);
+            ex.printStackTrace();
+         }
+      });
    }
 
    @Override
@@ -300,11 +302,10 @@ public class Acquisition implements AcquisitionAPI {
    /**
     * Called by acquisition engine to save an image
     */
-   private boolean saveImage(TaggedImage image) {
+   private void saveImage(TaggedImage image) {
       if (image.tags == null && image.pix == null) {
          dataSink_.finished();
          eventsFinished_ = true; //should have already been done, but just in case
-         return true;
       } else {
          //Now that all data processors have run, the channel index can be inferred
          //based on what channels show up at runtime
@@ -316,7 +317,6 @@ public class Acquisition implements AcquisitionAPI {
                  channelNames_.indexOf(channelName));
          //this method doesnt return until all images have been written to disk
          dataSink_.putImage(image);
-         return false;
       }
    }
 
