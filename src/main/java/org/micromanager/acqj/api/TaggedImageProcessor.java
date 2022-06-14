@@ -4,6 +4,12 @@ import java.util.concurrent.LinkedBlockingDeque;
 import mmcorej.TaggedImage;
 
 
+/**
+ * Image processors are responsible for shutting down and releasing resources automatically,
+ * once a TaggedImage(null, null) appears in the source queue. is a processor gets this signal
+ * on its source queue, it is responsible for propagating the message to its sink queue so downstream
+ * resources can also be released
+ */
 public interface TaggedImageProcessor {
 
    /**
@@ -18,10 +24,5 @@ public interface TaggedImageProcessor {
     */
    public void setDequeues(LinkedBlockingDeque<TaggedImage> source,
            LinkedBlockingDeque<TaggedImage> sink);
-
-   /**
-    * Clean up and release all resources
-    */
-   public void close();
    
 }
