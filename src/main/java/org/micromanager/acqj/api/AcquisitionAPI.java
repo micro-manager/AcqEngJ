@@ -7,10 +7,10 @@ package org.micromanager.acqj.api;
 
 import java.util.Iterator;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 
 import mmcorej.org.json.JSONObject;
 import org.micromanager.acqj.main.AcquisitionEvent;
-import org.micromanager.acqj.util.xytiling.PixelStageTranslator;
 
 /**
  * General interface for acquisitions
@@ -19,11 +19,6 @@ import org.micromanager.acqj.util.xytiling.PixelStageTranslator;
  */
 public interface AcquisitionAPI {
 
-   /**
-    * Commence acquisition or prepare it to receive externally generated events
-    * as applicable
-    */
-   public void start();
 
    /**
     * Block until acquisition finished and all resources complete.
@@ -42,6 +37,23 @@ public interface AcquisitionAPI {
     * @return
     */
    public boolean areEventsFinished();
+
+   /**
+    * Cancel any pending events and shutdown
+    */
+   public void abort();
+
+   /**
+    * Abort, and provide an exception that is the reason for the abort. This
+    * is useful for passing exceptions across threads
+    * @param e
+    */
+   public void abort(Exception e);
+
+   /**
+    * Has abort been called?
+    */
+   public boolean isAbortRequested();
 
    /**
     * return if acquisition is paused (i.e. not acquiring new data but not
@@ -71,6 +83,15 @@ public interface AcquisitionAPI {
    public boolean anythingAcquired();
 
    /**
+    * Add a Consumer that will receive the metadata JSONObject for each image
+    * that is generated and modify it as needed. Metadata can also be modified
+    * through an ImageProcessor. This method is more lightweight--it should not
+    * be doing an significant computation, unlike Image Processors, which run
+//    * /on their own dedicated Thread()
+    */
+   public void addImageMetadataProcessor(Consumer<JSONObject> modifier);
+
+   /**
     * Add an image processor for modifying images before saving or diverting
     * them to some other purpose
     *
@@ -95,11 +116,19 @@ public interface AcquisitionAPI {
    public Future submitEventIterator(Iterator<AcquisitionEvent> evt);
 
    /**
-    * Get the PixelStageTranslator, which maps the coordinate space of pixels to xy coordinates of the stage.
-    * Only exists if XY tiling features are enabled
+    * Get the DataSink used by this acquisition. This could be null (since)
+    * ImageProcessors allow data to be intercepted and diverted
     * @return
     */
-   public PixelStageTranslator getPixelStageTranslator();
+   public DataSink getDataSink();
 
+   /**
+    * Should debug logging be printed
+    */
+   public boolean isDebugMode();
 
-   }
+   /**
+    * Activate debug logging
+    */
+   public void setDebugMode(boolean debug);
+}

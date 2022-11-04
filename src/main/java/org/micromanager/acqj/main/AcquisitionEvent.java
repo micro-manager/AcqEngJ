@@ -271,12 +271,12 @@ public class AcquisitionEvent {
          if (json.has("col")) {
             event.gridCol_ = json.getInt("col");
          }
-         if (event.gridRow_ != null && event.gridCol_ != null) {
-            int posIndex = acq.getPixelStageTranslator().getPositionIndices(
+         if (event.acquisition_ instanceof XYTiledAcquisition) {
+            int posIndex = ((XYTiledAcquisition) acq).getPixelStageTranslator().getPositionIndices(
                     new int[]{event.gridRow_}, new int[]{event.gridCol_})[0];
 
             //infer XY stage position based on affine transform
-            Point2D.Double xyPos = acq.getPixelStageTranslator().getXYPosition(posIndex).getCenter();
+            Point2D.Double xyPos = ((XYTiledAcquisition) acq).getPixelStageTranslator().getXYPosition(posIndex).getCenter();
             event.xPosition_ = xyPos.x;
             event.yPosition_ = xyPos.y;
          }
