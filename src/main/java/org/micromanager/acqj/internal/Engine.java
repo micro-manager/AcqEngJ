@@ -20,6 +20,7 @@ package org.micromanager.acqj.internal;
  * To change this template, choose Tools | Templates and open the template in
  * the editor.
  */
+import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.main.Acquisition;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
@@ -78,7 +79,7 @@ public class Engine {
     * @param acq the acquisition to be finished
     * @return
     */
-   public Future<Future> finishAcquisition(Acquisition acq) {
+   public Future<Future> finishAcquisition(AcquisitionAPI acq) {
       return eventGeneratorExecutor_.submit(() -> {
          Future f = acqExecutor_.submit(() -> {
             try {
@@ -108,18 +109,15 @@ public class Engine {
     * as needed. Block until all events executed
     *
     * @param eventIterator Iterator of acquisition events that contains instructions of what to acquire
-    * @param acq the acquisition
     * @return a Future that can be gotten when the event iteration is finished,
     */
-   public Future submitEventIterator(Iterator<AcquisitionEvent> eventIterator, Acquisition acq) {
+   public Future submitEventIterator(Iterator<AcquisitionEvent> eventIterator) {
       return eventGeneratorExecutor_.submit(() -> {
          try {
-
+            AcquisitionAPI acq = null;
             while (eventIterator.hasNext()) {
-               if (acq.isDebugMode()) {
-                  core_.logMessage("waiting for next acq event" );
-               }
                AcquisitionEvent event = eventIterator.next();
+               acq = event.acquisition_;
                if (acq.isDebugMode()) {
                   core_.logMessage("got event: " + event.toString()  );
                }
@@ -312,7 +310,7 @@ public class Engine {
                try {
                   core_.stopSequenceAcquisition();
                   if (event.isZSequenced()) {
-                     core_.stopStageSequence(event.acquisition_.getZStageName());
+                     core_.stopStageSequence(core_.getFocusDevice());
                   }
                } catch (Exception ex) {
                   throw new RuntimeException("Couldn't stop sequence acquisition");
@@ -455,9 +453,9 @@ public class Engine {
     */
    private void prepareHardware(final AcquisitionEvent event) throws InterruptedException, HardwareControlException {
       //Get the hardware specific to this acquisition
-      final String xyStage = event.acquisition_.getXYStageName();
-      final String zStage = event.acquisition_.getZStageName();
-      final String slm = event.acquisition_.getSLMName();
+      final String xyStage = core_.getXYStageDevice();
+      final String zStage = core_.getFocusDevice();
+      final String slm = core_.getSLMDevice();
       //prepare sequences if applicable
       if (event.getSequence() != null) {
          try {

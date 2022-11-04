@@ -18,6 +18,7 @@ package org.micromanager.acqj.main;
 
 import java.util.Iterator;
 import java.util.concurrent.*;
+import java.util.function.Consumer;
 
 import mmcorej.CMMCore;
 import mmcorej.TaggedImage;
@@ -27,7 +28,6 @@ import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.api.AcquisitionHook;
 import org.micromanager.acqj.api.DataSink;
 import org.micromanager.acqj.api.TaggedImageProcessor;
-import org.micromanager.acqj.util.xytiling.PixelStageTranslator;
 import org.micromanager.acqj.internal.Engine;
 
 /**
@@ -45,8 +45,6 @@ public class Acquisition implements AcquisitionAPI {
    public static final int AFTER_CAMERA_HOOK = 3;
 
    protected String xyStage_, zStage_, slm_;
-   protected boolean zStageHasLimits_ = false;
-   protected double zStageLowerLimit_, zStageUpperLimit_;
    protected volatile boolean eventsFinished_;
    protected volatile boolean abortRequested_ = false;
    public final boolean initialAutoshutterState_;
@@ -54,8 +52,8 @@ public class Acquisition implements AcquisitionAPI {
    private long startTime_ms_ = -1;
    private volatile boolean paused_ = false;
    private CopyOnWriteArrayList<String> channelNames_ = new CopyOnWriteArrayList<String>();
-   private PixelStageTranslator pixelStageTranslator_;
    protected DataSink dataSink_;
+   private Consumer<JSONObject> summaryMDAdder_;
    final public CMMCore core_;
    private CopyOnWriteArrayList<AcquisitionHook> eventGenerationHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
@@ -69,15 +67,26 @@ public class Acquisition implements AcquisitionAPI {
    public boolean debugMode_ = false;
    private ThreadPoolExecutor savingAndProcessingExecutor_ = null;
    private Exception abortException_ = null;
+   private Consumer<JSONObject> imageMetadataProcessor_;
 
    /**
     * After calling this constructor, call initialize then start
     *
     */
    public Acquisition(DataSink sink) {
+      this(sink, null);
+   }
+
+   /**
+    * After calling this constructor, call initialize then start
+    *
+    */
+   public Acquisition(DataSink sink, Consumer<JSONObject> summaryMDAdder) {
       core_ = Engine.getCore();
+      summaryMDAdder_ = summaryMDAdder;
       initialAutoshutterState_ = core_.getAutoShutter();
       dataSink_ = sink;
+      initialize();
    }
 
    /**
@@ -124,21 +133,24 @@ public class Acquisition implements AcquisitionAPI {
       Engine.getInstance().finishAcquisition(this);
    }
 
-   public void addToSummaryMetadata(JSONObject summaryMetadata) {
-      //This can be overriden by subclasses to add additional metadata
+   private void addToSummaryMetadata(JSONObject summaryMetadata) {
+      if (summaryMDAdder_ != null) {
+         summaryMDAdder_.accept(summaryMetadata);
+      }
    }
 
    public void addToImageMetadata(JSONObject tags) {
-      //This can be overriden by subclasses to add additional metadata
+      if (imageMetadataProcessor_ != null) {
+         imageMetadataProcessor_.accept(tags);
+      }
    }
 
    @Override
    public Future submitEventIterator(Iterator<AcquisitionEvent> evt) {
-      return Engine.getInstance().submitEventIterator(evt, this);
+      return Engine.getInstance().submitEventIterator(evt);
    }
 
-   @Override
-   public void start() {
+   private void start() {
       savingAndProcessingExecutor_ = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
               (Runnable r) -> new Thread(r, "Acquisition image processing and saving thread"));
 
@@ -240,49 +252,11 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    /**
-    * Generic version with no XY tiling
-    */
-   protected void initialize() {
-      initialize(null, null);
-   }
-
-   /**
     * 1) Get the names or core devices to be used in acquistion 2) Create
     * Summary metadata 3) Initialize data sink
     */
-   protected void initialize(Integer overlapX, Integer overlapY) {
-      xyStage_ = core_.getXYStageDevice();
-      zStage_ = core_.getFocusDevice();
-      slm_ = core_.getSLMDevice();
-      //"postion" is not generic name...and as of right now there is now way of getting generic z positions
-      //from a z deviec in MM, but the following code works for some devices
-      String positionName = "Position";
-      try {
-         if (core_.getFocusDevice() != null && core_.getFocusDevice().length() > 0) {
-            if (core_.hasProperty(zStage_, positionName)) {
-               zStageHasLimits_ = core_.hasPropertyLimits(zStage_, positionName);
-               if (zStageHasLimits_) {
-                  zStageLowerLimit_ = core_.getPropertyLowerLimit(zStage_, positionName);
-                  zStageUpperLimit_ = core_.getPropertyUpperLimit(zStage_, positionName);
-               }
-            }
-         }
-      } catch (Exception ex) {
-         throw new RuntimeException("Problem communicating with core to get Z stage limits");
-      }
+   protected void initialize() {
       JSONObject summaryMetadata = AcqEngMetadata.makeSummaryMD(this);
-
-      //Optional additional summary metadata if doing tiling in XY
-      if (overlapX != null && overlapY != null) {
-         AcqEngMetadata.setPixelOverlapX(summaryMetadata, overlapX);
-         AcqEngMetadata.setPixelOverlapY(summaryMetadata, overlapY);
-         if (AcqEngMetadata.getAffineTransformString(summaryMetadata).equals("Undefined")) {
-            throw new RuntimeException("Cannot run acquisition with XY tiling without first defining" +
-                    "affine transform between camera and stage. Check pixel size calibration");
-         }
-         pixelStageTranslator_ = new PixelStageTranslator(AcqEngMetadata.getAffineTransform(summaryMetadata), xyStage_,
-                 (int) core_.getImageWidth(), (int) core_.getImageHeight(), overlapX, overlapY);
-      }
 
       addToSummaryMetadata(summaryMetadata);
 
@@ -294,9 +268,10 @@ public class Acquisition implements AcquisitionAPI {
          ex.printStackTrace();
       }
       if (dataSink_ != null) {
-         //It could be null if not using savign and viewing and diverting with custom processor
+         //It could be null if not using saving and viewing and diverting with custom processor
          dataSink_.initialize(this, summaryMetadata);
       }
+      start();
    }
 
    /**
@@ -318,22 +293,6 @@ public class Acquisition implements AcquisitionAPI {
          //this method doesnt return until all images have been written to disk
          dataSink_.putImage(image);
       }
-   }
-
-   public PixelStageTranslator getPixelStageTranslator() {
-      return pixelStageTranslator_;
-   }
-
-   public String getXYStageName() {
-      return xyStage_;
-   }
-
-   public String getZStageName() {
-      return zStage_;
-   }
-
-   public String getSLMName() {
-      return slm_;
    }
 
    public long getStartTime_ms() {
@@ -358,6 +317,15 @@ public class Acquisition implements AcquisitionAPI {
 
    public boolean anythingAcquired() {
       return dataSink_ == null ? true : dataSink_.anythingAcquired();
+   }
+
+   @Override
+   public void addImageMetadataProcessor(Consumer<JSONObject> processor) {
+      if (imageMetadataProcessor_ == null) {
+         imageMetadataProcessor_ = processor;
+      } else {
+         throw new RuntimeException("Multiple metadata processors not supported");
+      }
    }
 
    public Iterable<AcquisitionHook> getEventGenerationHooks() {
