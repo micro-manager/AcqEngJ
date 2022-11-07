@@ -259,8 +259,6 @@ public class Engine {
          if (event.acquisition_.areEventsFinished()) {
             return; //Duplicate finishing event, possibly from x-ing out viewer
          }
-         event.acquisition_.eventsFinished();
-         event.acquisition_.addToOutput(new TaggedImage(null, null));
          //send message acquisition finished message so things shut down properly
          for (AcquisitionHook h : event.acquisition_.getEventGenerationHooks()) {
             h.run(event);
@@ -278,6 +276,8 @@ public class Engine {
             h.run(event);
             h.close();
          }
+         event.acquisition_.addToOutput(new TaggedImage(null, null));
+         event.acquisition_.eventsFinished();
       } else {
          for (AcquisitionHook h : event.acquisition_.getBeforeHardwareHooks()) {
             event = h.run(event);
