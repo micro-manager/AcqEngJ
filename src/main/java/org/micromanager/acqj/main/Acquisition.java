@@ -65,7 +65,7 @@ public class Acquisition implements AcquisitionAPI {
    private ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>> processorOutputQueues_
            = new ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>>();
    public boolean debugMode_ = false;
-   private ThreadPoolExecutor savingAndProcessingExecutor_ = null;
+   private ThreadPoolExecutor savingExecutor_ = null;
    private Exception abortException_ = null;
    private Consumer<JSONObject> imageMetadataProcessor_;
 
@@ -128,7 +128,7 @@ public class Acquisition implements AcquisitionAPI {
       }
       abortRequested_ = true;
       if (this.isPaused()) {
-         this.togglePaused();
+         this.setPaused(false);
       }
       Engine.getInstance().finishAcquisition(this);
    }
@@ -150,17 +150,19 @@ public class Acquisition implements AcquisitionAPI {
       return Engine.getInstance().submitEventIterator(evt);
    }
 
-   private void start() {
-      savingAndProcessingExecutor_ = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+   private void startSavingExecutor() {
+      savingExecutor_ = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
               (Runnable r) -> new Thread(r, "Acquisition image processing and saving thread"));
 
-      savingAndProcessingExecutor_.submit(() -> {
+      savingExecutor_.submit(() -> {
          try {
             while (true) {
                if (debugMode_) {
                   core_.logMessage("Image queue size: " + firstDequeue_.size());
                }
                TaggedImage img;
+               // Grab the image, either directly from the queue to acqEng added it to,
+               // or from the output of the last image processor
                if (imageProcessors_.isEmpty()) {
                   if (debugMode_) {
                      core_.logMessage("waiting for image to save" );
@@ -193,7 +195,7 @@ public class Acquisition implements AcquisitionAPI {
                   // Last image because acquisition is shutting down.
                   // Storage and image processors will also recieve this
                   // signal and shut down on their own
-                  savingAndProcessingExecutor_.shutdown();
+                  savingExecutor_.shutdown();
                   return;
                }
             }
@@ -243,7 +245,7 @@ public class Acquisition implements AcquisitionAPI {
             Thread.sleep(5);
          }
          // Waiting for saving to finish and all resources to complete
-         while (!savingAndProcessingExecutor_.isTerminated()) {
+         while (!savingExecutor_.isTerminated()) {
             Thread.sleep(5);
          }
       } catch (InterruptedException ex) {
@@ -270,8 +272,8 @@ public class Acquisition implements AcquisitionAPI {
       if (dataSink_ != null) {
          //It could be null if not using saving and viewing and diverting with custom processor
          dataSink_.initialize(this, summaryMetadata);
+         startSavingExecutor();
       }
-      start();
    }
 
    /**
@@ -307,8 +309,8 @@ public class Acquisition implements AcquisitionAPI {
       return paused_;
    }
 
-   public synchronized void togglePaused() {
-      paused_ = !paused_;
+   public synchronized void setPaused(boolean pause) {
+      paused_ = pause;
    }
 
    public JSONObject getSummaryMetadata() {
@@ -351,6 +353,7 @@ public class Acquisition implements AcquisitionAPI {
    public void eventsFinished() {
       eventsFinished_ = true;
       //TODO: could add more restoration of inital settings at begginning of acquisition
+      // this seems out of place on its own...
       core_.setAutoShutter(initialAutoshutterState_);
    }
 

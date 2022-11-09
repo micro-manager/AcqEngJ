@@ -906,6 +906,14 @@ public class AcqEngMetadata {
       }
    }
 
+   public static boolean hasAxis(JSONObject tags, String axis) {
+      try {
+         return tags.getJSONObject(AXES).has(axis);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Axes not present in metadata");
+      }
+   }
+
    public static int getAxisPosition(JSONObject tags, String axis) {
       try {
          return tags.getJSONObject(AXES).getInt(axis);

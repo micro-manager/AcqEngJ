@@ -1,4 +1,4 @@
-package org.micromanager.acqj.internal;
+package org.micromanager.acqj.util;
 
 import org.micromanager.acqj.main.AcquisitionEvent;
 import java.util.Iterator;

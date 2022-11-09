@@ -32,7 +32,11 @@ public interface AcquisitionAPI {
    public void finish();
 
    /**
-    * returns true if all data that will be collected has been collected
+    * returns true if all acquisition events have been processed and
+    * hardware control is complete. This does not, however signal that
+    * all images are finished writing to disk (if DataSink is not null).
+    * This occurs after events are finished, and the DataSink should
+    * provide that information directly
     *
     * @return
     */
@@ -66,7 +70,7 @@ public interface AcquisitionAPI {
    /**
     * Pause or unpause
     */
-   public void togglePaused();
+   public void setPaused(boolean pause);
 
    /**
     * Get the summary metadata for this acquisition
