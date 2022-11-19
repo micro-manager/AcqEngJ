@@ -41,7 +41,7 @@ public class AcquisitionEvent {
    enum SpecialFlag {
       AcqusitionFinished,
       AcqusitionSequenceEnd
-   };
+   }
 
    public Acquisition acquisition_;
 
@@ -61,10 +61,8 @@ public class AcquisitionEvent {
    private Integer gridRow_ = null, gridCol_ = null;
    //TODO: SLM, Galvo, etc
 
-   //Keep shutter open during non sequence acquisition
-   private Boolean keepShutterOpen_ = null;
 
-   //Option to not acquire an image for shutter only and SLM events
+   //Option to not acquire an image for SLM events
    private Boolean acquireImage_ = null;
 
    //Pattern to project onto SLM. Can either be int[] or byte[]
@@ -136,7 +134,6 @@ public class AcquisitionEvent {
       e.gridRow_ = gridRow_;
       e.gridCol_ = gridCol_;
       e.miniumumStartTime_ms_ = miniumumStartTime_ms_;
-      e.keepShutterOpen_ = keepShutterOpen_;
       e.slmImage_ = slmImage_;
       e.acquireImage_ = acquireImage_;
       e.properties_ = new TreeSet<ThreeTuple>(this.properties_);
@@ -168,10 +165,6 @@ public class AcquisitionEvent {
 
          if (e.exposure_ != null) {
             json.put("exposure", e.exposure_);
-         }
-
-         if (e.keepShutterOpen_ != null && e.keepShutterOpen_) {
-            json.put("keep_shutter_open", true);
          }
 
          if (e.slmImage_ != null) {
@@ -293,9 +286,6 @@ public class AcquisitionEvent {
 
          //TODO: galvo, etc (i.e. other aspects of imperative API)
 
-         if (json.has("keep_shutter_open")) {
-            event.keepShutterOpen_ = json.getBoolean("keep_shutter_open");
-         }
 
          //Arbitrary additional properties (i.e. state based API)
          if (json.has("properties")) {
@@ -405,10 +395,6 @@ public class AcquisitionEvent {
     */
    public void setMinimumStartTime(Long l) {
       miniumumStartTime_ms_ = l;
-   }
-
-   public Boolean shouldKeepShutterOpen() {
-      return keepShutterOpen_;
    }
 
    public Set<String> getDefinedAxes() {

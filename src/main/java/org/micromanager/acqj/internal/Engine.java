@@ -517,6 +517,7 @@ public class Engine {
             core_.prepareSequenceAcquisition(core_.getCameraDevice());
 
          } catch (Exception ex) {
+            ex.printStackTrace();
             throw new HardwareControlException(ex.getMessage());
          }
       }
@@ -673,31 +674,6 @@ public class Engine {
          }
       }, "Changing exposure");
 
-
-      ////////////////////////  Autoshutter ///////////////////////////
-      loopHardwareCommandRetries(new Runnable() {
-         @Override
-         public void run() {
-            try {
-               if (event.acquisition_.initialAutoshutterState_ &&
-                        event.getSequence() == null) {
-                  //only do any of this if autoshutter on. Also sequences handle their own shutter behavior
-                  if (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen() ) {
-                     core_.setAutoShutter(false);
-                     core_.setShutterOpen(true);
-                  } else if (event.shouldKeepShutterOpen() == null ||
-                          (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen())) {
-                     core_.setAutoShutter(true);
-                     core_.setShutterOpen(false);
-                  }
-               }
-
-            } catch (Exception ex) {
-               throw new HardwareControlException(ex.getMessage());
-            }
-
-         }
-      }, "Autoshutter control");
 
       /////////////////////////////   SLM    //////////////////////////////////////////////
       loopHardwareCommandRetries(new Runnable() {

@@ -47,7 +47,6 @@ public class Acquisition implements AcquisitionAPI {
    protected String xyStage_, zStage_, slm_;
    protected volatile boolean eventsFinished_;
    protected volatile boolean abortRequested_ = false;
-   public final boolean initialAutoshutterState_;
    private JSONObject summaryMetadata_;
    private long startTime_ms_ = -1;
    private volatile boolean paused_ = false;
@@ -84,7 +83,6 @@ public class Acquisition implements AcquisitionAPI {
    public Acquisition(DataSink sink, Consumer<JSONObject> summaryMDAdder) {
       core_ = Engine.getCore();
       summaryMDAdder_ = summaryMDAdder;
-      initialAutoshutterState_ = core_.getAutoShutter();
       dataSink_ = sink;
       initialize();
    }
@@ -352,9 +350,6 @@ public class Acquisition implements AcquisitionAPI {
 
    public void eventsFinished() {
       eventsFinished_ = true;
-      //TODO: could add more restoration of inital settings at begginning of acquisition
-      // this seems out of place on its own...
-      core_.setAutoShutter(initialAutoshutterState_);
    }
 
    public boolean areEventsFinished() {
