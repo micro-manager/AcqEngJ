@@ -114,6 +114,7 @@ public class Acquisition implements AcquisitionAPI {
       abort();
    }
 
+   // Pycromanager calls this
    public void checkForExceptions() throws Exception {
       if (abortException_ != null) {
          throw abortException_;

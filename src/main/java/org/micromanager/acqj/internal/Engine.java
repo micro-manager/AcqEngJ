@@ -152,7 +152,7 @@ public class Engine {
                } catch (ExecutionException ex) {
                   //some problem with acuisition, abort and propagate exception
                   ex.printStackTrace();
-                  finishAcquisition(acq);
+                  acq.abort(ex);
                   throw new RuntimeException(ex);
                }
             }
@@ -186,7 +186,7 @@ public class Engine {
     * @return eith null, if nothing dispatched, or a Future which can be gotten once the image/sequence fully
     * acquired and images retrieved for subsequent processing/saving
     */
-   private Future processAcquisitionEvent(AcquisitionEvent event) throws ExecutionException {
+   private Future processAcquisitionEvent(AcquisitionEvent event)  {
       Future imageAcquiredFuture = acqExecutor_.submit(() -> {
          try {
             if (event.acquisition_.isDebugMode()) {
@@ -259,6 +259,7 @@ public class Engine {
          if (event.acquisition_.areEventsFinished()) {
             return; //Duplicate finishing event, possibly from x-ing out viewer
          }
+
          //send message acquisition finished message so things shut down properly
          for (AcquisitionHook h : event.acquisition_.getEventGenerationHooks()) {
             h.run(event);
