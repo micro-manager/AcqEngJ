@@ -152,7 +152,7 @@ public class Engine {
                } catch (ExecutionException ex) {
                   //some problem with acuisition, abort and propagate exception
                   ex.printStackTrace();
-                  finishAcquisition(acq);
+                  acq.abort(ex);
                   throw new RuntimeException(ex);
                }
             }
@@ -186,7 +186,7 @@ public class Engine {
     * @return eith null, if nothing dispatched, or a Future which can be gotten once the image/sequence fully
     * acquired and images retrieved for subsequent processing/saving
     */
-   private Future processAcquisitionEvent(AcquisitionEvent event) throws ExecutionException {
+   private Future processAcquisitionEvent(AcquisitionEvent event)  {
       Future imageAcquiredFuture = acqExecutor_.submit(() -> {
          try {
             if (event.acquisition_.isDebugMode()) {
@@ -259,6 +259,7 @@ public class Engine {
          if (event.acquisition_.areEventsFinished()) {
             return; //Duplicate finishing event, possibly from x-ing out viewer
          }
+
          //send message acquisition finished message so things shut down properly
          for (AcquisitionHook h : event.acquisition_.getEventGenerationHooks()) {
             h.run(event);
@@ -517,6 +518,7 @@ public class Engine {
             core_.prepareSequenceAcquisition(core_.getCameraDevice());
 
          } catch (Exception ex) {
+            ex.printStackTrace();
             throw new HardwareControlException(ex.getMessage());
          }
       }
@@ -673,31 +675,6 @@ public class Engine {
          }
       }, "Changing exposure");
 
-
-      ////////////////////////  Autoshutter ///////////////////////////
-      loopHardwareCommandRetries(new Runnable() {
-         @Override
-         public void run() {
-            try {
-               if (event.acquisition_.initialAutoshutterState_ &&
-                        event.getSequence() == null) {
-                  //only do any of this if autoshutter on. Also sequences handle their own shutter behavior
-                  if (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen() ) {
-                     core_.setAutoShutter(false);
-                     core_.setShutterOpen(true);
-                  } else if (event.shouldKeepShutterOpen() == null ||
-                          (event.shouldKeepShutterOpen() != null && event.shouldKeepShutterOpen())) {
-                     core_.setAutoShutter(true);
-                     core_.setShutterOpen(false);
-                  }
-               }
-
-            } catch (Exception ex) {
-               throw new HardwareControlException(ex.getMessage());
-            }
-
-         }
-      }, "Autoshutter control");
 
       /////////////////////////////   SLM    //////////////////////////////////////////////
       loopHardwareCommandRetries(new Runnable() {
