@@ -285,6 +285,9 @@ public class Engine {
             if (event == null) {
                return; //The hook cancelled this event
             }
+            if (event.acquisition_.isAbortRequested()) {
+               return; // exception in hook
+            }
          }
          try {
             prepareHardware(event);
@@ -295,6 +298,9 @@ public class Engine {
             event = h.run(event);
             if (event == null) {
                return; //The hook cancelled this event
+            }
+            if (event.acquisition_.isAbortRequested()) {
+               return; // exception in hook
             }
          }
          if (event.shouldAcquireImage()) {
