@@ -13,7 +13,7 @@ import java.util.Iterator;
 import java.util.concurrent.Future;
 
 /**
- * General interface for acquisitions
+ * General interface for tiled XY multi-resolution acquisitions
  *
  * @author henrypinkard
  */

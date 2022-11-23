@@ -31,18 +31,12 @@ import org.micromanager.acqj.api.TaggedImageProcessor;
 import org.micromanager.acqj.internal.Engine;
 
 /**
- * Abstract class that manages a generic acquisition. Subclassed into specific
- * types of acquisition. Minimal set of assumptions that mirror those in the
- * core. For example, assumes one Z stage, one XY stage, one channel group, etc
+ * This is the main class for using AcqEngJ. AcquisitionAPI defines its public API.
+ * A full usage example can be found in example/FullExample.java
  */
 public class Acquisition implements AcquisitionAPI {
 
    private static final int IMAGE_QUEUE_SIZE = 30;
-
-   public static final int EVENT_GENERATION_HOOK = 0;
-   public static final int BEFORE_HARDWARE_HOOK = 1;
-   public static final int AFTER_HARDWARE_HOOK = 2;
-   public static final int AFTER_CAMERA_HOOK = 3;
 
    protected String xyStage_, zStage_, slm_;
    protected volatile boolean eventsFinished_;
@@ -69,7 +63,13 @@ public class Acquisition implements AcquisitionAPI {
    private Consumer<JSONObject> imageMetadataProcessor_;
 
    /**
-    * After calling this constructor, call initialize then start
+    * Primary constructor for creating Acquisitons. If DataSink is null, then a
+    * TaggedImageProcessor that diverts the images to custom downstream processing
+    * must be implemented.
+    *
+    * After this constructor returns, the Acquisiton will be ready to be given instructions
+    * by calling submitEventIterator. However, if any acquisition hooks or image processors
+    * are desired, they should be added before the first call of submitEventIterator
     *
     */
    public Acquisition(DataSink sink) {
@@ -77,8 +77,7 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    /**
-    * After calling this constructor, call initialize then start
-    *
+    * Version of the constructor that accepts a function that can modify SummaryMetadata as needed
     */
    public Acquisition(DataSink sink, Consumer<JSONObject> summaryMDAdder) {
       core_ = Engine.getCore();
@@ -213,9 +212,9 @@ public class Acquisition implements AcquisitionAPI {
       processorOutputQueues_.put(p, new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE));
 
       if (imageProcessors_.size() == 1) {
-         p.setDequeues(firstDequeue_, processorOutputQueues_.get(p));
+         p.setAcqAndDequeues(this, firstDequeue_, processorOutputQueues_.get(p));
       } else {
-         p.setDequeues(processorOutputQueues_.get(imageProcessors_.size() - 2),
+         p.setAcqAndDequeues(this, processorOutputQueues_.get(imageProcessors_.size() - 2),
                  processorOutputQueues_.get(imageProcessors_.size() - 1));
       }
    }
@@ -280,7 +279,7 @@ public class Acquisition implements AcquisitionAPI {
     */
    private void saveImage(TaggedImage image) {
       if (image.tags == null && image.pix == null) {
-         dataSink_.finished();
+         dataSink_.finish();
          eventsFinished_ = true; //should have already been done, but just in case
       } else {
          //Now that all data processors have run, the channel index can be inferred

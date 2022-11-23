@@ -5,8 +5,11 @@ import mmcorej.org.json.JSONObject;
 import org.micromanager.acqj.main.Acquisition;
 
 /**
- * Where the acquisition sends data to. Conventionally would be a
- * display + saving to disk.
+ * Where the acquisition sends data to. Conventionally would be saving + image display.
+ * When using AcqEngJ, either a DataSink or a custom TaggedImageProcessor that intercepts
+ * and diverts images rather than passing them along should be implemented. Either one
+ * represents a valid destination for images.
+ *
  */
 public interface DataSink {
 
@@ -18,9 +21,9 @@ public interface DataSink {
    public void initialize(Acquisition acq, JSONObject summaryMetadata);
 
    /**
-    * No more data will be collected. Ideally should block until all resources cleaned up
+    * Called when no more data will be collected. Ideally should block until all resources cleaned up
     */
-   public void finished();
+   public void finish();
 
    /**
     * Is this sink and all associated resources complete (e.g. all data written to disk)
