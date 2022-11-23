@@ -19,6 +19,10 @@ import org.micromanager.acqj.main.AcquisitionEvent;
  */
 public interface AcquisitionAPI {
 
+   public static final int EVENT_GENERATION_HOOK = 0;
+   public static final int BEFORE_HARDWARE_HOOK = 1;
+   public static final int AFTER_HARDWARE_HOOK = 2;
+   public static final int AFTER_CAMERA_HOOK = 3;
 
    /**
     * Block until acquisition finished and all resources complete.
