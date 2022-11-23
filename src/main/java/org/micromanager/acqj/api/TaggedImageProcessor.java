@@ -2,6 +2,7 @@ package org.micromanager.acqj.api;
 
 import java.util.concurrent.LinkedBlockingDeque;
 import mmcorej.TaggedImage;
+import org.micromanager.acqj.api.AcquisitionAPI;
 
 
 /**
@@ -18,11 +19,13 @@ public interface TaggedImageProcessor {
     * of the source Dequeue, and then optionally adding it to the end of the sink
     * Dequeue. This method will get called immediately
     * after adding the TaggedImageProcessor.
-    * 
-    * @param source
-    * @param sink 
+    *
+    * @param acq The acquisition which this processor will operate on
+    * @param source The source of images that sould be processed
+    * @param sink The destination of any processed results
     */
-   public void setDequeues(LinkedBlockingDeque<TaggedImage> source,
-           LinkedBlockingDeque<TaggedImage> sink);
+   public void setAcqAndDequeues(AcquisitionAPI acq,
+         LinkedBlockingDeque<TaggedImage> source,
+                                 LinkedBlockingDeque<TaggedImage> sink);
    
 }
