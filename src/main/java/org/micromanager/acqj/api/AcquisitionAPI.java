@@ -25,6 +25,12 @@ public interface AcquisitionAPI {
    public static final int AFTER_CAMERA_HOOK = 3;
 
    /**
+    * Call to ready acquisition to start receiving acquisiton events. No more hooks
+    * or image processors should be added after this has been called
+    */
+   public void start();
+
+   /**
     * Block until acquisition finished and all resources complete.
     */
    public void waitForCompletion();
@@ -134,6 +140,11 @@ public interface AcquisitionAPI {
     * Should debug logging be printed
     */
    public boolean isDebugMode();
+
+   /**
+    * Throws an exception if an exception occured on a thread managed by the acquisiton
+    */
+   public void checkForExceptions() throws Exception;
 
    /**
     * Activate debug logging

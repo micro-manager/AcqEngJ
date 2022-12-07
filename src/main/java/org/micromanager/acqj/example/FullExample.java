@@ -30,6 +30,9 @@ public class FullExample {
       // Create an image processor, which will run on its own thread
       acquisition.addImageProcessor(new WorthlessImageProcessor());
 
+      // Ready the acquisiton to receive events
+      acquisition.start();
+
       // Now that everything is setup, AcquistionEvents can be added in order to
       // start acquiring data.
       // Each AcquisitionEvent will order the collection of one image per camera

@@ -61,6 +61,7 @@ public class Acquisition implements AcquisitionAPI {
    private ThreadPoolExecutor savingExecutor_ = null;
    private Exception abortException_ = null;
    private Consumer<JSONObject> imageMetadataProcessor_;
+   private volatile boolean started_ = false;
 
    /**
     * Primary constructor for creating Acquisitons. If DataSink is null, then a
@@ -85,6 +86,7 @@ public class Acquisition implements AcquisitionAPI {
       dataSink_ = sink;
       initialize();
    }
+
 
    /**
     * Don't delete, called by python side
@@ -208,6 +210,9 @@ public class Acquisition implements AcquisitionAPI {
 
    @Override
    public void addImageProcessor(TaggedImageProcessor p) {
+      if (started_) {
+         throw new RuntimeException("Cannot add processor after acquisiton started");
+      }
       imageProcessors_.add(p);
       processorOutputQueues_.put(p, new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE));
 
@@ -221,6 +226,9 @@ public class Acquisition implements AcquisitionAPI {
 
    @Override
    public void addHook(AcquisitionHook h, int type) {
+      if (started_) {
+         throw new RuntimeException("Cannot add hook after acquisiton started");
+      }
       if (type == EVENT_GENERATION_HOOK) {
          eventGenerationHooks_.add(h);
       } else if (type == BEFORE_HARDWARE_HOOK) {
@@ -257,11 +265,10 @@ public class Acquisition implements AcquisitionAPI {
     */
    protected void initialize() {
       JSONObject summaryMetadata = AcqEngMetadata.makeSummaryMD(this);
-
       addToSummaryMetadata(summaryMetadata);
 
       try {
-         //keep local copy for viewer
+         // Make a local in copy in case something else modifies it
          summaryMetadata_ = new JSONObject(summaryMetadata.toString());
       } catch (JSONException ex) {
          System.err.print("Couldn't copy summaary metadata");
@@ -270,9 +277,16 @@ public class Acquisition implements AcquisitionAPI {
       if (dataSink_ != null) {
          //It could be null if not using saving and viewing and diverting with custom processor
          dataSink_.initialize(this, summaryMetadata);
-         startSavingExecutor();
       }
    }
+
+   public void  start() {
+      if (dataSink_ != null) {
+         startSavingExecutor();
+      }
+      started_ = true;
+   }
+
 
    /**
     * Called by acquisition engine to save an image
