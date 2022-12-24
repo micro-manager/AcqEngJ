@@ -883,11 +883,11 @@ public class AcqEngMetadata {
       }
    }
    
-    public static HashMap<String, Integer> getAxes(JSONObject tags) {
+    public static HashMap<String, Object> getAxes(JSONObject tags) {
       try {
          JSONObject axes = tags.getJSONObject(AXES);
          Iterator<String> iter = axes.keys();
-         HashMap<String, Integer> axesMap = new HashMap<String, Integer>();
+         HashMap<String, Object> axesMap = new HashMap<String, Object>();
          while (iter.hasNext()) {
             String key = iter.next();
             axesMap.put(key, axes.getInt(key));        
@@ -898,7 +898,10 @@ public class AcqEngMetadata {
       }
    }
 
-   public static void setAxisPosition(JSONObject tags, String axis, int position) {
+   public static void setAxisPosition(JSONObject tags, String axis, Object position) {
+      if (!(position instanceof String || position instanceof Integer)) {
+         throw new RuntimeException("position must be String or Integer");
+      }
       try {
          tags.getJSONObject(AXES).put(axis, position);
       } catch (JSONException ex) {

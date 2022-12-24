@@ -48,7 +48,7 @@ public class AcquisitionEvent {
    //For encoded time, z indices (or other generic axes)
    //XY position and channel indices should not be encoded because acq engine
    //will dynamically infer them at runtime
-   private HashMap<String, Integer> axisPositions_ = new HashMap<String, Integer>();
+   private HashMap<String, Object> axisPositions_ = new HashMap<String, Object>();
 
    private String channelGroup_, channelConfig_ = null;
    private Double exposure_ = null; //leave null to keep exposaure unchanged
@@ -125,7 +125,7 @@ public class AcquisitionEvent {
 
    public AcquisitionEvent copy() {
       AcquisitionEvent e = new AcquisitionEvent(this.acquisition_);
-      e.axisPositions_ = (HashMap<String, Integer>) axisPositions_.clone();
+      e.axisPositions_ = (HashMap<String, Object>) axisPositions_.clone();
       e.channelConfig_ = channelConfig_;
       e.channelGroup_ = channelConfig_;
       e.zPosition_ = zPosition_;
@@ -405,7 +405,7 @@ public class AcquisitionEvent {
       axisPositions_.put(label, index);
    }
 
-   public Integer getAxisPosition(String label) {
+   public Object getAxisPosition(String label) {
       if (!axisPositions_.containsKey(label)) {
          return null;
       }
@@ -428,11 +428,11 @@ public class AcquisitionEvent {
    }
 
    public Integer getTIndex() {
-      return getAxisPosition(AcqEngMetadata.TIME_AXIS);
+      return (Integer) getAxisPosition(AcqEngMetadata.TIME_AXIS);
    }
 
    public Integer getZIndex() {
-      return getAxisPosition(AcqEngMetadata.Z_AXIS);
+      return (Integer) getAxisPosition(AcqEngMetadata.Z_AXIS);
    }
 
    public static AcquisitionEvent createAcquisitionFinishedEvent(AcquisitionAPI acq) {
