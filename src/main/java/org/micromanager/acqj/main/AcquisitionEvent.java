@@ -46,11 +46,11 @@ public class AcquisitionEvent {
    public Acquisition acquisition_;
 
    //For encoded time, z indices (or other generic axes)
-   //XY position and channel indices should not be encoded because acq engine
+   //XY position indices should not be encoded because acq engine
    //will dynamically infer them at runtime
-   private HashMap<String, Integer> axisPositions_ = new HashMap<String, Integer>();
+   private HashMap<String, Object> axisPositions_ = new HashMap<String, Object>();
 
-   private String channelGroup_, channelConfig_ = null;
+   private String configGroup_, configPreset_ = null;
    private Double exposure_ = null; //leave null to keep exposaure unchanged
 
    private Long miniumumStartTime_ms_; //For pausing between time points
@@ -73,7 +73,7 @@ public class AcquisitionEvent {
 
    //for hardware sequencing
    private List<AcquisitionEvent> sequence_ = null;
-   private boolean xySequenced_ = false, zSequenced_ = false, exposureSequenced_ = false, channelSequenced_ = false;
+   private boolean xySequenced_ = false, zSequenced_ = false, exposureSequenced_ = false, configGroupSequenced_ = false;
 
    //To specify end of acquisition or end of sequence
    private SpecialFlag specialFlag_;
@@ -112,22 +112,22 @@ public class AcquisitionEvent {
          if (sequence_.get(i).exposure_ != null) {
             exposureSet.add(sequence_.get(i).getExposure());
          }
-         if (sequence_.get(i).channelConfig_ != null) {
-            configSet.add(sequence_.get(i).getChannelConfig());
+         if (sequence_.get(i).configPreset_ != null) {
+            configSet.add(sequence_.get(i).getConfigPreset());
          }
       }
       //TODO: add SLM sequences
       exposureSequenced_ = exposureSet.size() > 1;
-      channelSequenced_ = configSet.size() > 1;
+      configGroupSequenced_ = configSet.size() > 1;
       xySequenced_ = xPosSet.size() > 1 && yPosSet.size() > 1;
       zSequenced_ = zPosSet.size() > 1;
    }
 
    public AcquisitionEvent copy() {
       AcquisitionEvent e = new AcquisitionEvent(this.acquisition_);
-      e.axisPositions_ = (HashMap<String, Integer>) axisPositions_.clone();
-      e.channelConfig_ = channelConfig_;
-      e.channelGroup_ = channelConfig_;
+      e.axisPositions_ = (HashMap<String, Object>) axisPositions_.clone();
+      e.configPreset_ = configPreset_;
+      e.configGroup_ = configPreset_;
       e.zPosition_ = zPosition_;
       e.xPosition_ = xPosition_;
       e.yPosition_ = yPosition_;
@@ -156,11 +156,11 @@ public class AcquisitionEvent {
             json.put("min_start_time", e.miniumumStartTime_ms_ / 1000);
          }
 
-         if (e.hasChannel()) {
-            JSONObject channel = new JSONObject();
-            channel.put("group", e.channelGroup_);
-            channel.put("config", e.channelConfig_);
-            json.put("channel", channel);
+         if (e.hasConfigGroup()) {
+            JSONArray configGroup = new JSONArray();
+            configGroup.put( e.configGroup_);
+            configGroup.put( e.configPreset_);
+            json.put("config_group", configGroup);
          }
 
          if (e.exposure_ != null) {
@@ -234,7 +234,7 @@ public class AcquisitionEvent {
             JSONObject axes = json.getJSONObject("axes");
             axes.keys().forEachRemaining((String axisLabel) -> {
                try {
-                  event.axisPositions_.put(axisLabel, axes.getInt(axisLabel));
+                  event.axisPositions_.put(axisLabel, axes.get(axisLabel));
                } catch (JSONException ex) {
                   throw new RuntimeException(ex);
                }
@@ -245,10 +245,10 @@ public class AcquisitionEvent {
             event.miniumumStartTime_ms_ = (long) (json.getDouble("min_start_time") * 1000);
          }
 
-         //channel name
-         if (json.has("channel")) {
-            event.channelConfig_ = json.getJSONObject("channel").getString("config");
-            event.channelGroup_ = json.getJSONObject("channel").getString("group");
+         // Config group (usually this is a channel, but doesnt have to be)
+         if (json.has("config_group")) {
+            event.configGroup_ = json.getJSONArray("config_group").getString(0);
+            event.configPreset_ = json.getJSONArray("config_group").getString(1);
          }
          if (json.has("exposure")) {
             event.exposure_ = json.getDouble("exposure");
@@ -356,28 +356,28 @@ public class AcquisitionEvent {
       } else if (gridRow_ != null && gridCol_ != null) {
          return true;
       } else {
-         return channelConfig_ != null || axisPositions_.keySet().size() > 0;
+         return configPreset_ != null || axisPositions_.keySet().size() > 0;
       }
    }
 
-   public boolean hasChannel() {
-      return channelConfig_ != null && channelGroup_ != null;
+   public boolean hasConfigGroup() {
+      return configPreset_ != null && configGroup_ != null;
    }
 
-   public String getChannelConfig() {
-      return channelConfig_;
+   public String getConfigPreset() {
+      return configPreset_;
    }
 
-   public String getChannelGroup() {
-      return channelGroup_;
+   public String getConfigGroup() {
+      return configGroup_;
    }
 
-   public void setChannelConfig(String config) {
-      channelConfig_ = config;
+   public void setConfigPreset(String config) {
+      configPreset_ = config;
    }
 
-   public void setChannelGroup(String group) {
-      channelGroup_ = group;
+   public void setConfigGroup(String group) {
+      configGroup_ = group;
    }
 
    public Double getExposure() {
@@ -401,11 +401,11 @@ public class AcquisitionEvent {
       return axisPositions_.keySet();
    }
 
-   public void setAxisPosition(String label, int index) {
-      axisPositions_.put(label, index);
+   public void setAxisPosition(String label, Object position) {
+      axisPositions_.put(label, position);
    }
 
-   public Integer getAxisPosition(String label) {
+   public Object getAxisPosition(String label) {
       if (!axisPositions_.containsKey(label)) {
          return null;
       }
@@ -414,6 +414,10 @@ public class AcquisitionEvent {
 
    public void setTimeIndex(int index) {
       setAxisPosition(AcqEngMetadata.TIME_AXIS, index);
+   }
+
+   public void setChannelName(String name) {
+      setAxisPosition(AcqEngMetadata.CHANNEL_AXIS, name);
    }
 
    public Object getSLMImage() {
@@ -428,11 +432,11 @@ public class AcquisitionEvent {
    }
 
    public Integer getTIndex() {
-      return getAxisPosition(AcqEngMetadata.TIME_AXIS);
+      return (Integer) getAxisPosition(AcqEngMetadata.TIME_AXIS);
    }
 
    public Integer getZIndex() {
-      return getAxisPosition(AcqEngMetadata.Z_AXIS);
+      return (Integer) getAxisPosition(AcqEngMetadata.Z_AXIS);
    }
 
    public static AcquisitionEvent createAcquisitionFinishedEvent(AcquisitionAPI acq) {
@@ -479,8 +483,8 @@ public class AcquisitionEvent {
       return exposureSequenced_;
    }
 
-   public boolean isChannelSequenced() {
-      return channelSequenced_;
+   public boolean isConfigGroupSequenced() {
+      return configGroupSequenced_;
    }
 
    public boolean isXYSequenced() {

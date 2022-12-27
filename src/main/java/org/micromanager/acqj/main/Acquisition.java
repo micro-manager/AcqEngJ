@@ -16,6 +16,7 @@
 //
 package org.micromanager.acqj.main;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -44,7 +45,6 @@ public class Acquisition implements AcquisitionAPI {
    private JSONObject summaryMetadata_;
    private long startTime_ms_ = -1;
    private volatile boolean paused_ = false;
-   private CopyOnWriteArrayList<String> channelNames_ = new CopyOnWriteArrayList<String>();
    protected DataSink dataSink_;
    private Consumer<JSONObject> summaryMDAdder_;
    final public CMMCore core_;
@@ -296,15 +296,7 @@ public class Acquisition implements AcquisitionAPI {
          dataSink_.finish();
          eventsFinished_ = true; //should have already been done, but just in case
       } else {
-         //Now that all data processors have run, the channel index can be inferred
-         //based on what channels show up at runtime
-         String channelName = AcqEngMetadata.getChannelName(image.tags);
-         if (!channelNames_.contains(channelName)) {
-            channelNames_.add(channelName);
-         }
-         AcqEngMetadata.setAxisPosition(image.tags, AcqEngMetadata.CHANNEL_AXIS,
-                 channelNames_.indexOf(channelName));
-         //this method doesnt return until all images have been written to disk
+         //this method doesn't return until all images have been written to disk
          dataSink_.putImage(image);
       }
    }

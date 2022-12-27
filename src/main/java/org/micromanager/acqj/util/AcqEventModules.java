@@ -95,8 +95,9 @@ public class AcqEventModules {
             @Override
             public AcquisitionEvent next() {
                AcquisitionEvent channelEvent = event.copy();
-               channelEvent.setChannelGroup(channelList.get(index).group_);
-               channelEvent.setChannelConfig(channelList.get(index).config_);
+               channelEvent.setConfigGroup(channelList.get(index).group_);
+               channelEvent.setConfigPreset(channelList.get(index).config_);
+               channelEvent.setChannelName(channelList.get(index).config_);
                boolean hasZOffsets = channelList.stream().map(t -> t.offset_).
                        filter(t -> t != 0).collect(Collectors.toList()).size() > 0;
                Double zPos;
