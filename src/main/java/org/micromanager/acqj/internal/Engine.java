@@ -21,7 +21,6 @@ package org.micromanager.acqj.internal;
  * the editor.
  */
 import org.micromanager.acqj.api.AcquisitionAPI;
-import org.micromanager.acqj.main.Acquisition;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
 
@@ -470,10 +469,10 @@ public class Engine {
             DoubleVector xSequence = event.isXYSequenced() ? new DoubleVector() : null;
             DoubleVector ySequence = event.isXYSequenced() ? new DoubleVector() : null;
             DoubleVector exposureSequence_ms =event.isExposureSequenced() ? new DoubleVector() : null;
-            String group = event.getSequence().get(0).getChannelGroup();
-            Configuration config = event.getSequence().get(0).getChannelConfig() == null ? null :
-                    core_.getConfigData(group, event.getSequence().get(0).getChannelConfig());
-            LinkedList<StrVector> propSequences = event.isChannelSequenced() ? new LinkedList<StrVector>() : null;
+            String group = event.getSequence().get(0).getConfigGroup();
+            Configuration config = event.getSequence().get(0).getConfigPreset() == null ? null :
+                    core_.getConfigData(group, event.getSequence().get(0).getConfigPreset());
+            LinkedList<StrVector> propSequences = event.isConfigGroupSequenced() ? new LinkedList<StrVector>() : null;
             for (AcquisitionEvent e : event.getSequence()) {
                if (zSequence != null) {
                   zSequence.add(e.getZPosition());
@@ -497,7 +496,7 @@ public class Engine {
                         propSequences.add(new StrVector());
                      }
                      Configuration channelPresetConfig = core_.getConfigData(group,
-                             e.getChannelConfig());
+                             e.getConfigPreset());
                      String propValue = channelPresetConfig.getSetting(deviceName, propName).getPropertyValue();
                      propSequences.get(i).add(propValue);
                   }
@@ -513,7 +512,7 @@ public class Engine {
             if (event.isZSequenced()) {
                core_.loadStageSequence(zStage, zSequence);
             }
-            if (event.isChannelSequenced()) {
+            if (event.isConfigGroupSequenced()) {
                for (int i = 0; i < config.size(); i++) {
                   PropertySetting ps = config.getSetting(i);
                   String deviceName = ps.getDeviceLabel();
@@ -618,11 +617,10 @@ public class Engine {
          @Override
          public void run() {
             try {
-               if (event.isChannelSequenced()) {
+               if (event.isConfigGroupSequenced()) {
                   //Channels
-                  String group = event.getChannelGroup();
-                  Configuration config = core_.getConfigData(group,
-                          event.getChannelConfig());
+                  String group = event.getConfigGroup();
+                  Configuration config = core_.getConfigData(group, event.getConfigPreset());
                   for (int i = 0; i < config.size(); i++) {
                      PropertySetting ps = config.getSetting(i);
                      String deviceName = ps.getDeviceLabel();
@@ -632,11 +630,11 @@ public class Engine {
                } else {
                   //Get the values of current channel, pulling from the first event in a sequence if one is present
                   String currentConfig = event.getSequence() == null ?
-                          event.getChannelConfig() : event.getSequence().get(0).getChannelConfig();
+                          event.getConfigPreset() : event.getSequence().get(0).getConfigPreset();
                   String currentGroup = event.getSequence() == null ?
-                          event.getChannelGroup() : event.getSequence().get(0).getChannelGroup();
+                          event.getConfigGroup() : event.getSequence().get(0).getConfigGroup();
                   String previousConfig = lastEvent_ == null ? null : lastEvent_.getSequence() == null ?
-                          lastEvent_.getChannelConfig() : lastEvent_.getSequence().get(0).getChannelConfig();
+                          lastEvent_.getConfigPreset() : lastEvent_.getSequence().get(0).getConfigPreset();
 
                   boolean newChannel = currentConfig != null && (previousConfig == null || !previousConfig.equals(currentConfig));
                   if ( newChannel ) {
@@ -774,10 +772,10 @@ public class Engine {
          }
 
          //check all properties in channel
-         if (e1.getChannelConfig() != null && e2.getChannelConfig() != null
-                 && !e1.getChannelConfig().equals(e2.getChannelConfig())) {
+         if (e1.getConfigPreset() != null && e2.getConfigPreset() != null
+                 && !e1.getConfigPreset().equals(e2.getConfigPreset())) {
             //check all properties in the channel
-            Configuration config1 = core_.getConfigData(e1.getChannelGroup(), e1.getChannelConfig());
+            Configuration config1 = core_.getConfigData(e1.getConfigGroup(), e1.getConfigPreset());
             for (int i = 0; i < config1.size(); i++) {
                PropertySetting ps = config1.getSetting(i);
                String deviceName = ps.getDeviceLabel();

@@ -116,7 +116,7 @@ public class AcqEngMetadata {
          AcqEngMetadata.createAxes(tags);
 
          ////////  Channels /////////
-         String channelName = event.getChannelConfig() == null ? "" : event.getChannelConfig() ;
+         String channelName = event.getConfigPreset() == null ? "" : event.getConfigPreset() ;
          if (Engine.getCore().getNumberOfCameraChannels() > 1) {
             channelName = channelName.length() > 0 ? channelName + "_" +
                     Engine.getCore().getCameraChannelName(camChannelIndex) : Engine.getCore().getCameraChannelName(camChannelIndex);
@@ -890,7 +890,7 @@ public class AcqEngMetadata {
          HashMap<String, Object> axesMap = new HashMap<String, Object>();
          while (iter.hasNext()) {
             String key = iter.next();
-            axesMap.put(key, axes.getInt(key));        
+            axesMap.put(key, axes.get(key));
          }
          return axesMap;
       } catch (JSONException ex) {
