@@ -115,16 +115,6 @@ public class AcqEngMetadata {
          //Axes (i.e. channel. z, t, or arbitray other indices)
          AcqEngMetadata.createAxes(tags);
 
-         ////////  Channels /////////
-         String channelName = event.getConfigPreset() == null ? "" : event.getConfigPreset() ;
-         if (Engine.getCore().getNumberOfCameraChannels() > 1) {
-            channelName = channelName.length() > 0 ? channelName + "_" +
-                    Engine.getCore().getCameraChannelName(camChannelIndex) : Engine.getCore().getCameraChannelName(camChannelIndex);
-         }
-         //infer channel index at runtime based on name
-//         int cIndex = event.acquisition_.getChannelIndexFromName(channelName);
-         AcqEngMetadata.setChannelName(tags, channelName == null ? "" : channelName);
-
          /////////  XY Stage Positions (with optional support for grid layout) ////////
          if (event.getXPosition() != null && event.getYPosition() != null) {
             //infer Stage position index at acquisition time to support on the fly modification
@@ -323,22 +313,6 @@ public class AcqEngMetadata {
          map.put(HEIGHT, height);
       } catch (JSONException ex) {
          throw new RuntimeException("Couldnt set image height");
-      }
-   }
-
-   public static String getChannelName(JSONObject map) {
-      try {
-         return map.getString(CHANNEL_NAME);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Missing channel name tag");
-      }
-   }
-
-   public static void setChannelName(JSONObject map, String channelName) {
-      try {
-         map.put(CHANNEL_NAME, channelName);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Couldn't set channel index");
       }
    }
 
