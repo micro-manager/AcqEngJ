@@ -246,13 +246,15 @@ public class Acquisition implements AcquisitionAPI {
     */
    public void waitForCompletion() {
       try {
-         //wait for event generation to shut down
+         // wait for event generation to shut down
          while (!eventsFinished_) {
             Thread.sleep(5);
          }
          // Waiting for saving to finish and all resources to complete
-         while (!savingExecutor_.isTerminated()) {
-            Thread.sleep(5);
+         if (savingExecutor_ != null) {
+            while (!savingExecutor_.isTerminated()) {
+               Thread.sleep(5);
+            }
          }
       } catch (InterruptedException ex) {
          throw new RuntimeException(ex);
@@ -260,8 +262,9 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    /**
-    * 1) Get the names or core devices to be used in acquistion 2) Create
-    * Summary metadata 3) Initialize data sink
+    * 1) Get the names of core devices to be used in acquisition.
+    * 2) Create Summary metadata.
+    * 3) Initialize data sink.
     */
    protected void initialize() {
       JSONObject summaryMetadata = AcqEngMetadata.makeSummaryMD(this);
