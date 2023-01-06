@@ -891,9 +891,9 @@ public class AcqEngMetadata {
       }
    }
 
-   public static int getAxisPosition(JSONObject tags, String axis) {
+   public static Object getAxisPosition(JSONObject tags, String axis) {
       try {
-         return tags.getJSONObject(AXES).getInt(axis);
+         return tags.getJSONObject(AXES).get(axis);
       } catch (JSONException ex) {
          throw new RuntimeException("couldnt create axes");
       }
