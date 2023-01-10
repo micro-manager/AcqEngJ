@@ -56,7 +56,7 @@ public class AcqEngMetadata {
    private static final String Z_UM = "ZPosition_um";
    private static final String EXPOSURE = "Exposure";
    private static final String CHANNEL_NAME = "Channel";
-   private static final String ZC_ORDER = "SlicesFirst";
+   private static final String ZC_ORDER = "SlicesFirst"; // this is called ZCT in the functions
    private static final String TIME = "Time";
    private static final String DATE_TIME = "DateAndTime";
    private static final String SAVING_PREFIX = "Prefix";
@@ -228,6 +228,10 @@ public class AcqEngMetadata {
       }
    }
 
+   public static boolean hasCoreXY(JSONObject map) {
+      return map.has(CORE_XYSTAGE);
+   }
+
    public static String getCoreXY(JSONObject map) {
       try {
          return map.getString(CORE_XYSTAGE);
@@ -244,19 +248,15 @@ public class AcqEngMetadata {
       }
    }
 
+   public static boolean hasCoreFocus(JSONObject map) {
+      return map.has(CORE_FOCUS);
+   }
+
    public static String getCoreFocus(JSONObject map) {
       try {
          return map.getString(CORE_FOCUS);
       } catch (JSONException ex) {
          throw new RuntimeException("Missing core focus tag");
-      }
-   }
-
-   public static String getAcqDate(JSONObject map) {
-      try {
-         return map.getString(DATE_TIME);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Missing Acq dat time tag");
       }
    }
 
@@ -268,6 +268,18 @@ public class AcqEngMetadata {
       }
    }
 
+   public boolean hasAcqDate(JSONObject map) {
+      return map.has(DATE_TIME);
+   }
+
+   public static String getAcqDate(JSONObject map) {
+      try {
+         return map.getString(DATE_TIME);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Missing Acq dat time tag");
+      }
+   }
+
    public static void setBitDepth(JSONObject map, int bitDepth) {
       try {
          map.put(BIT_DEPTH, bitDepth);
@@ -276,19 +288,15 @@ public class AcqEngMetadata {
       }
    }
 
+   public static boolean hasBitDepth(JSONObject map) {
+      return map.has(BIT_DEPTH);
+   }
+
    public static int getBitDepth(JSONObject map) {
       try {
          return map.getInt(BIT_DEPTH);
       } catch (JSONException ex) {
          throw new RuntimeException("Missing bit depth tag");
-      }
-   }
-
-   public static int getWidth(JSONObject map) {
-      try {
-         return map.getInt(WIDTH);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Image width tag missing");
       }
    }
 
@@ -300,11 +308,15 @@ public class AcqEngMetadata {
       }
    }
 
-   public static int getHeight(JSONObject map) {
+   public static boolean hasWidth(JSONObject map) {
+      return map.has(WIDTH);
+   }
+
+   public static int getWidth(JSONObject map) {
       try {
-         return map.getInt(HEIGHT);
+         return map.getInt(WIDTH);
       } catch (JSONException ex) {
-         throw new RuntimeException("Height missing from image tags");
+         throw new RuntimeException("Image width tag missing");
       }
    }
 
@@ -316,11 +328,15 @@ public class AcqEngMetadata {
       }
    }
 
-   public static String getPositionName(JSONObject map) {
+   public static boolean hasHeight(JSONObject map) {
+      return map.has(HEIGHT);
+   }
+
+   public static int getHeight(JSONObject map) {
       try {
-         return map.getString(POS_NAME);
+         return map.getInt(HEIGHT);
       } catch (JSONException ex) {
-         throw new RuntimeException("Missing position name tag");
+         throw new RuntimeException("Height missing from image tags");
       }
    }
 
@@ -332,15 +348,16 @@ public class AcqEngMetadata {
       }
    }
 
-   public static String getPixelType(JSONObject map) {
+   public static boolean hasPositionName(JSONObject map) {
+      return map.has(POS_NAME);
+   }
+
+   public static String getPositionName(JSONObject map) {
       try {
-         if (map != null) {
-            return map.getString(PIX_TYPE);
-         }
-      } catch (JSONException e) {
-         throw new RuntimeException(e);
+         return map.getString(POS_NAME);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Missing position name tag");
       }
-      return "";
    }
 
    public static void setPixelTypeFromString(JSONObject map, String type) {
@@ -372,6 +389,21 @@ public class AcqEngMetadata {
          throw new RuntimeException("Couldn't set pixel type");
 
       }
+   }
+
+   public static boolean hasPixelType(JSONObject map) {
+      return map.has(PIX_TYPE);
+   }
+
+   public static String getPixelType(JSONObject map) {
+      try {
+         if (map != null) {
+            return map.getString(PIX_TYPE);
+         }
+      } catch (JSONException e) {
+         throw new RuntimeException(e);
+      }
+      return "";
    }
 
    public static int getBytesPerPixel(JSONObject map) {
@@ -454,20 +486,23 @@ public class AcqEngMetadata {
       }
    }
 
-   public static String getImageTime(JSONObject map) {
-      try {
-         return map.getString(TIME);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Missing image time tag");
-
-      }
-   }
-
    public static void setImageTime(JSONObject map, String time) {
       try {
          map.put(TIME, time);
       } catch (JSONException ex) {
          throw new RuntimeException("Couldn't set image time");
+      }
+   }
+
+   public boolean hasImageTime(JSONObject map) {
+      return map.has(TIME);
+   }
+
+   public static String getImageTime(JSONObject map) {
+      try {
+         return map.getString(TIME);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Missing image time tag");
 
       }
    }
@@ -487,21 +522,37 @@ public class AcqEngMetadata {
       }
    }
 
-   public static double getExposure(JSONObject tags) {
+   public static void setExposure(JSONObject map, double exp) {
       try {
-         return tags.getDouble(EXPOSURE);
+         map.put(EXPOSURE, exp);
       } catch (JSONException ex) {
-         throw new RuntimeException("Exposure tag missiing");
+         throw new RuntimeException("could not set exposure");
+      }
+   }
+
+   public boolean hasExposure(JSONObject map) {
+      return map.has(EXPOSURE);
+   }
+
+   public static double getExposure(JSONObject map) {
+      try {
+         return map.getDouble(EXPOSURE);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Exposure tag missing");
 
       }
    }
 
-   public static void setExposure(JSONObject tags, double exp) {
+   public static void setPixelSizeUm(JSONObject map, double val) {
       try {
-         tags.put(EXPOSURE, exp);
+         map.put(PIX_SIZE, val);
       } catch (JSONException ex) {
-         throw new RuntimeException("couldnt set exposure");
+         throw new RuntimeException("Missing pixel size tag");
       }
+   }
+
+   public static boolean hasPixelSizeUm(JSONObject map) {
+      return map.has(PIX_SIZE);
    }
 
    public static double getPixelSizeUm(JSONObject map) {
@@ -513,13 +564,16 @@ public class AcqEngMetadata {
       }
    }
 
-   public static void setPixelSizeUm(JSONObject map, double val) {
+   public static void setZStepUm(JSONObject map, double val) {
       try {
-         map.put(PIX_SIZE, val);
+         map.put(Z_STEP_UM, val);
       } catch (JSONException ex) {
-         throw new RuntimeException("Missing pixel size tag");
-
+         throw new RuntimeException("Couldn't set z step tag");
       }
+   }
+
+   public static boolean hasZStepUm(JSONObject map) {
+      return map.has(Z_STEP_UM);
    }
 
    public static double getZStepUm(JSONObject map) {
@@ -530,13 +584,16 @@ public class AcqEngMetadata {
       }
    }
 
-   public static void setZStepUm(JSONObject map, double val) {
+   public static void setZPositionUm(JSONObject map, double val) {
       try {
-         map.put(Z_STEP_UM, val);
+         map.put(Z_UM, val);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldn't set z step tag");
-
+         throw new RuntimeException("Couldn't set z position");
       }
+   }
+
+   public static boolean hasZPositionUm(JSONObject map) {
+      return map.has(Z_UM);
    }
 
    public static double getZPositionUm(JSONObject map) {
@@ -544,25 +601,6 @@ public class AcqEngMetadata {
          return map.getDouble(Z_UM);
       } catch (JSONException ex) {
          throw new RuntimeException("Missing Z position tag");
-
-      }
-   }
-
-   public static void setZPositionUm(JSONObject map, double val) {
-      try {
-         map.put(Z_UM, val);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Couldn't set z position");
-
-      }
-   }
-
-   public static long getElapsedTimeMs(JSONObject map) {
-      try {
-         return map.getLong(ELAPSED_TIME_MS);
-      } catch (JSONException ex) {
-         throw new RuntimeException("missing elapsed time tag");
-
       }
    }
 
@@ -571,8 +609,31 @@ public class AcqEngMetadata {
          map.put(ELAPSED_TIME_MS, val);
       } catch (JSONException ex) {
          throw new RuntimeException("Couldn't set elapsed time");
-
       }
+   }
+
+   public static boolean hasElapsedTimeMs(JSONObject map) {
+      return map.has(ELAPSED_TIME_MS);
+   }
+
+   public static long getElapsedTimeMs(JSONObject map) {
+      try {
+         return map.getLong(ELAPSED_TIME_MS);
+      } catch (JSONException ex) {
+         throw new RuntimeException("missing elapsed time tag");
+      }
+   }
+
+   public static void setIntervalMs(JSONObject map, double val) {
+      try {
+         map.put(TIMELAPSE_INTERVAL, val);
+      } catch (JSONException ex) {
+         throw new RuntimeException("couln dt set time interval metadta field");
+      }
+   }
+
+   public static boolean hasIntervalMs(JSONObject map) {
+      return map.has(TIMELAPSE_INTERVAL);
    }
 
    public static double getIntervalMs(JSONObject map) {
@@ -583,12 +644,16 @@ public class AcqEngMetadata {
       }
    }
 
-   public static void setIntervalMs(JSONObject map, double val) {
+   public static void setZCTOrder(JSONObject map, boolean val) {
       try {
-         map.put(TIMELAPSE_INTERVAL, val);
+         map.put(ZC_ORDER, val);
       } catch (JSONException ex) {
-         throw new RuntimeException("coulndt set time interval metadta field");
+         throw new RuntimeException("Couldn't set ZCT Order");
       }
+   }
+
+   public static boolean hasZCTOrder(JSONObject map) {
+      return map.has(ZC_ORDER);
    }
 
    public static boolean getZCTOrder(JSONObject map) {
@@ -596,16 +661,6 @@ public class AcqEngMetadata {
          return map.getBoolean(ZC_ORDER);
       } catch (JSONException ex) {
          throw new RuntimeException("Missing ZCT Tag");
-
-      }
-   }
-
-   public static void setZCTOrder(JSONObject map, boolean val) {
-      try {
-         map.put(ZC_ORDER, val);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Couldn't set ZCT Order");
-
       }
    }
 
@@ -614,8 +669,11 @@ public class AcqEngMetadata {
          summaryMD.put(AFFINE_TRANSFORM, affine);
       } catch (JSONException ex) {
          throw new RuntimeException("Couldn't set affine transform");
-
       }
+   }
+
+   public static boolean hasAffineTransformString(JSONObject map) {
+      return map.has(AFFINE_TRANSFORM);
    }
 
    public static String getAffineTransformString(JSONObject summaryMD) {
@@ -654,13 +712,23 @@ public class AcqEngMetadata {
       }
    }
    
-   
-      public static void setPixelOverlapX(JSONObject smd, int overlap) {
+   public static void setPixelOverlapX(JSONObject smd, int overlap) {
       try {
          smd.put(OVERLAP_X, overlap);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set pixel overlap tag");
+         throw new RuntimeException("Could not set pixel overlap tag");
+      }
+   }
 
+   public static boolean hasPixelOverlapX(JSONObject map) {
+      return map.has(OVERLAP_X);
+   }
+
+   public static int getPixelOverlapX(JSONObject summaryMD) {
+      try {
+         return summaryMD.getInt(OVERLAP_X);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not find pixel overlap in image tags");
       }
    }
 
@@ -668,33 +736,39 @@ public class AcqEngMetadata {
       try {
          smd.put(OVERLAP_Y, overlap);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set pixel overlap tag");
-
+         throw new RuntimeException("Could not set pixel overlap tag");
       }
    }
 
-   public static int getPixelOverlapX(JSONObject summaryMD) {
-      try {
-         return summaryMD.getInt(OVERLAP_X);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt find pixel overlap in image tags");
-      }
+   public static boolean hasPixelOverlapY(JSONObject map) {
+      return map.has(OVERLAP_Y);
    }
 
    public static int getPixelOverlapY(JSONObject summaryMD) {
       try {
          return summaryMD.getInt(OVERLAP_Y);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt find pixel overlap in image tags");
+         throw new RuntimeException("Could not find pixel overlap in image tags");
       }
    }
-
 
    public static void setGridRow(JSONObject smd, long gridRow) {
       try {
          smd.put(GRID_ROW, gridRow);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set grid row");
+         throw new RuntimeException("Could not set grid row");
+      }
+   }
+
+   public static boolean hasGridRow(JSONObject map) {
+      return map.has(GRID_ROW);
+   }
+
+   public static int getGridRow(JSONObject smd) {
+      try {
+         return smd.getInt(GRID_ROW);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not get grid row");
 
       }
    }
@@ -703,26 +777,19 @@ public class AcqEngMetadata {
       try {
          smd.put(GRID_COL, gridCol);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set grid row");
-
+         throw new RuntimeException("Could not set grid row");
       }
    }
 
-   public static int getGridRow(JSONObject smd) {
-      try {
-         return smd.getInt(GRID_ROW);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt get grid row");
-
-      }
+   public static boolean hasGridCol(JSONObject map) {
+      return map.has(GRID_COL);
    }
 
    public static int getGridCol(JSONObject smd) {
       try {
          return smd.getInt(GRID_COL);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt g et grid row");
-
+         throw new RuntimeException("Could not get grid row");
       }
    }
 
@@ -730,8 +797,19 @@ public class AcqEngMetadata {
       try {
          smd.put(X_UM_INTENDED, x);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set stage x");
+         throw new RuntimeException("Could not set stage x");
+      }
+   }
 
+   public static boolean hasStageXIntended(JSONObject map) {
+      return map.has(X_UM_INTENDED);
+   }
+
+   public static double getStageXIntended(JSONObject smd) {
+      try {
+         return smd.getDouble(X_UM_INTENDED);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not get stage x");
       }
    }
 
@@ -739,7 +817,19 @@ public class AcqEngMetadata {
       try {
          smd.put(Y_UM_INTENDED, y);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set stage y");
+         throw new RuntimeException("Could not set stage y");
+      }
+   }
+
+   public static boolean hasStageYIntended(JSONObject map) {
+      return map.has(Y_UM_INTENDED);
+   }
+
+   public static double getStageYIntended(JSONObject smd) {
+      try {
+         return smd.getDouble(Y_UM_INTENDED);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not get stage y");
       }
    }
 
@@ -751,11 +841,15 @@ public class AcqEngMetadata {
       }
    }
 
+   public static boolean hasStageZIntended(JSONObject map) {
+      return map.has(Z_UM_INTENDED);
+   }
+
    public static double getStageZIntended(JSONObject smd) {
       try {
          return smd.getDouble(Z_UM_INTENDED);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt get stage Z");
+         throw new RuntimeException("Could not get stage Z");
       }
    }
 
@@ -763,8 +857,19 @@ public class AcqEngMetadata {
       try {
          smd.put(X_UM, x);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set stage x");
+         throw new RuntimeException("Could not set stage x");
+      }
+   }
 
+   public static boolean hasStageX(JSONObject map) {
+      return map.has(X_UM);
+   }
+
+   public static double getStageX(JSONObject smd) {
+      try {
+         return smd.getDouble(X_UM);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not get stage x");
       }
    }
 
@@ -772,24 +877,19 @@ public class AcqEngMetadata {
       try {
          smd.put(Y_UM, y);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set stage y");
+         throw new RuntimeException("Could not set stage y");
       }
    }
 
-   public static double getStageX(JSONObject smd) {
-      try {
-         return smd.getDouble(X_UM);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt get stage x");
-      }
+   public static boolean hasStageY(JSONObject map) {
+      return map.has(Y_UM);
    }
 
    public static double getStageY(JSONObject smd) {
       try {
          return smd.getDouble(Y_UM);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt get stage y");
-
+         throw new RuntimeException("Could not get stage y");
       }
    }
 
@@ -797,7 +897,19 @@ public class AcqEngMetadata {
       try {
          summary.put(CHANNEL_GROUP, channelGroup);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set cjannel group");
+         throw new RuntimeException("Could not set channel group");
+      }
+   }
+
+   public static boolean hasChannelGroup(JSONObject map) {
+      return map.has(CHANNEL_GROUP);
+   }
+
+   public static String getChannelGroup(JSONObject summary) {
+      try {
+         return summary.getString(CHANNEL_GROUP);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not find CHannel Group");
       }
    }
 
@@ -805,7 +917,19 @@ public class AcqEngMetadata {
       try {
          summary.put(CORE_AUTOFOCUS_DEVICE, autoFocusDevice);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set re autofoucs");
+         throw new RuntimeException("Could not set autofocus device");
+      }
+   }
+
+   public static boolean hasCoreAutofocus(JSONObject summary) {
+      return summary.has(CORE_AUTOFOCUS_DEVICE);
+   }
+
+   public static String getCoreAutofocusDevice(JSONObject summary) {
+      try {
+         return summary.getString(CORE_AUTOFOCUS_DEVICE);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not find autofocus device");
       }
    }
 
@@ -813,7 +937,19 @@ public class AcqEngMetadata {
       try {
          summary.put(CORE_CAMERA, cameraDevice);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set core camera");
+         throw new RuntimeException("Could not set core camera");
+      }
+   }
+
+   public static boolean hasCoreCamera(JSONObject summary) {
+      return summary.has(CORE_CAMERA);
+   }
+
+   public static String getCoreCamera(JSONObject summary) {
+      try {
+         return summary.getString(CORE_CAMERA);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not get core camera");
       }
    }
 
@@ -821,7 +957,19 @@ public class AcqEngMetadata {
       try {
          summary.put(CORE_GALVO, galvoDevice);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set core galvo");
+         throw new RuntimeException("Could not set core galvo");
+      }
+   }
+
+   public static boolean hasCoreGalvo(JSONObject summary) {
+      return summary.has(CORE_GALVO);
+   }
+
+   public static String getCoreGalvo(JSONObject summary) {
+      try {
+         return summary.getString(CORE_GALVO);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not get core galve");
       }
    }
 
@@ -829,7 +977,19 @@ public class AcqEngMetadata {
       try {
          summary.put(CORE_IMAGE_PROCESSOR, imageProcessorDevice);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set core image processor");
+         throw new RuntimeException("Could not set core image processor");
+      }
+   }
+
+   public static boolean hasCoreImageProcessor(JSONObject summary) {
+      return summary.has(CORE_IMAGE_PROCESSOR);
+   }
+
+   public static String getCoreImageProcessor(JSONObject summary) {
+      try {
+         return summary.getString(CORE_IMAGE_PROCESSOR);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not find core image processor");
       }
    }
 
@@ -837,7 +997,19 @@ public class AcqEngMetadata {
       try {
          summary.put(CORE_SLM, slmDevice);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set core slm");
+         throw new RuntimeException("Could not set core slm");
+      }
+   }
+
+   public static boolean hasCoreSLM(JSONObject summary) {
+      return summary.has(CORE_SLM);
+   }
+
+   public static String getCoreSLM(JSONObject summary) {
+      try {
+         return summary.getString(CORE_SLM);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not find core slm");
       }
    }
 
@@ -845,7 +1017,19 @@ public class AcqEngMetadata {
       try {
          summary.put(CORE_SHUTTER, shutterDevice);
       } catch (JSONException ex) {
-         throw new RuntimeException("Couldnt set stage y");
+         throw new RuntimeException("Could not set core shutter");
+      }
+   }
+
+   public static boolean hasCoreShutter(JSONObject summary) {
+      return summary.has(CORE_SHUTTER);
+   }
+
+   public static String getCoreShutter(JSONObject summary) {
+      try {
+         return summary.getString(CORE_SHUTTER);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Could not find core shutter");
       }
    }
 
@@ -853,7 +1037,7 @@ public class AcqEngMetadata {
       try {
          tags.put(AXES, new JSONObject());
       } catch (JSONException ex) {
-         throw new RuntimeException("couldnt create axes");
+         throw new RuntimeException("Could not create axes");
       }
    }
    
@@ -891,9 +1075,9 @@ public class AcqEngMetadata {
       }
    }
 
-   public static int getAxisPosition(JSONObject tags, String axis) {
+   public static Object getAxisPosition(JSONObject tags, String axis) {
       try {
-         return tags.getJSONObject(AXES).getInt(axis);
+         return tags.getJSONObject(AXES).get(axis);
       } catch (JSONException ex) {
          throw new RuntimeException("couldnt create axes");
       }
