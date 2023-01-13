@@ -302,6 +302,21 @@ public class Engine {
                return; // exception in hook
             }
          }
+         // Hardware hook may have modified wait time, so check again if we should
+         // pause until the minimum start time of the event has occurred.
+         while (event.getMinimumStartTimeAbsolute() != null &&
+               System.currentTimeMillis() < event.getMinimumStartTimeAbsolute()) {
+            try {
+               if (event.acquisition_.isAbortRequested()) {
+                  return;
+               }
+               Thread.sleep(1);
+            } catch (InterruptedException e) {
+               //Abort while waiting for next time point
+               return;
+            }
+         }
+
          if (event.shouldAcquireImage()) {
             if (event.acquisition_.isDebugMode()) {
                core_.logMessage("acquiring image(s)" );
