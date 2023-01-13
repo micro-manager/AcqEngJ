@@ -416,7 +416,10 @@ public class Engine {
                      }
                   }
                } catch (Exception ex) {
-                  throw new HardwareControlException(ex.toString());
+                  // Sequence buffer overflow
+                  HardwareControlException e = new HardwareControlException(ex.toString());
+                  event.acquisition_.abort(e);
+                  throw e;
                }
             }
             //Doesnt seem to be a version in the API in which you dont have to do this
