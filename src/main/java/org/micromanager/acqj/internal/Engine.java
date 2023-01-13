@@ -20,6 +20,7 @@ package org.micromanager.acqj.internal;
  * To change this template, choose Tools | Templates and open the template in
  * the editor.
  */
+import org.apache.commons.math3.util.Precision;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
@@ -839,7 +840,7 @@ public class Engine {
          }
          //camera
          if (e1.getExposure() != null && e2.getExposure() != null &&
-                 e1.getExposure() != e2.getExposure() && !core_.isExposureSequenceable(core_.getCameraDevice())) {
+                 !Precision.equals(e1.getExposure(), e2.getExposure()) && !core_.isExposureSequenceable(core_.getCameraDevice())) {
             return false;
          }
          if (core_.isExposureSequenceable(core_.getCameraDevice()) &&
