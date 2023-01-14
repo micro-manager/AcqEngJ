@@ -840,7 +840,8 @@ public class Engine {
          }
          //camera
          if (e1.getExposure() != null && e2.getExposure() != null &&
-                 Double.compare(e1.getExposure(), e2.getExposure()) != 0 && !core_.isExposureSequenceable(core_.getCameraDevice())) {
+                 Double.compare(e1.getExposure(), e2.getExposure()) != 0 &&
+                 !core_.isExposureSequenceable(core_.getCameraDevice())) {
             return false;
          }
          if (core_.isExposureSequenceable(core_.getCameraDevice()) &&
@@ -848,8 +849,9 @@ public class Engine {
             return false;
          }
          //timelapse
-         if (!e1.getTIndex().equals(e2.getTIndex())) {
-            if (!e1.getMinimumStartTimeAbsolute().equals(e2.getMinimumStartTimeAbsolute())) {
+         if (e1.getTIndex() != null && e2.getTIndex() != null && !e1.getTIndex().equals(e2.getTIndex())) {
+            if (e1.getMinimumStartTimeAbsolute() != null && e2.getMinimumStartTimeAbsolute() != null &&
+                    !e1.getMinimumStartTimeAbsolute().equals(e2.getMinimumStartTimeAbsolute())) {
                return false;
             }
          }
