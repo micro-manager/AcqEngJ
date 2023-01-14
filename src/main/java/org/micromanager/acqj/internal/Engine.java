@@ -20,7 +20,6 @@ package org.micromanager.acqj.internal;
  * To change this template, choose Tools | Templates and open the template in
  * the editor.
  */
-import org.apache.commons.math3.util.Precision;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
@@ -34,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.lang.Double;
 import mmcorej.CMMCore;
 import mmcorej.Configuration;
 import mmcorej.DoubleVector;
@@ -840,7 +840,7 @@ public class Engine {
          }
          //camera
          if (e1.getExposure() != null && e2.getExposure() != null &&
-                 !Precision.equals(e1.getExposure(), e2.getExposure()) && !core_.isExposureSequenceable(core_.getCameraDevice())) {
+                 Double.compare(e1.getExposure(), e2.getExposure()) != 0 && !core_.isExposureSequenceable(core_.getCameraDevice())) {
             return false;
          }
          if (core_.isExposureSequenceable(core_.getCameraDevice()) &&
@@ -848,8 +848,8 @@ public class Engine {
             return false;
          }
          //timelapse
-         if (e1.getTIndex() != e2.getTIndex()) {
-            if (e1.getMinimumStartTimeAbsolute() != e2.getMinimumStartTimeAbsolute()) {
+         if (!e1.getTIndex().equals(e2.getTIndex())) {
+            if (!e1.getMinimumStartTimeAbsolute().equals(e2.getMinimumStartTimeAbsolute())) {
                return false;
             }
          }
