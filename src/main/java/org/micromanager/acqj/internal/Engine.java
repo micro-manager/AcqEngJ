@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.lang.Double;
 import mmcorej.CMMCore;
 import mmcorej.Configuration;
 import mmcorej.DoubleVector;
@@ -302,6 +303,21 @@ public class Engine {
                return; // exception in hook
             }
          }
+         // Hardware hook may have modified wait time, so check again if we should
+         // pause until the minimum start time of the event has occurred.
+         while (event.getMinimumStartTimeAbsolute() != null &&
+               System.currentTimeMillis() < event.getMinimumStartTimeAbsolute()) {
+            try {
+               if (event.acquisition_.isAbortRequested()) {
+                  return;
+               }
+               Thread.sleep(1);
+            } catch (InterruptedException e) {
+               //Abort while waiting for next time point
+               return;
+            }
+         }
+
          if (event.shouldAcquireImage()) {
             if (event.acquisition_.isDebugMode()) {
                core_.logMessage("acquiring image(s)" );
@@ -495,13 +511,15 @@ public class Engine {
                      PropertySetting ps = config.getSetting(i);
                      String deviceName = ps.getDeviceLabel();
                      String propName = ps.getPropertyName();
-                     if (e == e.getSequence().get(0)) { //first property
+                     if (e == event.getSequence().get(0)) { //first property
                         propSequences.add(new StrVector());
                      }
                      Configuration channelPresetConfig = core_.getConfigData(group,
                              e.getConfigPreset());
                      String propValue = channelPresetConfig.getSetting(deviceName, propName).getPropertyValue();
-                     propSequences.get(i).add(propValue);
+                     if (core_.isPropertySequenceable(deviceName, propName)) {
+                        propSequences.get(i).add(propValue);
+                     }
                   }
                }
             }
@@ -520,7 +538,9 @@ public class Engine {
                   PropertySetting ps = config.getSetting(i);
                   String deviceName = ps.getDeviceLabel();
                   String propName = ps.getPropertyName();
-                  core_.loadPropertySequence(deviceName, propName, propSequences.get(i));
+                  if (propSequences.get(i).size() > 0) {
+                     core_.loadPropertySequence(deviceName, propName, propSequences.get(i));
+                  }
                }
             }
             core_.prepareSequenceAcquisition(core_.getCameraDevice());
@@ -620,35 +640,37 @@ public class Engine {
          @Override
          public void run() {
             try {
+               //Get the values of current channel, pulling from the first event in a sequence if one is present
+               String currentConfig = event.getSequence() == null ?
+                       event.getConfigPreset() : event.getSequence().get(0).getConfigPreset();
+               String currentGroup = event.getSequence() == null ?
+                       event.getConfigGroup() : event.getSequence().get(0).getConfigGroup();
+               String previousConfig = lastEvent_ == null ? null : lastEvent_.getSequence() == null ?
+                       lastEvent_.getConfigPreset() : lastEvent_.getSequence().get(0).getConfigPreset();
+
+               boolean newChannel = currentConfig != null && (previousConfig == null || !previousConfig.equals(currentConfig));
+               if ( newChannel ) {
+                  //set exposure
+                  if (event.getExposure() != null) {
+                     core_.setExposure(event.getExposure());
+                  }
+                  //set other channel props
+                  core_.setConfig(currentGroup, currentConfig);
+                  // TODO: haven't tested if this is actually needed
+                  core_.waitForConfig(currentGroup, currentConfig);
+               }
+
                if (event.isConfigGroupSequenced()) {
                   //Channels
-                  String group = event.getConfigGroup();
-                  Configuration config = core_.getConfigData(group, event.getConfigPreset());
+                  String group = event.getSequence().get(0).getConfigGroup();
+                  Configuration config = core_.getConfigData(group, event.getSequence().get(0).getConfigPreset());
                   for (int i = 0; i < config.size(); i++) {
                      PropertySetting ps = config.getSetting(i);
                      String deviceName = ps.getDeviceLabel();
                      String propName = ps.getPropertyName();
-                     core_.startPropertySequence(deviceName, propName);
-                  }
-               } else {
-                  //Get the values of current channel, pulling from the first event in a sequence if one is present
-                  String currentConfig = event.getSequence() == null ?
-                          event.getConfigPreset() : event.getSequence().get(0).getConfigPreset();
-                  String currentGroup = event.getSequence() == null ?
-                          event.getConfigGroup() : event.getSequence().get(0).getConfigGroup();
-                  String previousConfig = lastEvent_ == null ? null : lastEvent_.getSequence() == null ?
-                          lastEvent_.getConfigPreset() : lastEvent_.getSequence().get(0).getConfigPreset();
-
-                  boolean newChannel = currentConfig != null && (previousConfig == null || !previousConfig.equals(currentConfig));
-                  if ( newChannel ) {
-                     //set exposure
-                     if (event.getExposure() != null) {
-                        core_.setExposure(event.getExposure());
+                     if (core_.isPropertySequenceable(deviceName, propName)) {
+                        core_.startPropertySequence(deviceName, propName);
                      }
-                     //set other channel props
-                     core_.setConfig(currentGroup, currentConfig);
-                     // TODO: haven't tested if this is actually needed
-                     core_.waitForConfig(currentGroup, currentConfig);
                   }
                }
             } catch (Exception ex) {
@@ -779,15 +801,21 @@ public class Engine {
                  && !e1.getConfigPreset().equals(e2.getConfigPreset())) {
             //check all properties in the channel
             Configuration config1 = core_.getConfigData(e1.getConfigGroup(), e1.getConfigPreset());
+            Configuration config2 = core_.getConfigData(e2.getConfigGroup(), e2.getConfigPreset());
             for (int i = 0; i < config1.size(); i++) {
-               PropertySetting ps = config1.getSetting(i);
-               String deviceName = ps.getDeviceLabel();
-               String propName = ps.getPropertyName();
-               if (!core_.isPropertySequenceable(deviceName, propName)) {
-                  return false;
-               }
-               if (core_.getPropertySequenceMaxLength(deviceName, propName) < newSeqLength) {
-                  return false;
+               PropertySetting ps1 = config1.getSetting(i);
+               String deviceName = ps1.getDeviceLabel();
+               String propName = ps1.getPropertyName();
+               String propValue1 = ps1.getPropertyValue();
+               PropertySetting ps2 = config2.getSetting(i);
+               String propValue2 = ps2.getPropertyValue();
+               if (!propValue1.equals(propValue2)) {
+                  if (!core_.isPropertySequenceable(deviceName, propName)) {
+                     return false;
+                  }
+                  if (core_.getPropertySequenceMaxLength(deviceName, propName) < newSeqLength) {
+                     return false;
+                  }
                }
             }
          }
@@ -815,7 +843,8 @@ public class Engine {
          }
          //camera
          if (e1.getExposure() != null && e2.getExposure() != null &&
-                 e1.getExposure() != e2.getExposure() && !core_.isExposureSequenceable(core_.getCameraDevice())) {
+                 Double.compare(e1.getExposure(), e2.getExposure()) != 0 &&
+                 !core_.isExposureSequenceable(core_.getCameraDevice())) {
             return false;
          }
          if (core_.isExposureSequenceable(core_.getCameraDevice()) &&
@@ -823,8 +852,9 @@ public class Engine {
             return false;
          }
          //timelapse
-         if (e1.getTIndex() != e2.getTIndex()) {
-            if (e1.getMinimumStartTimeAbsolute() != e2.getMinimumStartTimeAbsolute()) {
+         if (e1.getTIndex() != null && e2.getTIndex() != null && !e1.getTIndex().equals(e2.getTIndex())) {
+            if (e1.getMinimumStartTimeAbsolute() != null && e2.getMinimumStartTimeAbsolute() != null &&
+                    !e1.getMinimumStartTimeAbsolute().equals(e2.getMinimumStartTimeAbsolute())) {
                return false;
             }
          }
