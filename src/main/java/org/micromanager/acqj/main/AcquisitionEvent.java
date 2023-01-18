@@ -53,7 +53,7 @@ public class AcquisitionEvent {
    private String configGroup_, configPreset_ = null;
    private Double exposure_ = null; //leave null to keep exposaure unchanged
 
-   private Long miniumumStartTime_ms_; //For pausing between time points
+   private Long miniumumStartTime_ms_ = null; //For pausing between time points
 
    //positions for devices that are generically hardcoded into MMCore
    private Double zPosition_ = null, xPosition_ = null, yPosition_ = null;
@@ -92,6 +92,7 @@ public class AcquisitionEvent {
     */
    public AcquisitionEvent(List<AcquisitionEvent> sequence) {
       acquisition_ = sequence.get(0).acquisition_;
+      miniumumStartTime_ms_ = sequence.get(0).miniumumStartTime_ms_;
       sequence_ = new ArrayList<>();
       sequence_.addAll(sequence);
       TreeSet<Double> zPosSet = new TreeSet<Double>();
