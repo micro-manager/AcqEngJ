@@ -9,10 +9,13 @@ on:
       - main
     paths:
       - 'pom.xml'
+      
+# only let one instance run at a time
+concurrency: version_update
 
 jobs:
   maven-deploy:
-    name: Release on Sonatype OSS
+    name: Maven deploy to Sonatype OSS
     runs-on: ubuntu-latest
     if: ${{ github.repository == 'micro-manager/AcqEngJ' }}
 
@@ -47,36 +50,85 @@ jobs:
     needs: maven-deploy
     runs-on: ubuntu-latest
     steps:
+    
+    # Get token for using gh CLI
+    # https://michaelheap.com/ultimate-guide-github-actions-authentication/
+    - name: Get Token
+      id: get_workflow_token      
+      uses: getsentry/action-github-app-token@v2
+      with:
+        app_id: ${{ secrets.MM_PR_BOT_APP_ID }}
+        private_key: ${{ secrets.MM_PR_BOT_PRIVATE_KEY }}
+    
     - name: Checkout-PM
       uses: actions/checkout@v3
       with:
-        path: 'pycro-manager'
+        path: pycro-manager
         repository: micro-manager/pycro-manager
-        ref: dependency-update
-        fetch-depth: 0 # check out all branches
-        token: ${{ secrets.PYCRO_TOKEN }}
+        token: ${{ steps.get_workflow_token.outputs.token }}
+        
     - name: Checkout-AcqEngJ
       uses: actions/checkout@v3
       with:
         path: 'AcqEngJ'
         repository: micro-manager/AcqEngJ
-        ref: main
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ steps.get_workflow_token.outputs.token }}
+        
     - name: update-version
       run: |
         cd pycro-manager
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "AcqEngJ-Bot"
-        git config --local pull.rebase false
-        # fast forward to get code updates on main branch
-        git merge origin/main -m "dependency update merge"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "AcqEngJ-Bot"
+        git config pull.rebase false
         python build_automation/update_dependency.py AcqEngJ
+        # Now bump version of PycroManagerJava.jar to reflect its updated dependency
+        pip install semantic_version
+        python build_automation/update_PycroManagerJava.py
+        
+        
     - name: commit
       run: |
         cd pycro-manager
-        git commit -am "update AcqEngJ version"
+        git checkout -b acqengj-update
+        git commit -am "update AcqEngJ version and PycroManagerJava version (Created by Github action)"
+        
     - name: push
       run: |
         cd pycro-manager
-        git pull # get any changes that have occured since this update pushed
-        git push https://henrypinkard:${{ secrets.PYCRO_TOKEN }}@github.com/micro-manager/pycro-manager.git  
+        git push --set-upstream origin acqengj-update
+        
+        
+    - name: create pull request
+      # make a PR from *-update branch of PM to main branch
+      env:
+        GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token }}
+        
+      run: |
+        PR_URL=$(gh pr create -H acqengj-update -B main --title 'Java dependency auto-update' --body 'Created by Github action')
+
+        echo "Created pull request $PR_URL"
+        
+        # supposedly you can use --delete-branch here, but as of 2-1-23 it doesn't work
+        gh pr merge $PR_URL --auto --merge
+        
+        
+          
+        # Block until PR merged or closed
+        while true; do
+        if gh pr view $PR_URL --json state | grep -q "MERGED"; then
+          echo "success merge"
+          break
+        elif gh pr view $PR_URL --json state | grep -q "CLOSED"; then
+          echo "pull request closed"
+          break
+        else
+          echo "waiting on pull request status"
+          sleep 10
+        fi
+        done
+        
+        # Now it is safe to assume its in the nightly builds
+        # delete the branch created for sending in the update
+        git push origin --delete acqengj-update
+
+        
