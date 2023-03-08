@@ -66,8 +66,6 @@ public class AcqEngMetadata {
    private static final String BIT_DEPTH = "BitDepth";
    private static final String ELAPSED_TIME_MS = "ElapsedTime-ms";
    private static final String Z_STEP_UM = "z-step_um";
-   public static final String GRID_COL = "GridColumnIndex";
-   public static final String GRID_ROW = "GridRowIndex";
    private static final String EXPLORE_ACQUISITION = "ExploreAcquisition";
    public static final String AXES_GRID_COL = "column";
    public static final String AXES_GRID_ROW = "row";
@@ -123,13 +121,7 @@ public class AcqEngMetadata {
 //            AcqEngMetadata.setPositionIndex(tags, event.acquisition_.getPositionIndexFromName(event.getXY()));
             AcqEngMetadata.setStageXIntended(tags, event.getXPosition());
             AcqEngMetadata.setStageYIntended(tags, event.getYPosition());
-            if (event.getGridRow() != null && event.getGridCol() != null) {
-               AcqEngMetadata.setAxisPosition(tags, AcqEngMetadata.AXES_GRID_ROW, event.getGridRow());
-               AcqEngMetadata.setAxisPosition(tags, AcqEngMetadata.AXES_GRID_COL, event.getGridCol());
-               AcqEngMetadata.setGridRow(tags, event.getGridRow());
-               AcqEngMetadata.setGridCol(tags, event.getGridCol());
-//               TODO: add overlap here?
-            }
+
          }
          if (event.getZPosition() != null) {
             AcqEngMetadata.setStageZIntended(tags, event.getZPosition());
@@ -781,47 +773,6 @@ public class AcqEngMetadata {
          return summaryMD.getInt(OVERLAP_Y);
       } catch (JSONException ex) {
          throw new RuntimeException("Could not find pixel overlap in image tags");
-      }
-   }
-
-   public static void setGridRow(JSONObject smd, long gridRow) {
-      try {
-         smd.put(GRID_ROW, gridRow);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Could not set grid row");
-      }
-   }
-
-   public static boolean hasGridRow(JSONObject map) {
-      return map.has(GRID_ROW);
-   }
-
-   public static int getGridRow(JSONObject smd) {
-      try {
-         return smd.getInt(GRID_ROW);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Could not get grid row");
-
-      }
-   }
-
-   public static void setGridCol(JSONObject smd, long gridCol) {
-      try {
-         smd.put(GRID_COL, gridCol);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Could not set grid row");
-      }
-   }
-
-   public static boolean hasGridCol(JSONObject map) {
-      return map.has(GRID_COL);
-   }
-
-   public static int getGridCol(JSONObject smd) {
-      try {
-         return smd.getInt(GRID_COL);
-      } catch (JSONException ex) {
-         throw new RuntimeException("Could not get grid row");
       }
    }
 

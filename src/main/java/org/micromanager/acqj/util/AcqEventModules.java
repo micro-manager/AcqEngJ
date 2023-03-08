@@ -186,8 +186,6 @@ public class AcqEventModules {
                AcquisitionEvent posEvent = event.copy();
                posEvent.setX(positions.get(index).getCenter().x);
                posEvent.setY(positions.get(index).getCenter().y);
-               posEvent.setGridRow(positions.get(index).getGridRow());
-               posEvent.setGridCol(positions.get(index).getGridCol());
                posEvent.setAxisPosition(AcqEngMetadata.AXES_GRID_ROW, positions.get(index).getGridRow());
                posEvent.setAxisPosition(AcqEngMetadata.AXES_GRID_COL, positions.get(index).getGridCol());
 //               posEvent.setAxisPosition(AcqEngMetadata.POSITION_AXIS, index);
