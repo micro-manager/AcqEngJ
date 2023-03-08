@@ -92,7 +92,6 @@ public class AcqEngMetadata {
     *
     * @param tags image metadata
     * @param event event
-    * @param camChannelIndex for multicamera
     * @param elapsed_ms time since acq start
     * @param exposure camera exposure in ms
     */
