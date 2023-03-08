@@ -21,7 +21,7 @@ import org.micromanager.acqj.internal.Engine;
  *
  * @author henrypinkard
  */
-public class PixelStageTranslator {
+public class CameraTilingStageTranslator {
 
    //TODO: Much of this class could be removed, since position index is no longer a thing that is needed for
    // tiled axes. They are now indexed by row and col axes
@@ -33,8 +33,8 @@ public class PixelStageTranslator {
    private int tileWidth_, tileHeight_, displayTileHeight_, displayTileWidth_, overlapX_, overlapY_;
    private List<XYStagePosition> positionList_ = new ArrayList<XYStagePosition>();
 
-   public PixelStageTranslator(AffineTransform transform, String xyStageName, int width,
-                               int height, int overlapX, int overlapY) {
+   public CameraTilingStageTranslator(AffineTransform transform, String xyStageName, int width,
+                                      int height, int overlapX, int overlapY) {
       affine_ = transform;
       xyStageName_ = xyStageName;
       tileWidth_ = width;
@@ -46,7 +46,70 @@ public class PixelStageTranslator {
       overlapX_ = overlapX;
       overlapY_ = overlapY;
    }
-   
+
+   public Point getTileIndicesFromDisplayedPixel(double magnification, int x, int y,
+                                                 double viewOffsetX, double viewOffsetY) {
+//      double scale = display_.getMagnification();
+//      int fullResX = (int) ((x / magnification) + display_.getViewOffset().x);
+//      int fullResY = (int) ((y / magnification) + display_.getViewOffset().y);
+      int fullResX = (int) ((x / magnification) + viewOffsetX);
+      int fullResY = (int) ((y / magnification) + viewOffsetY);
+      int xTileIndex = fullResX / getDisplayTileWidth() - (fullResX >= 0 ? 0 : 1);
+      int yTileIndex = fullResY / getDisplayTileHeight() - (fullResY >= 0 ? 0 : 1);
+      return new Point(xTileIndex, yTileIndex);
+   }
+
+
+   /**
+    * return the pixel location in coordinates at appropriate res level of the
+    * top left pixel for the given row/column
+    *
+    * @param row
+    * @param col
+    * @return
+    */
+   public Point getDisplayedPixel(double magnification, long row, long col,
+                                  double viewOffsetX, double viewOffsetY) {
+//      double scale = display_.getMagnification();
+
+      int x = (int) ((col * getDisplayTileWidth() - viewOffsetX) * magnification);
+      int y = (int) ((row * getDisplayTileHeight() - viewOffsetY) * magnification);
+      return new Point(x, y);
+   }
+
+
+//
+//   public Point2D.Double stageCoordsFromPixelCoords(int x, int y) {
+//      return stageCoordsFromPixelCoords(x, y, display_.getMagnification(),
+//              display_.getViewOffset());
+//   }
+
+   /**
+    *
+    * @param absoluteX x coordinate in the full Res stitched image
+    * @param absoluteY y coordinate in the full res stitched image
+    * @return stage coordinates of the given pixel position
+    */
+   public Point2D.Double stageCoordsFromPixelCoords(int absoluteX, int absoluteY,
+                                                    double mag, Point2D.Double offset) {
+      long newX = (long) (absoluteX / mag + offset.x);
+      long newY = (long) (absoluteY / mag + offset.y);
+      return getStageCoordsFromPixelCoords(newX, newY);
+   }
+
+
+   /*
+    * @param stageCoords x and y coordinates of image in stage space
+    * @return absolute, full resolution pixel coordinate of given stage posiiton
+    */
+   public Point pixelCoordsFromStageCoords(double x, double y, double magnification,
+                                           Point2D.Double offset) {
+      Point fullResCoords = getPixelCoordsFromStageCoords(x, y);
+      return new Point(
+              (int) ((fullResCoords.x - offset.x) * magnification),
+              (int) ((fullResCoords.y - offset.y) * magnification));
+   }
+
    /**
     *
     * @param xAbsolute x coordinate in the full Res stitched image

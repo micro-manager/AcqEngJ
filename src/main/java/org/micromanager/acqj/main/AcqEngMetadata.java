@@ -68,6 +68,7 @@ public class AcqEngMetadata {
    private static final String Z_STEP_UM = "z-step_um";
    public static final String GRID_COL = "GridColumnIndex";
    public static final String GRID_ROW = "GridRowIndex";
+   private static final String EXPLORE_ACQUISITION = "ExploreAcquisition";
    public static final String AXES_GRID_COL = "column";
    public static final String AXES_GRID_ROW = "row";
    private static final String OVERLAP_X = "GridPixelOverlapX";
@@ -82,6 +83,8 @@ public class AcqEngMetadata {
    public static final String CHANNEL_AXIS = "channel";
    public static final String TIME_AXIS = "time";
    public static final String Z_AXIS = "z";
+   private static final String ACQUISITION_EVENT = "Event";
+
 
    /**
     * Add the core set of image metadata that should be present in any
@@ -94,7 +97,7 @@ public class AcqEngMetadata {
     * @param exposure camera exposure in ms
     */
    public static void addImageMetadata(JSONObject tags, AcquisitionEvent event,
-           int camChannelIndex, long elapsed_ms, double exposure) {
+            long elapsed_ms, double exposure) {
       try {
 
          AcqEngMetadata.setPixelSizeUm(tags, Engine.getCore().getPixelSizeUm());
@@ -132,6 +135,12 @@ public class AcqEngMetadata {
          if (event.getZPosition() != null) {
             AcqEngMetadata.setStageZIntended(tags, event.getZPosition());
          }
+
+         if (event.getSequence() != null) {
+            //Dont add the event to image metadata if it is a sequence, because it could potentially be very large
+            // Could probably pop out the individual event in the squence this corresponds to
+            AcqEngMetadata.addAcquisitionEvent(tags, event);
+         }
          
          ////// Generic image coordinate axes //////
          // Position and channel indices are inferred at acquisition time
@@ -146,6 +155,14 @@ public class AcqEngMetadata {
       } catch (Exception e) {
          e.printStackTrace();
          throw new RuntimeException("Problem adding image metadata");
+      }
+   }
+
+   private static void addAcquisitionEvent(JSONObject tags, AcquisitionEvent event) {
+      try {
+         tags.put(ACQUISITION_EVENT, event.toJSON());
+      } catch (JSONException e) {
+         throw new RuntimeException(e);
       }
    }
 
@@ -265,6 +282,22 @@ public class AcqEngMetadata {
          map.put(DATE_TIME, dateTime);
       } catch (JSONException ex) {
          throw new RuntimeException("couldnt set core focus tag");
+      }
+   }
+
+   public static boolean isExploreAcq(JSONObject summaryMetadata_) {
+      try {
+         return summaryMetadata_.getBoolean(EXPLORE_ACQUISITION);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Missing expolore tag");
+      }
+   }
+
+   public static void setExploreAcq(JSONObject summaryMetadata, boolean b) {
+      try {
+         summaryMetadata.put(EXPLORE_ACQUISITION, b);
+      } catch (JSONException e) {
+         throw new RuntimeException(e);
       }
    }
 

@@ -37,7 +37,6 @@ public class XYStagePosition {
    //These are conveniences for determining where this position is in coordinates
    //of the XY stage
    private Integer gridRow_ = null, gridCol_ = null;
-   private final boolean inGrid_;
 
    /**
     * for abitrary positions not neccessarily in a grid
@@ -48,7 +47,6 @@ public class XYStagePosition {
       if (Engine.getCore().getXYStageDevice().equals("")) {
          throw new RuntimeException("Core XY stage device undefined");
       }
-      inGrid_ = false;
    }
 
    public XYStagePosition(Point2D.Double stagePosCenter, int gridRow, int gridCol) {
@@ -57,7 +55,6 @@ public class XYStagePosition {
       if (Engine.getCore().getXYStageDevice().equals("")) {
          throw new RuntimeException("Core XY stage device undefined");
       }
-      inGrid_ = false;
       gridCol_ = gridCol;
       gridRow_ = gridRow;
       label_ = "Grid_" + gridCol + "_" + gridRow;

@@ -16,7 +16,6 @@
 //
 package org.micromanager.acqj.main;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -27,7 +26,7 @@ import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.api.AcquisitionHook;
-import org.micromanager.acqj.api.DataSink;
+import org.micromanager.acqj.api.AcqEngJDataSink;
 import org.micromanager.acqj.api.TaggedImageProcessor;
 import org.micromanager.acqj.internal.Engine;
 
@@ -42,11 +41,11 @@ public class Acquisition implements AcquisitionAPI {
    protected String xyStage_, zStage_, slm_;
    protected volatile boolean eventsFinished_;
    protected volatile boolean abortRequested_ = false;
-   private JSONObject summaryMetadata_;
+   protected JSONObject summaryMetadata_;
    private long startTime_ms_ = -1;
    private volatile boolean paused_ = false;
-   protected DataSink dataSink_;
-   private Consumer<JSONObject> summaryMDAdder_;
+   protected AcqEngJDataSink dataSink_;
+   private Consumer<JSONObject> summaryMetadataProcessor_;
    final public CMMCore core_;
    private CopyOnWriteArrayList<AcquisitionHook> eventGenerationHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
@@ -61,7 +60,7 @@ public class Acquisition implements AcquisitionAPI {
    private ThreadPoolExecutor savingExecutor_ = null;
    private Exception abortException_ = null;
    private Consumer<JSONObject> imageMetadataProcessor_;
-   private volatile boolean started_ = false;
+   protected volatile boolean started_ = false;
 
    /**
     * Primary constructor for creating Acquisitons. If DataSink is null, then a
@@ -73,25 +72,36 @@ public class Acquisition implements AcquisitionAPI {
     * are desired, they should be added before the first call of submitEventIterator
     *
     */
-   public Acquisition(DataSink sink) {
+   public Acquisition(AcqEngJDataSink sink) {
       this(sink, null);
    }
 
    /**
     * Version of the constructor that accepts a function that can modify SummaryMetadata as needed
     */
-   public Acquisition(DataSink sink, Consumer<JSONObject> summaryMDAdder) {
+   public Acquisition(AcqEngJDataSink sink, Consumer<JSONObject> summaryMetadataProcessor) {
       core_ = Engine.getCore();
-      summaryMDAdder_ = summaryMDAdder;
+      summaryMetadataProcessor_ = summaryMetadataProcessor;
       dataSink_ = sink;
       initialize();
+   }
+
+   /**
+    * Version in which initialization is handled by a superclass
+    */
+   public Acquisition(AcqEngJDataSink sink, boolean initialize) {
+      core_ = Engine.getCore();
+      dataSink_ = sink;
+      if (initialize) {
+         initialize();
+      }
    }
 
 
    /**
     * Don't delete, called by python side
     */
-   public DataSink getDataSink() {
+   public AcqEngJDataSink getDataSink() {
       return dataSink_;
    }
 
@@ -134,8 +144,8 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    private void addToSummaryMetadata(JSONObject summaryMetadata) {
-      if (summaryMDAdder_ != null) {
-         summaryMDAdder_.accept(summaryMetadata);
+      if (summaryMetadataProcessor_ != null) {
+         summaryMetadataProcessor_.accept(summaryMetadata);
       }
    }
 
@@ -147,6 +157,9 @@ public class Acquisition implements AcquisitionAPI {
 
    @Override
    public Future submitEventIterator(Iterator<AcquisitionEvent> evt) {
+      if (!started_) {
+         start();
+      }
       return Engine.getInstance().submitEventIterator(evt);
    }
 
@@ -316,6 +329,11 @@ public class Acquisition implements AcquisitionAPI {
       return paused_;
    }
 
+   @Override
+   public boolean isStarted() {
+      return started_;
+   }
+
    public synchronized void setPaused(boolean pause) {
       paused_ = pause;
    }
@@ -357,10 +375,11 @@ public class Acquisition implements AcquisitionAPI {
       Engine.getInstance().finishAcquisition(this);
    }
 
-   public void eventsFinished() {
+   public void markEventsFinished() {
       eventsFinished_ = true;
    }
 
+   @Override
    public boolean areEventsFinished() {
       return eventsFinished_;
    }

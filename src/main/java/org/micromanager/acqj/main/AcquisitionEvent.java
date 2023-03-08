@@ -37,7 +37,6 @@ import org.micromanager.acqj.internal.Engine;
  */
 public class AcquisitionEvent {
 
-
    enum SpecialFlag {
       AcqusitionFinished,
       AcqusitionSequenceEnd
@@ -61,6 +60,9 @@ public class AcquisitionEvent {
    private Integer gridRow_ = null, gridCol_ = null;
    //TODO: SLM, Galvo, etc
 
+   private HashMap<String, Double> stageCoordinates_ = new HashMap<String, Double>();
+   // Mapping from device names to axis names
+   private HashMap<String, String> stageDeviceNamesToAxisNames_ = new HashMap<String, String>();
 
    //Option to not acquire an image for SLM events
    private Boolean acquireImage_ = null;
@@ -128,7 +130,9 @@ public class AcquisitionEvent {
       e.axisPositions_ = (HashMap<String, Object>) axisPositions_.clone();
       e.configPreset_ = configPreset_;
       e.configGroup_ = configPreset_;
-      e.zPosition_ = zPosition_;
+//      e.zPosition_ = zPosition_;
+      e.stageCoordinates_ = new HashMap<>(stageCoordinates_);
+      e.stageDeviceNamesToAxisNames_ = new HashMap<>(stageDeviceNamesToAxisNames_);
       e.xPosition_ = xPosition_;
       e.yPosition_ = yPosition_;
       e.gridRow_ = gridRow_;
@@ -257,6 +261,16 @@ public class AcquisitionEvent {
          //Things for which a generic device type and imperative API exists in MMCore
          if (json.has("z")) {
             event.zPosition_ = json.getDouble("z");
+         }
+         if (json.has("stage")) {
+            JSONObject stage = json.getJSONObject("stage");
+            String deviceName = stage.getString("device_name");
+            Double position = stage.getDouble("position");
+            event.axisPositions_.put(deviceName, position);
+            if (stage.has("axis_name")) {
+               String axisName = stage.getString("axis_name");
+               event.stageDeviceNamesToAxisNames_.put(deviceName, axisName);
+            }
          }
          if (json.has("row")) {
             event.gridRow_ = json.getInt("row");
@@ -402,7 +416,31 @@ public class AcquisitionEvent {
    }
 
    public void setAxisPosition(String label, Object position) {
+      if (position == null) {
+         throw new RuntimeException("Cannot set axis position to null");
+      }
       axisPositions_.put(label, position);
+   }
+
+   public void setStageCoordinate(String deviceName, double v) {
+      setStageCoordinate(deviceName, v, null);
+   }
+
+   public void setStageCoordinate(String deviceName, double v, String axisName) {
+      stageCoordinates_.put(deviceName, v);
+      stageDeviceNamesToAxisNames_.put(deviceName, axisName == null ? deviceName : axisName);
+   }
+
+
+   public Double getStageCoordinate(String deviceName) {
+      if (!stageCoordinates_.containsKey(deviceName)) {
+         return null;
+      }
+      return (Double) stageCoordinates_.get(deviceName);
+   }
+
+   public HashMap<String, Object> getAxisPositions() {
+      return axisPositions_;
    }
 
    public Object getAxisPosition(String label) {
@@ -437,6 +475,13 @@ public class AcquisitionEvent {
 
    public Integer getZIndex() {
       return (Integer) getAxisPosition(AcqEngMetadata.Z_AXIS);
+   }
+
+   public String getDeviceAxisName(String deviceName) {
+      if (!stageDeviceNamesToAxisNames_.containsKey(deviceName)) {
+         throw new RuntimeException("No axis name for device " + deviceName + ". call setStageCoordinate first");
+      }
+      return stageDeviceNamesToAxisNames_.get(deviceName);
    }
 
    public static AcquisitionEvent createAcquisitionFinishedEvent(AcquisitionAPI acq) {
@@ -566,6 +611,10 @@ public class AcquisitionEvent {
       }
 
       StringBuilder builder = new StringBuilder();
+      for (String deviceName : stageDeviceNamesToAxisNames_.keySet()) {
+         builder.append("\t" + deviceName +
+                 ": " + getStageCoordinate(deviceName));
+      }
       if (zPosition_ != null) {
          builder.append("z " + zPosition_);
       }

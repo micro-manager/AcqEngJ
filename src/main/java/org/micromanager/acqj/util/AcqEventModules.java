@@ -44,6 +44,40 @@ public class AcqEventModules {
       };
    }
 
+   /**
+    * Generic version of a z stack that corresponds to an arbitrary sequence of linearly spaced points along a stage
+    * @return
+    */
+   public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>> moveStage(
+           String deviceName,
+           int startIndex, int stopIndex, double step, double origin) {
+      return (AcquisitionEvent event) -> {
+         return new Iterator<AcquisitionEvent>() {
+
+            private int index_ = startIndex;
+
+            @Override
+            public boolean hasNext() {
+               return index_ < stopIndex;
+            }
+
+            @Override
+            public AcquisitionEvent next() {
+               double pos = index_ * step + origin;
+               AcquisitionEvent sliceEvent = event.copy();
+               //Do plus equals here in case z positions have been modified by another function (e.g. channel specific focal offsets)
+               sliceEvent.setStageCoordinate(deviceName,
+                       (sliceEvent.getStageCoordinate(deviceName) == null ? 0.0
+                               : sliceEvent.getStageCoordinate(deviceName)) + pos);
+               sliceEvent.setAxisPosition(sliceEvent.getDeviceAxisName(deviceName), index_);
+               index_++;
+               return sliceEvent;
+            }
+         };
+      };
+   }
+
+
    public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>> timelapse(int numTimePoints, double interval_ms) {
       return (AcquisitionEvent event) -> {
          return new Iterator<AcquisitionEvent>() {
@@ -163,5 +197,6 @@ public class AcqEventModules {
          return builder.build().iterator();
       };
    }
+
 
 }

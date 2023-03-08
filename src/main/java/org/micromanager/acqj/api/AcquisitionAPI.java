@@ -27,7 +27,11 @@ public interface AcquisitionAPI {
    /**
     * Call to ready acquisition to start receiving acquisiton events. No more hooks
     * or image processors should be added after this has been called
+    *
+    * This method is no longer needed, because it is called automatically when
+    * the first call to submitEventIterator is made
     */
+   @Deprecated
    public void start();
 
    /**
@@ -78,6 +82,11 @@ public interface AcquisitionAPI {
    public boolean isPaused();
 
    /**
+    * return if acquisition is started by the first call to submitEventIterator
+    */
+   public boolean isStarted();
+
+   /**
     * Pause or unpause
     */
    public void setPaused(boolean pause);
@@ -125,6 +134,9 @@ public interface AcquisitionAPI {
    /**
     * Submit a list of acquisition events for acquisition. Acquisition engine
     * will automatically optimize over this list (i.e. implement hardware sequencing).
+    *
+    * If start() has not already been called on the acquisition, it will automatically
+    * be called here
     * @param evt 
     */
    public Future submitEventIterator(Iterator<AcquisitionEvent> evt);
@@ -134,7 +146,7 @@ public interface AcquisitionAPI {
     * ImageProcessors allow data to be intercepted and diverted
     * @return
     */
-   public DataSink getDataSink();
+   public AcqEngJDataSink getDataSink();
 
    /**
     * Should debug logging be printed

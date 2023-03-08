@@ -2,7 +2,7 @@ package org.micromanager.acqj.example;
 
 import mmcorej.TaggedImage;
 import mmcorej.org.json.JSONObject;
-import org.micromanager.acqj.api.DataSink;
+import org.micromanager.acqj.api.AcqEngJDataSink;
 import org.micromanager.acqj.main.Acquisition;
 
 /**
@@ -11,7 +11,7 @@ import org.micromanager.acqj.main.Acquisition;
  * In practice, DataSinks should instead do something useful (e.g. save and display)
  * with the images they receive
  */
-public class BlackHoleDataSink implements DataSink {
+public class BlackHoleDataSink implements AcqEngJDataSink {
 
    boolean finished_ = false;
    boolean somethingAcquired_ = false;
