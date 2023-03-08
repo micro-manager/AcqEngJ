@@ -278,7 +278,7 @@ public class Engine {
             h.close();
          }
          event.acquisition_.addToOutput(new TaggedImage(null, null));
-         event.acquisition_.eventsFinished();
+         event.acquisition_.markEventsFinished();
       } else {
          for (AcquisitionHook h : event.acquisition_.getBeforeHardwareHooks()) {
             event = h.run(event);
@@ -456,7 +456,7 @@ public class Engine {
                correspondingEvent = cameraEventLists.get(actualCamIndex).remove(0);
             }
             //add metadata
-            AcqEngMetadata.addImageMetadata(ti.tags, correspondingEvent, actualCamIndex,
+            AcqEngMetadata.addImageMetadata(ti.tags, correspondingEvent,
                     currentTime - correspondingEvent.acquisition_.getStartTime_ms(), exposure);
             correspondingEvent.acquisition_.addToImageMetadata(ti.tags);
 

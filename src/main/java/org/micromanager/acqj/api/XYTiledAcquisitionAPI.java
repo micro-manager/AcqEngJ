@@ -5,12 +5,7 @@
  */
 package org.micromanager.acqj.api;
 
-import mmcorej.org.json.JSONObject;
-import org.micromanager.acqj.main.AcquisitionEvent;
-import org.micromanager.acqj.util.xytiling.PixelStageTranslator;
-
-import java.util.Iterator;
-import java.util.concurrent.Future;
+import org.micromanager.acqj.util.xytiling.CameraTilingStageTranslator;
 
 /**
  * General interface for tiled XY multi-resolution acquisitions
@@ -19,6 +14,6 @@ import java.util.concurrent.Future;
  */
 public interface XYTiledAcquisitionAPI extends AcquisitionAPI {
 
-   public PixelStageTranslator getPixelStageTranslator();
+   public CameraTilingStageTranslator getPixelStageTranslator();
 
    }

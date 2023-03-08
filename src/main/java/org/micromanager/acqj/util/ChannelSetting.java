@@ -11,16 +11,22 @@ package org.micromanager.acqj.util;
  * @author henrypinkard
  */
 public class ChannelSetting {
-   
+
    public String group_, config_;
    public double exposure_, offset_;
-   
-   public ChannelSetting(String group, String config, 
-           double exposure, double offset) {
+   public boolean use_;
+
+   public ChannelSetting(String group, String config,
+                         double exposure, double offset, boolean use) {
       group_ = group;
       config_ = config;
       exposure_ = exposure;
       offset_ = offset;
+      use_ = use;
    }
-      
+
+   public ChannelSetting(String group, String config,
+                         double exposure, double offset) {
+      this(group, config, exposure, offset, true);
+   }
 }

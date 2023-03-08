@@ -11,7 +11,7 @@ import org.micromanager.acqj.main.Acquisition;
  * represents a valid destination for images.
  *
  */
-public interface DataSink {
+public interface AcqEngJDataSink {
 
    /**
     * Called when the Acquisition is initialized 
@@ -41,5 +41,6 @@ public interface DataSink {
     * @return 
     */
    public boolean anythingAcquired();
+
 
 }

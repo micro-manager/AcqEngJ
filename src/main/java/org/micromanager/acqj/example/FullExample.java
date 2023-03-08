@@ -1,11 +1,9 @@
 package org.micromanager.acqj.example;
 
 import java.util.Iterator;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.micromanager.acqj.api.AcquisitionAPI;
-import org.micromanager.acqj.api.DataSink;
-import org.micromanager.acqj.api.TaggedImageProcessor;
+import org.micromanager.acqj.api.AcqEngJDataSink;
 import org.micromanager.acqj.main.Acquisition;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.util.AcqEventModules;
@@ -18,7 +16,7 @@ public class FullExample {
    public FullExample() {
 
       // Create a DataSink where images will be sent
-      DataSink dataSink = new BlackHoleDataSink();
+      AcqEngJDataSink dataSink = new BlackHoleDataSink();
 
       // Create the acquisition
       AcquisitionAPI acquisition = new Acquisition(dataSink);

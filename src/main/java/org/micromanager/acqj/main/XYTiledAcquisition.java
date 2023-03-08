@@ -16,18 +16,18 @@
 //
 package org.micromanager.acqj.main;
 
-import mmcorej.CMMCore;
-import mmcorej.TaggedImage;
+import mmcorej.DeviceType;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
 import org.micromanager.acqj.api.*;
 import org.micromanager.acqj.internal.Engine;
-import org.micromanager.acqj.util.xytiling.PixelStageTranslator;
+import org.micromanager.acqj.internal.ZAxis;
+import org.micromanager.acqj.util.xytiling.CameraTilingStageTranslator;
 
-import java.util.Iterator;
-import java.util.concurrent.*;
+import java.util.HashMap;
+import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Special type of acquisiton that collects tiles in a 2D grid.
@@ -35,40 +35,98 @@ import java.util.function.Function;
  */
 public class XYTiledAcquisition extends Acquisition implements XYTiledAcquisitionAPI {
 
-   private PixelStageTranslator pixelStageTranslator_;
+   protected CameraTilingStageTranslator pixelStageTranslator_;
 
    private Integer overlapX_, overlapY_;
+   Consumer<JSONObject> summaryMDAdder_;
 
-   public XYTiledAcquisition(DataSink sink, Integer overlapX, Integer overlapY) {
-      this(sink, overlapX, overlapY, null);
+   protected HashMap<String, ZAxis> zAxes_ = new HashMap<String, ZAxis>();
+
+   public XYTiledAcquisition(AcqEngJDataSink sink, Integer overlapX, Integer overlapY) {
+      this(sink, overlapX, overlapY, 1., null);
    }
 
-   public XYTiledAcquisition(DataSink sink, Integer overlapX, Integer overlapY,
+   public XYTiledAcquisition(AcqEngJDataSink sink, Integer overlapX, Integer overlapY, Double zStep,
                              Consumer<JSONObject> summaryMDAdder) {
-      super(sink, new Consumer<JSONObject>() {
-         @Override
-         public void accept(JSONObject smd) {
-            if (summaryMDAdder != null) {
-               summaryMDAdder.accept(smd);
-            }
-            AcqEngMetadata.setPixelOverlapX(smd, overlapX);
-            AcqEngMetadata.setPixelOverlapY(smd, overlapY);
-            if (AcqEngMetadata.getAffineTransformString(smd).equals("Undefined")) {
-               throw new RuntimeException("Cannot run acquisition with XY tiling without first defining" +
-                       "affine transform between camera and stage. Check pixel size calibration");
-            }
-
-         }
-      });
+      super(sink, false);
       overlapX_ = overlapX;
       overlapY_ = overlapY;
+      summaryMDAdder_ = summaryMDAdder;
+
+      createZDeviceModel(zStep);
       xyStage_ = core_.getXYStageDevice();
-      pixelStageTranslator_ = new PixelStageTranslator(AcqEngMetadata.getAffineTransform(getSummaryMetadata()), xyStage_,
-              (int) Engine.getCore().getImageWidth(), (int) Engine.getCore().getImageHeight(), overlapX_, overlapY_);
+
+      initialize();
    }
 
-   public PixelStageTranslator getPixelStageTranslator() {
+   private void createZDeviceModel(Double zStep) {
+      for (String zDeviceName : core_.getLoadedDevicesOfType(DeviceType.StageDevice)) {
+         // Could uncomment if want to add support for setting z device origins
+//         double zDeviceOrigin = zDeviceOrigins == null && zDeviceOrigins.containsKey(zDeviceName)
+//                 ? Engine.getCore().getPosition(zDeviceName) : zDeviceOrigins.get(zDeviceName);
+         double currentZPos;
+         try {
+            currentZPos = Engine.getCore().getPosition(zDeviceName);
+         } catch (Exception e) {
+            throw new RuntimeException(e);
+         }
+         zAxes_.put(zDeviceName, new ZAxis(zDeviceName, currentZPos,
+                 zStep, 0,0, 0, 0));
+      }
+   }
+
+   @Override
+   public void initialize() {
+
+      // Create default summary metadata and add to it
+      JSONObject summaryMetadata = AcqEngMetadata.makeSummaryMD(this);
+      if (summaryMDAdder_ != null) {
+         summaryMDAdder_.accept(summaryMetadata);
+      }
+      AcqEngMetadata.setPixelOverlapX(summaryMetadata, overlapX_);
+      AcqEngMetadata.setPixelOverlapY(summaryMetadata, overlapY_);
+      if (AcqEngMetadata.getAffineTransformString(summaryMetadata).equals("Undefined")) {
+         throw new RuntimeException("Cannot run acquisition with XY tiling without first defining" +
+                 "affine transform between camera and stage. Check pixel size calibration");
+      }
+
+      try {
+         // Make a local in copy in case something else modifies it
+         summaryMetadata_ = new JSONObject(summaryMetadata.toString());
+      } catch (JSONException ex) {
+         System.err.print("Couldn't copy summaary metadata");
+         ex.printStackTrace();
+      }
+
+      pixelStageTranslator_ = new CameraTilingStageTranslator(AcqEngMetadata.getAffineTransform(getSummaryMetadata()), xyStage_,
+              (int) Engine.getCore().getImageWidth(), (int) Engine.getCore().getImageHeight(), overlapX_, overlapY_);
+
+      if (dataSink_ != null) {
+         //It could be null if not using saving and viewing and diverting with custom processor
+         dataSink_.initialize(this, summaryMetadata);
+      }
+   }
+
+   public HashMap<String, ZAxis> getZAxes() {
+      return zAxes_;
+   }
+
+   public CameraTilingStageTranslator getPixelStageTranslator() {
       return pixelStageTranslator_;
    }
+
+   public double getZStep(String name) {
+      return zAxes_.get(name).zStep_um_;
+   }
+
+   public double getZOrigin(String name) {
+      return zAxes_.get(name).zOrigin_um_;
+   }
+
+   public List<String> getZDeviceNames() {
+      return zAxes_.keySet().stream().collect(Collectors.toList());
+   }
+
+
 
 }
