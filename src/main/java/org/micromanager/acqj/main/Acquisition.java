@@ -87,7 +87,7 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    /**
-    * Version in which initialization is handled by a superclass
+    * Version in which initialization can be handled by a subclass
     */
    public Acquisition(AcqEngJDataSink sink, boolean initialize) {
       core_ = Engine.getCore();
