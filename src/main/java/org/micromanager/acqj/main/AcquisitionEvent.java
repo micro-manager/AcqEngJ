@@ -615,6 +615,11 @@ public class AcquisitionEvent {
          builder.append("\t" + deviceName +
                  ": " + getStageCoordinate(deviceName));
       }
+
+      for (Object axis : axisPositions_.keySet()) {
+         builder.append(axis + ": " + axisPositions_.get(axis) + ", ");
+      }
+
       if (zPosition_ != null) {
          builder.append("z " + zPosition_);
       }

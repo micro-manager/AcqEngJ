@@ -383,4 +383,12 @@ public class Acquisition implements AcquisitionAPI {
    public boolean areEventsFinished() {
       return eventsFinished_;
    }
+
+   public int getImageTransferQueueSize() {
+      return IMAGE_QUEUE_SIZE;
+   }
+
+   public int getImageTransferQueueCount() {
+      return firstDequeue_.size();
+   }
 }
