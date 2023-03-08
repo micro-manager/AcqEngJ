@@ -56,8 +56,6 @@ public class AcquisitionEvent {
 
    //positions for devices that are generically hardcoded into MMCore
    private Double zPosition_ = null, xPosition_ = null, yPosition_ = null;
-   //info for xy positions arranged in a grid
-   private Integer gridRow_ = null, gridCol_ = null;
    //TODO: SLM, Galvo, etc
 
    private HashMap<String, Double> stageCoordinates_ = new HashMap<String, Double>();
@@ -136,8 +134,6 @@ public class AcquisitionEvent {
       e.stageDeviceNamesToAxisNames_ = new HashMap<>(stageDeviceNamesToAxisNames_);
       e.xPosition_ = xPosition_;
       e.yPosition_ = yPosition_;
-      e.gridRow_ = gridRow_;
-      e.gridCol_ = gridCol_;
       e.miniumumStartTime_ms_ = miniumumStartTime_ms_;
       e.slmImage_ = slmImage_;
       e.acquireImage_ = acquireImage_;
@@ -195,12 +191,6 @@ public class AcquisitionEvent {
          }
          if (e.yPosition_ != null) {
             json.put("y", e.yPosition_);
-         }
-         if (e.gridRow_ != null) {
-            json.put("row", e.gridRow_);
-         }
-         if (e.gridCol_ != null) {
-            json.put("col", e.gridCol_);
          }
 
          //TODO: galvo
@@ -273,15 +263,10 @@ public class AcquisitionEvent {
                event.stageDeviceNamesToAxisNames_.put(deviceName, axisName);
             }
          }
-         if (json.has("row")) {
-            event.gridRow_ = json.getInt("row");
-         }
-         if (json.has("col")) {
-            event.gridCol_ = json.getInt("col");
-         }
          if (event.acquisition_ instanceof XYTiledAcquisition) {
             int posIndex = ((XYTiledAcquisition) acq).getPixelStageTranslator().getPositionIndices(
-                    new int[]{event.gridRow_}, new int[]{event.gridCol_})[0];
+                    new int[]{(int) event.axisPositions_.get(AcqEngMetadata.AXES_GRID_ROW)},
+                    new int[]{(int) event.axisPositions_.get(AcqEngMetadata.AXES_GRID_COL)})[0];
 
             //infer XY stage position based on affine transform
             Point2D.Double xyPos = ((XYTiledAcquisition) acq).getPixelStageTranslator().getXYPosition(posIndex).getCenter();
@@ -367,8 +352,6 @@ public class AcquisitionEvent {
 
    public boolean shouldAcquireImage() {
       if (sequence_ != null) {
-         return true;
-      } else if (gridRow_ != null && gridCol_ != null) {
          return true;
       } else {
          return configPreset_ != null || axisPositions_.keySet().size() > 0;
@@ -578,13 +561,6 @@ public class AcquisitionEvent {
       return yPosition_;
    }
 
-   public Integer getGridRow() {
-      return gridRow_;
-   }
-
-   public Integer getGridCol() {
-      return gridCol_;
-   }
 
    public void setX(double x) {
       xPosition_ = x;
@@ -594,13 +570,6 @@ public class AcquisitionEvent {
       yPosition_ = y;
    }
 
-   public void setGridRow(Integer gridRow) {
-      gridRow_ = gridRow;
-   }
-
-   public void setGridCol(Integer gridCol) {
-      gridCol_ = gridCol;
-   }
 
    //For debugging
    @Override
@@ -629,12 +598,6 @@ public class AcquisitionEvent {
       }
       if (yPosition_ != null) {
          builder.append("y  " + yPosition_);
-      }
-      if (gridRow_ != null) {
-         builder.append("row  " + gridRow_);
-      }
-      if (gridCol_ != null) {
-         builder.append("col   " + gridCol_);
       }
 
       for (String axis : axisPositions_.keySet()) {

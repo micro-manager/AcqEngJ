@@ -254,8 +254,8 @@ public class CameraTilingStageTranslator {
         for (int h = 0; h < posIndices.length; h++) {
            //check if position is already present in list, and if so, return its index
            for (int i = 0; i < positionList_.size(); i++) {
-              if (AcqEngMetadata.getGridRow(positionList_.get(i).toJSON(xyStageName_)) == rows[h]
-                      && AcqEngMetadata.getGridCol(positionList_.get(i).toJSON(xyStageName_)) == cols[h]) {
+              if (positionList_.get(i).getGridRow() == rows[h]
+                      && positionList_.get(i).getGridCol() == cols[h]) {
                  //we already have position, so return its index
                  posIndices[h] = i;
                  continue outerloop;
