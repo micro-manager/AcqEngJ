@@ -601,7 +601,7 @@ public class Engine {
 //               if (event.isZSequenced()) {
 //                  core_.startStageSequence(zStage);
 //               } else  {
-               for (String stageDeviceName : event.getDefinedAxes()) {
+               for (String stageDeviceName : event.getStageDeviceNames()) {
                   // TODO: could reimplement logic here to decide when to try to move
 //                  Double previousZ = lastEvent_ == null ? null :
 //                        lastEvent_.getSequence() == null ? lastEvent_.getZPosition() :
@@ -874,6 +874,13 @@ public class Engine {
                return false;
             }
          }
+
+         // arbitrary z stages
+         // TODO implement sequences along arbitrary other stage decives
+         for (String stageDevice : e1.getStageDeviceNames() ) {
+            return false;
+         }
+
          //xy stage
          if ((e1.getXPosition() != null && e2.getXPosition() != null && (double) e1.getXPosition() != (double) e2.getXPosition()) ||
                  (e1.getYPosition() != null && e2.getYPosition() != null && (double) e1.getYPosition() != (double) e2.getYPosition())) {

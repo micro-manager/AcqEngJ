@@ -468,6 +468,10 @@ public class AcquisitionEvent {
       return stageDeviceNamesToAxisNames_.get(deviceName);
    }
 
+   public Set<String> getStageDeviceNames() {
+      return stageDeviceNamesToAxisNames_.keySet();
+   }
+
    public static AcquisitionEvent createAcquisitionFinishedEvent(AcquisitionAPI acq) {
       AcquisitionEvent evt = new AcquisitionEvent(acq);
       evt.specialFlag_ = SpecialFlag.AcqusitionFinished;
