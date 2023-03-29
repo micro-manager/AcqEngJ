@@ -181,11 +181,19 @@ public class AcquisitionEvent {
             json.put("axes", axes);
          }
 
-         //Things for which a generic device tyoe and functions to operate on
-         //it exists in MMCore
+         // Stage devices
+         for (String stageDevice : e.getStageDeviceNames()) {
+            JSONArray stagePos = new JSONArray();
+            stagePos.put(stageDevice);
+            stagePos.put(e.getStageCoordinate(stageDevice));
+            json.put("stage_device", stagePos);
+         }
+
+         // "z" is a special codeword for the core-focus stage device
          if (e.zPosition_ != null) {
             json.put("z", e.zPosition_);
          }
+
          if (e.xPosition_ != null) {
             json.put("x", e.xPosition_);
          }
@@ -247,6 +255,11 @@ public class AcquisitionEvent {
          }
          if (json.has("exposure")) {
             event.exposure_ = json.getDouble("exposure");
+         }
+
+         if (json.has("stage_device")) {
+            event.setStageCoordinate(json.getJSONArray("stage_device").getString(0),
+                    json.getJSONArray("stage_device").getDouble(1));
          }
 
          //Things for which a generic device type and imperative API exists in MMCore
@@ -466,6 +479,10 @@ public class AcquisitionEvent {
          throw new RuntimeException("No axis name for device " + deviceName + ". call setStageCoordinate first");
       }
       return stageDeviceNamesToAxisNames_.get(deviceName);
+   }
+
+   public Set<String> getStageDeviceNames() {
+      return stageDeviceNamesToAxisNames_.keySet();
    }
 
    public static AcquisitionEvent createAcquisitionFinishedEvent(AcquisitionAPI acq) {

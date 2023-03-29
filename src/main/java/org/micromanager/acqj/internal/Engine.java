@@ -597,6 +597,49 @@ public class Engine {
          }
       }, "Moving Z device");
 
+      /////////////////////////////Other stage devices ////////////////////////////////////////////
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               // TODO implement Z sequencing for other devices
+//               if (event.isZSequenced()) {
+//                  core_.startStageSequence(zStage);
+//               } else  {
+               for (String stageDeviceName : event.getStageDeviceNames()) {
+                  // TODO: could reimplement logic here to decide when to try to move
+//                  Double previousZ = lastEvent_ == null ? null :
+//                        lastEvent_.getSequence() == null ? lastEvent_.getZPosition() :
+//                              lastEvent_.getSequence().get(0).getZPosition();
+//                  Double currentZ = event.getSequence() == null ? event.getZPosition() :
+//                        event.getSequence().get(0).getZPosition();
+//                  if (currentZ == null) {
+//                     return;
+//                  }
+//                  boolean change = previousZ == null || !previousZ.equals(currentZ);
+//                  if (!change) {
+//                     return;
+//                  }
+
+                  //wait for it to not be busy (is this even needed?)
+                  while (core_.deviceBusy(stageDeviceName)) {
+                     Thread.sleep(1);
+                  }
+                  //Move Z
+                  core_.setPosition(stageDeviceName, event.getStageCoordinate(stageDeviceName));
+                  //wait for move to finish
+                  while (core_.deviceBusy(stageDeviceName)) {
+                     Thread.sleep(1);
+                  }
+               }
+//               }
+            } catch (Exception ex) {
+               throw new HardwareControlException(ex.getMessage());
+            }
+
+         }
+      }, "Moving other stage devices");
+
       /////////////////////////////XY Stage////////////////////////////////////////////////////
       loopHardwareCommandRetries(new Runnable() {
          @Override
@@ -836,6 +879,13 @@ public class Engine {
                return false;
             }
          }
+
+         // arbitrary z stages
+         // TODO implement sequences along arbitrary other stage decives
+         for (String stageDevice : e1.getStageDeviceNames() ) {
+            return false;
+         }
+
          //xy stage
          if ((e1.getXPosition() != null && e2.getXPosition() != null && (double) e1.getXPosition() != (double) e2.getXPosition()) ||
                  (e1.getYPosition() != null && e2.getYPosition() != null && (double) e1.getYPosition() != (double) e2.getYPosition())) {
