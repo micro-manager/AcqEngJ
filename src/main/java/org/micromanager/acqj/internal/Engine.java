@@ -47,24 +47,29 @@ public class Engine {
    private static final int HARDWARE_ERROR_RETRIES = 6;
    private static final int DELAY_BETWEEN_RETRIES_MS = 5;
    private static CMMCore core_;
-   private static Engine singleton_;
+   private static Engine singleton_ = null;
    private AcquisitionEvent lastEvent_ = null;
    //A queue that holds multiple acquisition events which are in the process of being merged into a single, hardware-triggered event
    private LinkedList<AcquisitionEvent> sequenceBuilder_ = new LinkedList<AcquisitionEvent>();
    //Thread on which the generation of acquisition events occurs
-   private ExecutorService eventGeneratorExecutor_;
+   private static ExecutorService eventGeneratorExecutor_;
    //Thread on which all communication with hardware occurs
-   private final ExecutorService acqExecutor_;
+   private static ExecutorService acqExecutor_;
 
 
    public Engine(CMMCore core) {
-      singleton_ = this;
-      core_ = core;
-      acqExecutor_ = Executors.newSingleThreadExecutor(r -> {
-         return new Thread(r, "Acquisition Engine Thread");
-      });
-      eventGeneratorExecutor_ = Executors.newSingleThreadExecutor((Runnable r) -> new Thread(r, "Acq Eng event generator"));
+      if (singleton_ == null) {
+         singleton_ = this;
+         core_ = core;
+         acqExecutor_ = Executors.newSingleThreadExecutor(r -> {
+            return new Thread(r, "Acquisition Engine Thread");
+         });
+         eventGeneratorExecutor_ = Executors
+                 .newSingleThreadExecutor((Runnable r) -> new Thread(r, "Acq Eng event generator"));
+      }
    }
+
+
 
    public static CMMCore getCore() {
       return core_;
