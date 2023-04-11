@@ -20,7 +20,6 @@ package org.micromanager.acqj.internal;
  * To change this template, choose Tools | Templates and open the template in
  * the editor.
  */
-import java.lang.reflect.Array;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
@@ -295,8 +294,9 @@ public class Engine {
                return; // exception in hook
             }
          }
+         HardwareSequences hardwareSequencesInProgress;
          try {
-            prepareHardware(event);
+            hardwareSequencesInProgress = prepareHardware(event);
          } catch (HardwareControlException e) {
             throw e;
          }
@@ -332,10 +332,7 @@ public class Engine {
 
             // if the acquisition was aborted, make sure everything shuts down properly
             if (event.acquisition_.isAbortRequested()) {
-               // TODO
-               core_.getDeviceT
-
-
+               abortHardwareSequences(hardwareSequencesInProgress);
                return;
             }
 
@@ -482,6 +479,32 @@ public class Engine {
       }
    }
 
+   private void abortHardwareSequences(HardwareSequences hardwareSequencesInProgress) {
+      // Stop any hardware sequences
+      for (String deviceName : hardwareSequencesInProgress.deviceNames) {
+         try {
+            if (core_.getDeviceType(deviceName).equals("Stage")) {
+               core_.stopStageSequence(deviceName);
+            } else if (core_.getDeviceType(deviceName).equals("XYStage")) {
+               core_.stopXYStageSequence(deviceName);
+            } else if (core_.getDeviceType(deviceName).equals("Camera")) {
+               core_.stopSequenceAcquisition(core_.getCameraDevice());
+            }
+         } catch (Exception ee) {
+            core_.logMessage("Error stopping hardware sequence: " + ee.getMessage());
+         }
+      }
+      // Stop any property sequences
+      for (int i = 0; i < hardwareSequencesInProgress.propertyNames.size(); i++) {
+         try {
+            core_.stopPropertySequence(hardwareSequencesInProgress.propertyDeviceNames.get(i),
+                  hardwareSequencesInProgress.propertyNames.get(i));
+         } catch (Exception ee) {
+            core_.logMessage("Error stopping property sequence: " + ee.getMessage());
+         }
+      }
+   }
+
    /**
     * Move all the hardware to the proper positions in preparation for the next phase of the acquisition event
     * (i.e. collecting images, or maybe to be added in the future, projecting slm patterns). If this event represents
@@ -493,7 +516,8 @@ public class Engine {
     * @throws HardwareControlException
     * @return Data class describing which hardware devices have had sequences activated
     */
-   private HardwareSequence prepareHardware(final AcquisitionEvent event) throws HardwareControlException {
+   private HardwareSequences prepareHardware(final AcquisitionEvent event) throws HardwareControlException {
+      HardwareSequences sequence = new HardwareSequences();
       //Get the hardware specific to this acquisition
       final String xyStage = core_.getXYStageDevice();
       final String zStage = core_.getFocusDevice();
@@ -540,18 +564,19 @@ public class Engine {
                   }
                }
             }
+            sequence.deviceNames.add(core_.getCameraDevice());
             //Now have built up all the sequences, apply them
             if (event.isExposureSequenced()) {
                core_.loadExposureSequence(core_.getCameraDevice(), exposureSequence_ms);
-               sequencedDevices.add(core_.getCameraDevice());
+               // already added camera
             }
             if (event.isXYSequenced()) {
                core_.loadXYStageSequence(xyStage, xSequence, ySequence);
-               sequencedDevices.add(xyStage);
+                sequence.deviceNames.add(xyStage);
             }
             if (event.isZSequenced()) {
                core_.loadStageSequence(zStage, zSequence);
-                sequencedDevices.add(zStage);
+                sequence.deviceNames.add(zStage);
             }
             if (event.isConfigGroupSequenced()) {
                for (int i = 0; i < config.size(); i++) {
@@ -560,6 +585,8 @@ public class Engine {
                   String propName = ps.getPropertyName();
                   if (propSequences.get(i).size() > 0) {
                      core_.loadPropertySequence(deviceName, propName, propSequences.get(i));
+                     sequence.propertyNames.add(propName);
+                     sequence.propertyDeviceNames.add(deviceName);
                   }
                }
             }
@@ -814,7 +841,7 @@ public class Engine {
 
       //keep track of last event to know what state the hardware was in without having to query it
       lastEvent_ = event.getSequence() == null ? event : event.getSequence().get(event.getSequence().size() - 1);
-      return null;
+      return sequence;
    }
 
    /**
