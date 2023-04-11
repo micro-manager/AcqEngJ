@@ -367,8 +367,12 @@ public class Acquisition implements AcquisitionAPI {
 
    public Iterable<AcquisitionHook> getAfterCameraHooks() { return afterCameraHooks_; }
 
-   public void addToOutput(TaggedImage ti) throws InterruptedException {
-      firstDequeue_.putLast(ti);
+   public void addToOutput(TaggedImage ti)  {
+      try {
+         firstDequeue_.putLast(ti);
+      } catch (InterruptedException ex) {
+         throw new RuntimeException(ex);
+      }
    }
 
    public void finish() {

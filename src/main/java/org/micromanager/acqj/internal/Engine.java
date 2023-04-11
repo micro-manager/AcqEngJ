@@ -20,6 +20,7 @@ package org.micromanager.acqj.internal;
  * To change this template, choose Tools | Templates and open the template in
  * the editor.
  */
+import java.lang.reflect.Array;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
@@ -329,6 +330,15 @@ public class Engine {
             }
             acquireImages(event);
 
+            // if the acquisition was aborted, make sure everything shuts down properly
+            if (event.acquisition_.isAbortRequested()) {
+               // TODO
+               core_.getDeviceT
+
+
+               return;
+            }
+
             //pause here while hardware is still doing stuff
             if (event.getSequence() != null) {
                while (core_.isSequenceRunning()) {
@@ -354,12 +364,10 @@ public class Engine {
     * put them into an output queue
     *
     * @param event
-    * @return a Future that can be gotten when the last image in the sequence is
-    * saved
     * @throws InterruptedException
     * @throws HardwareControlException
     */
-   private void acquireImages(final AcquisitionEvent event) throws InterruptedException, HardwareControlException {
+   private void acquireImages(final AcquisitionEvent event) throws HardwareControlException {
       try {
          if (event.getSequence() != null && event.getSequence().size() > 1) {
             //start hardware sequence
@@ -409,7 +417,7 @@ public class Engine {
          double exposure;
 
          try {
-            exposure = event.getExposure() == null ? core_.getExposure() : core_.getExposure();
+            exposure = event.getExposure() == null ? core_.getExposure() : event.getExposure();
          } catch (Exception ex) {
             throw new RuntimeException("Couldnt get exposure form core");
          }
@@ -418,6 +426,10 @@ public class Engine {
          for (int camIndex = 0; camIndex < numCamChannels; camIndex++) {
             TaggedImage ti = null;
             while (ti == null) {
+               if (event.acquisition_.isAbortRequested()) {
+                  return;
+               }
+
                try {
                   if (event.getSequence() != null && event.getSequence().size() > 1) {
                      if (core_.isBufferOverflowed()) {
@@ -478,10 +490,10 @@ public class Engine {
     * triggered to start, which will happen in another function
     *
     * @param event
-    * @throws InterruptedException
     * @throws HardwareControlException
+    * @return Data class describing which hardware devices have had sequences activated
     */
-   private void prepareHardware(final AcquisitionEvent event) throws InterruptedException, HardwareControlException {
+   private HardwareSequence prepareHardware(final AcquisitionEvent event) throws HardwareControlException {
       //Get the hardware specific to this acquisition
       final String xyStage = core_.getXYStageDevice();
       final String zStage = core_.getFocusDevice();
@@ -531,12 +543,15 @@ public class Engine {
             //Now have built up all the sequences, apply them
             if (event.isExposureSequenced()) {
                core_.loadExposureSequence(core_.getCameraDevice(), exposureSequence_ms);
+               sequencedDevices.add(core_.getCameraDevice());
             }
             if (event.isXYSequenced()) {
                core_.loadXYStageSequence(xyStage, xSequence, ySequence);
+               sequencedDevices.add(xyStage);
             }
             if (event.isZSequenced()) {
                core_.loadStageSequence(zStage, zSequence);
+                sequencedDevices.add(zStage);
             }
             if (event.isConfigGroupSequenced()) {
                for (int i = 0; i < config.size(); i++) {
@@ -549,6 +564,7 @@ public class Engine {
                }
             }
             core_.prepareSequenceAcquisition(core_.getCameraDevice());
+
 
          } catch (Exception ex) {
             ex.printStackTrace();
@@ -798,6 +814,7 @@ public class Engine {
 
       //keep track of last event to know what state the hardware was in without having to query it
       lastEvent_ = event.getSequence() == null ? event : event.getSequence().get(event.getSequence().size() - 1);
+      return null;
    }
 
    /**
@@ -806,10 +823,9 @@ public class Engine {
     *
     * @param r runnable containing the command
     * @param commandName name given to the command for loggin purposes
-    * @throws InterruptedException
     * @throws HardwareControlException
     */
-   private void loopHardwareCommandRetries(Runnable r, String commandName) throws InterruptedException, HardwareControlException {
+   private void loopHardwareCommandRetries(Runnable r, String commandName) throws HardwareControlException {
       for (int i = 0; i < HARDWARE_ERROR_RETRIES; i++) {
          try {
             r.run();
@@ -818,7 +834,12 @@ public class Engine {
             core_.logMessage(stackTraceToString(e));
             System.err.println(getCurrentDateAndTime() + ": Problem "
                     + commandName + "\n Retry #" + i + " in " + DELAY_BETWEEN_RETRIES_MS + " ms");
-            Thread.sleep(DELAY_BETWEEN_RETRIES_MS);
+            try {
+               Thread.sleep(DELAY_BETWEEN_RETRIES_MS);
+            } catch (InterruptedException e1) {
+                e1.printStackTrace();
+                throw new HardwareControlException(e1.getMessage());
+            }
          }
       }
       throw new HardwareControlException(commandName + " unsuccessful");
