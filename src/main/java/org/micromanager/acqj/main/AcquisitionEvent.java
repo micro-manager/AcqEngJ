@@ -186,11 +186,15 @@ public class AcquisitionEvent {
          }
 
          // Stage devices
+         JSONArray stagePositions = new JSONArray();
          for (String stageDevice : e.getStageDeviceNames()) {
-            JSONArray stagePos = new JSONArray();
-            stagePos.put(stageDevice);
-            stagePos.put(e.getStageCoordinate(stageDevice));
-            json.put("stage_device", stagePos);
+            JSONArray singleStage = new JSONArray();
+            singleStage.put(stageDevice);
+            singleStage.put(e.getStageSingleAxisStagePosition(stageDevice));
+            stagePositions.put(singleStage);
+         }
+         if (stagePositions.length() > 0) {
+            json.put("stage_positions", stagePositions);
          }
 
          // "z" is a special codeword for the core-focus stage device
@@ -203,6 +207,10 @@ public class AcquisitionEvent {
          }
          if (e.yPosition_ != null) {
             json.put("y", e.yPosition_);
+         }
+
+         if (e.camera_ != null) {
+            json.put("camera", e.camera_);
          }
 
          //TODO: galvo
@@ -263,9 +271,12 @@ public class AcquisitionEvent {
             event.exposure_ = json.getDouble("exposure");
          }
 
-         if (json.has("stage_device")) {
-            event.setStageCoordinate(json.getJSONArray("stage_device").getString(0),
-                    json.getJSONArray("stage_device").getDouble(1));
+         if (json.has("stage_positions")) {
+            JSONArray stagePositions = json.getJSONArray("stage_positions");
+            for (int i = 0; i < stagePositions.length(); i++) {
+               JSONArray stagePos = stagePositions.getJSONArray(i);
+               event.setStageCoordinate(stagePos.getString(0), stagePos.getDouble(1));
+            }
          }
 
          //Things for which a generic device type and imperative API exists in MMCore
@@ -301,6 +312,10 @@ public class AcquisitionEvent {
 
          if (json.has("slm_pattern")) {
             event.slmImage_ = json.get("slm_pattern");
+         }
+
+         if (json.has("camera")) {
+            event.camera_ = json.getString("camera");
          }
 
          //TODO: galvo, etc (i.e. other aspects of imperative API)
@@ -448,7 +463,7 @@ public class AcquisitionEvent {
    }
 
 
-   public Double getStageCoordinate(String deviceName) {
+   public Double getStageSingleAxisStagePosition(String deviceName) {
       if (!stageCoordinates_.containsKey(deviceName)) {
          return null;
       }
@@ -619,7 +634,7 @@ public class AcquisitionEvent {
       StringBuilder builder = new StringBuilder();
       for (String deviceName : stageDeviceNamesToAxisNames_.keySet()) {
          builder.append("\t" + deviceName +
-                 ": " + getStageCoordinate(deviceName));
+                 ": " + getStageSingleAxisStagePosition(deviceName));
       }
 
       for (Object axis : axisPositions_.keySet()) {
