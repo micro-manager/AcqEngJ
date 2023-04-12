@@ -366,9 +366,6 @@ public class Engine {
                // Using the default (Core-Camera)
                core_.startSequenceAcquisition(event.getSequence().size(), 0, true);
             } else {
-               // When using multiple cameras, I think that multiple calls to startSequenceAcquisition
-               // will clear the circular buffer each time, so
-
                // figure out how many images on each camera and start sequence with appropriate number on each
                 HashMap<String, Integer> cameraImageCounts = new HashMap<String, Integer>();
                 Set<String> cameraDeviceNames = new HashSet<String>();
@@ -703,7 +700,7 @@ public class Engine {
                         Thread.sleep(1);
                      }
                      //Move Z
-                     core_.setPosition(stageDeviceName, event.getStageCoordinate(stageDeviceName));
+                     core_.setPosition(stageDeviceName, event.getStageSingleAxisStagePosition(stageDeviceName));
                      //wait for move to finish
                      while (core_.deviceBusy(stageDeviceName)) {
                         Thread.sleep(1);

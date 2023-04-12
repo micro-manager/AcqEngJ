@@ -67,8 +67,8 @@ public class AcqEventModules {
                AcquisitionEvent sliceEvent = event.copy();
                //Do plus equals here in case z positions have been modified by another function (e.g. channel specific focal offsets)
                sliceEvent.setStageCoordinate(deviceName,
-                       (sliceEvent.getStageCoordinate(deviceName) == null ? 0.0
-                               : sliceEvent.getStageCoordinate(deviceName)) + pos);
+                       (sliceEvent.getStageSingleAxisStagePosition(deviceName) == null ? 0.0
+                               : sliceEvent.getStageSingleAxisStagePosition(deviceName)) + pos);
                sliceEvent.setAxisPosition(sliceEvent.getDeviceAxisName(deviceName), index_);
                index_++;
                return sliceEvent;
