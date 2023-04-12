@@ -399,6 +399,10 @@ public class AcquisitionEvent {
       exposure_ = exposure;
    }
 
+   public void setProperty(String device, String property, String value) {
+      properties_.add(new ThreeTuple(device, property, value));
+   }
+
    /**
     * Set the minimum start time in ms relative to when the acq started
     *

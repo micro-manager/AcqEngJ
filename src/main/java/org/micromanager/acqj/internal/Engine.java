@@ -195,6 +195,9 @@ public class Engine {
       Future imageAcquiredFuture = acqExecutor_.submit(() -> {
          try {
             if (event.acquisition_.isDebugMode()) {
+               core_.logMessage("Processing event: " + event.toString() );
+            }
+            if (event.acquisition_.isDebugMode()) {
                core_.logMessage("checking for sequencing" );
             }
             if (sequenceBuilder_.isEmpty() && !event.isAcquisitionSequenceEndEvent()) {
@@ -290,9 +293,7 @@ public class Engine {
             if (event == null) {
                return; //The hook cancelled this event
             }
-            if (event.acquisition_.isAbortRequested()) {
-               return; // exception in hook
-            }
+            abortIfRequested(event, null);
          }
          HardwareSequences hardwareSequencesInProgress;
          try {
@@ -305,18 +306,15 @@ public class Engine {
             if (event == null) {
                return; //The hook cancelled this event
             }
-            if (event.acquisition_.isAbortRequested()) {
-               return; // exception in hook
-            }
+            abortIfRequested(event, hardwareSequencesInProgress);
+
          }
          // Hardware hook may have modified wait time, so check again if we should
          // pause until the minimum start time of the event has occurred.
          while (event.getMinimumStartTimeAbsolute() != null &&
                System.currentTimeMillis() < event.getMinimumStartTimeAbsolute()) {
             try {
-               if (event.acquisition_.isAbortRequested()) {
-                  return;
-               }
+               abortIfRequested(event, hardwareSequencesInProgress);
                Thread.sleep(1);
             } catch (InterruptedException e) {
                //Abort while waiting for next time point
@@ -331,10 +329,7 @@ public class Engine {
             acquireImages(event);
 
             // if the acquisition was aborted, make sure everything shuts down properly
-            if (event.acquisition_.isAbortRequested()) {
-               abortHardwareSequences(hardwareSequencesInProgress);
-               return;
-            }
+            abortIfRequested(event, hardwareSequencesInProgress);
 
             // wait for camera to shut down
             if (event.getSequence() != null) {
@@ -468,6 +463,16 @@ public class Engine {
 
             correspondingEvent.acquisition_.addToOutput(ti);
          }
+      }
+   }
+
+   private void abortIfRequested(AcquisitionEvent event,
+                                 HardwareSequences hardwareSequencesInProgress) {
+      if (event.acquisition_.isAbortRequested()) {
+         if (hardwareSequencesInProgress != null) {
+            abortHardwareSequences(hardwareSequencesInProgress);
+         }
+         return;
       }
    }
 
