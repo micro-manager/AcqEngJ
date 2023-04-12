@@ -50,7 +50,7 @@ public class Engine {
    private static Engine singleton_ = null;
    private AcquisitionEvent lastEvent_ = null;
    //A queue that holds multiple acquisition events which are in the process of being merged into a single, hardware-triggered event
-   private LinkedList<AcquisitionEvent> sequenceBuilder_ = new LinkedList<AcquisitionEvent>();
+   private LinkedList<AcquisitionEvent> sequencedEvents_ = new LinkedList<AcquisitionEvent>();
    //Thread on which the generation of acquisition events occurs
    private static ExecutorService eventGeneratorExecutor_;
    //Thread on which all communication with hardware occurs
@@ -93,7 +93,7 @@ public class Engine {
                }
                //clear any pending events, but since submitEventIterator occurs on the
                //same thread, events will only be cleared in the case of an abort
-               sequenceBuilder_.clear();
+               sequencedEvents_.clear();
                if (acq.isDebugMode()) {
                   core_.logMessage("creating acquisition finished event");
                }
@@ -200,18 +200,18 @@ public class Engine {
             if (event.acquisition_.isDebugMode()) {
                core_.logMessage("checking for sequencing" );
             }
-            if (sequenceBuilder_.isEmpty() && !event.isAcquisitionSequenceEndEvent()) {
-               sequenceBuilder_.add(event);
-            } else if (isSequencable(sequenceBuilder_.getLast(), event, sequenceBuilder_.size() + 1)) {
+            if (sequencedEvents_.isEmpty() && !event.isAcquisitionSequenceEndEvent()) {
+               sequencedEvents_.add(event);
+            } else if (isSequencable(sequencedEvents_, event, sequencedEvents_.size() + 1)) {
                //merge event into the sequence
-               sequenceBuilder_.add(event);
+               sequencedEvents_.add(event);
             } else {
                // all events
-               AcquisitionEvent sequenceEvent = mergeSequenceEvent(sequenceBuilder_);
-               sequenceBuilder_.clear();
+               AcquisitionEvent sequenceEvent = mergeSequenceEvent(sequencedEvents_);
+               sequencedEvents_.clear();
                //Add in the start of the new sequence
                if (!event.isAcquisitionSequenceEndEvent()) {
-                  sequenceBuilder_.add(event);
+                  sequencedEvents_.add(event);
                }
                if (event.acquisition_.isDebugMode()) {
                   core_.logMessage("executing acquisition event" );
@@ -343,24 +343,53 @@ public class Engine {
       return;
    }
 
+   private void acquireImages(AcquisitionEvent event) throws HardwareControlException {
+      acquireImages(event, true);
+   }
+
    /**
     * Acquire 1 or more images in a sequence, add some metadata, then
     * put them into an output queue
     *
     * @param event
-    * @throws InterruptedException
+    * @param runAfterCameraHook
     * @throws HardwareControlException
     */
-   private void acquireImages(final AcquisitionEvent event) throws HardwareControlException {
+   private void acquireImages(final AcquisitionEvent event,
+                              boolean runAfterCameraHook) throws HardwareControlException {
       try {
          if (event.getSequence() != null && event.getSequence().size() > 1) {
             //start hardware sequence
 //            core_.clearCircularBuffer();
-            core_.startSequenceAcquisition(event.getSequence().size(), 0, true);
+
+            if (event.getSequence().stream().filter(e -> e.getCameraDeviceName() != null).count() == 0) {
+               // Using the default (Core-Camera)
+               core_.startSequenceAcquisition(event.getSequence().size(), 0, true);
+            } else {
+               // When using multiple cameras, I think that multiple calls to startSequenceAcquisition
+               // will clear the circular buffer each time, so
+
+               // figure out how many images on each camera and start sequence with appropriate number on each
+                HashMap<String, Integer> cameraImageCounts = new HashMap<String, Integer>();
+                Set<String> cameraDeviceNames = new HashSet<String>();
+                event.getSequence().stream().map(e -> e.getCameraDeviceName()).forEach(e -> cameraDeviceNames.add(e));
+                for (String cameraDeviceName : cameraDeviceNames) {
+                   cameraImageCounts.put(cameraDeviceName, (int) event.getSequence().stream().filter(
+                            e -> e.getCameraDeviceName() != null && e.getCameraDeviceName().equals(cameraDeviceName)).count());
+                   core_.startSequenceAcquisition(cameraDeviceName, cameraImageCounts.get(cameraDeviceName), 0, true);
+                }
+            }
+
          } else {
             //snap one image with no sequencing
-//                  core_.startSequenceAcquisition(1, 0, true);
-            core_.snapImage();
+            if (event.getCameraDeviceName() != null) {
+               String currentCamera = core_.getCameraDevice();
+               core_.setCameraDevice(event.getCameraDeviceName());
+               core_.snapImage();
+               core_.setCameraDevice(currentCamera);
+            } else {
+               core_.snapImage();
+            }
          }
       } catch (Exception ex) {
          throw new HardwareControlException(ex.getMessage());
@@ -388,8 +417,10 @@ public class Engine {
 
       //Run a hook after the camera sequence acquistion has started. This is used for setups
       //where an external device is used to trigger the camera
-      for (AcquisitionHook h : event.acquisition_.getAfterCameraHooks()) {
-         h.run(event);
+      if (runAfterCameraHook) {
+         for (AcquisitionHook h : event.acquisition_.getAfterCameraHooks()) {
+            h.run(event);
+         }
       }
 
       if (event.acquisition_.isDebugMode()) {
@@ -883,22 +914,25 @@ public class Engine {
     * Check if all the hardware changes between one event and the next compatible with hardware sequencing.
     * If so, they can be merged into a single event which will take place with hardware triggering
     *
-    * @param e1 first event
-    * @param e2 second event
+    * @param previousEvents list of previous events
+    * @param nextEvent next event to sequence
     * @return true if they can be combined
     */
-   private static boolean isSequencable(AcquisitionEvent e1, AcquisitionEvent e2, int newSeqLength) {
+   private static boolean isSequencable(List<AcquisitionEvent> previousEvents,
+                                        AcquisitionEvent nextEvent, int newSeqLength) {
       try {
-         if (e2.isAcquisitionSequenceEndEvent() || e2.isAcquisitionFinishedEvent()) {
+         if (nextEvent.isAcquisitionSequenceEndEvent() || nextEvent.isAcquisitionFinishedEvent()) {
             return false;
          }
 
-         //check all properties in channel
-         if (e1.getConfigPreset() != null && e2.getConfigPreset() != null
-                 && !e1.getConfigPreset().equals(e2.getConfigPreset())) {
+         AcquisitionEvent previousEvent = previousEvents.get(previousEvents.size() - 1);
+
+         //check all properties in group
+         if (previousEvent.getConfigPreset() != null && nextEvent.getConfigPreset() != null
+                 && !previousEvent.getConfigPreset().equals(nextEvent.getConfigPreset())) {
             //check all properties in the channel
-            Configuration config1 = core_.getConfigData(e1.getConfigGroup(), e1.getConfigPreset());
-            Configuration config2 = core_.getConfigData(e2.getConfigGroup(), e2.getConfigPreset());
+            Configuration config1 = core_.getConfigData(previousEvent.getConfigGroup(), previousEvent.getConfigPreset());
+            Configuration config2 = core_.getConfigData(nextEvent.getConfigGroup(), nextEvent.getConfigPreset());
             for (int i = 0; i < config1.size(); i++) {
                PropertySetting ps1 = config1.getSetting(i);
                String deviceName = ps1.getDeviceLabel();
@@ -919,8 +953,8 @@ public class Engine {
          //TODO check for arbitrary additional properties in the acq event for being sequencable
 
          //z stage
-         if (e1.getZPosition() != null && e2.getZPosition() != null &&
-                 (double)e1.getZPosition() != (double)e2.getZPosition()) {
+         if (previousEvent.getZPosition() != null && nextEvent.getZPosition() != null &&
+                 (double)previousEvent.getZPosition() != (double)nextEvent.getZPosition()) {
             if (!core_.isStageSequenceable(core_.getFocusDevice())) {
                return false;
             }
@@ -931,13 +965,13 @@ public class Engine {
 
          // arbitrary z stages
          // TODO implement sequences along arbitrary other stage decives
-         for (String stageDevice : e1.getStageDeviceNames() ) {
+         for (String stageDevice : previousEvent.getStageDeviceNames() ) {
             return false;
          }
 
          //xy stage
-         if ((e1.getXPosition() != null && e2.getXPosition() != null && (double) e1.getXPosition() != (double) e2.getXPosition()) ||
-                 (e1.getYPosition() != null && e2.getYPosition() != null && (double) e1.getYPosition() != (double) e2.getYPosition())) {
+         if ((previousEvent.getXPosition() != null && nextEvent.getXPosition() != null && (double) previousEvent.getXPosition() != (double) nextEvent.getXPosition()) ||
+                 (previousEvent.getYPosition() != null && nextEvent.getYPosition() != null && (double) previousEvent.getYPosition() != (double) nextEvent.getYPosition())) {
             if (!core_.isXYStageSequenceable(core_.getXYStageDevice())) {
                return false;
             }
@@ -945,23 +979,31 @@ public class Engine {
                return false;
             }
          }
-         //camera
-         if (e1.getExposure() != null && e2.getExposure() != null &&
-                 Double.compare(e1.getExposure(), e2.getExposure()) != 0 &&
-                 !core_.isExposureSequenceable(core_.getCameraDevice())) {
-            return false;
-         }
-         if (core_.isExposureSequenceable(core_.getCameraDevice()) &&
-                 newSeqLength > core_.getExposureSequenceMaxLength(core_.getCameraDevice())) {
-            return false;
-         }
-         //timelapse
-         if (e1.getTIndex() != null && e2.getTIndex() != null && !e1.getTIndex().equals(e2.getTIndex())) {
-            if (e1.getMinimumStartTimeAbsolute() != null && e2.getMinimumStartTimeAbsolute() != null &&
-                    !e1.getMinimumStartTimeAbsolute().equals(e2.getMinimumStartTimeAbsolute())) {
+
+         if (previousEvent.getCameraDeviceName() == null) {
+            // Using the Core-Camera, the default
+
+            //camera exposure
+            if (previousEvent.getExposure() != null && nextEvent.getExposure() != null &&
+                  Double.compare(previousEvent.getExposure(), nextEvent.getExposure()) != 0 &&
+                  !core_.isExposureSequenceable(core_.getCameraDevice())) {
+               return false;
+            }
+            if (core_.isExposureSequenceable(core_.getCameraDevice()) &&
+                  newSeqLength > core_.getExposureSequenceMaxLength(core_.getCameraDevice())) {
                return false;
             }
          }
+
+
+         // If there is a nonzero delay between events, then its not sequencable
+         if (previousEvent.getTIndex() != null && nextEvent.getTIndex() != null && !previousEvent.getTIndex().equals(nextEvent.getTIndex())) {
+            if (previousEvent.getMinimumStartTimeAbsolute() != null && nextEvent.getMinimumStartTimeAbsolute() != null &&
+                    !previousEvent.getMinimumStartTimeAbsolute().equals(nextEvent.getMinimumStartTimeAbsolute())) {
+               return false;
+            }
+         }
+
          return true;
       } catch (Exception ex) {
          throw new RuntimeException(ex);
