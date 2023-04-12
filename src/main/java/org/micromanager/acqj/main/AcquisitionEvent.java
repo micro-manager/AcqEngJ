@@ -49,6 +49,9 @@ public class AcquisitionEvent {
    //will dynamically infer them at runtime
    private HashMap<String, Object> axisPositions_ = new HashMap<String, Object>();
 
+   // If null, use Core-camera, otherwise, use this camera
+   private String camera_ = null;
+
    private String configGroup_, configPreset_ = null;
    private Double exposure_ = null; //leave null to keep exposaure unchanged
 
@@ -138,6 +141,7 @@ public class AcquisitionEvent {
       e.slmImage_ = slmImage_;
       e.acquireImage_ = acquireImage_;
       e.properties_ = new TreeSet<ThreeTuple>(this.properties_);
+      e.camera_ = camera_;
       return e;
    }
 
@@ -212,7 +216,9 @@ public class AcquisitionEvent {
             prop.put(t.val);
             props.put(prop);
          }
-         json.put("properties", props);
+         if (props.length() > 0) {
+            json.put("properties", props);
+         }
 
          return json;
       } catch (JSONException ex) {
@@ -353,6 +359,15 @@ public class AcquisitionEvent {
       } catch (JSONException e) {
          throw new RuntimeException(e);
       }
+   }
+
+
+   public String getCameraDeviceName() {
+        return camera_;
+   }
+
+   public void setCameraDeviceName(String camera) {
+        camera_ = camera;
    }
 
    public List<String[]> getAdditonalProperties() {
@@ -623,6 +638,10 @@ public class AcquisitionEvent {
 
       for (String axis : axisPositions_.keySet()) {
          builder.append("\t" + axis + ": " + axisPositions_.get(axis));
+      }
+
+      if (camera_ != null) {
+         builder.append("\t" + camera_ + ": " + camera_);
       }
 
       return builder.toString();
