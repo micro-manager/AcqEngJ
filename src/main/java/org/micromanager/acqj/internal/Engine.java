@@ -401,13 +401,13 @@ public class Engine {
 
       //need to assign events to images as they come out, assuming they might be in arbitrary order,
       //but that each camera itself is ordered
-      HashMap<Integer, LinkedList<AcquisitionEvent>> cameraEventLists = null;
+      HashMap<Integer, LinkedList<AcquisitionEvent>> multiCamAdapterCameraEventLists = null;
       if (event.getSequence() != null) {
-         cameraEventLists = new HashMap<Integer, LinkedList<AcquisitionEvent>>();
+         multiCamAdapterCameraEventLists = new HashMap<Integer, LinkedList<AcquisitionEvent>>();
          for (int camIndex = 0; camIndex < core_.getNumberOfCameraChannels(); camIndex++) {
-            cameraEventLists.put(camIndex, new LinkedList<AcquisitionEvent>());
+            multiCamAdapterCameraEventLists.put(camIndex, new LinkedList<AcquisitionEvent>());
             for (AcquisitionEvent e: event.getSequence()) {
-               cameraEventLists.get(camIndex).add(e);
+               multiCamAdapterCameraEventLists.get(camIndex).add(e);
             }
          }
       }
@@ -437,6 +437,7 @@ public class Engine {
          long numCamChannels = core_.getNumberOfCameraChannels();
          for (int camIndex = 0; camIndex < numCamChannels; camIndex++) {
             TaggedImage ti = null;
+            String cameraName = null;
             while (ti == null) {
                if (event.acquisition_.isAbortRequested()) {
                   return;
@@ -450,12 +451,14 @@ public class Engine {
                      }
                      try {
                         ti = core_.popNextTaggedImage();
+                        cameraName = ti.tags.getString("Camera");
                      } catch (Exception e) {
                         //continue waiting
                      }
                   } else {
                      try {
                         ti = core_.getTaggedImage(camIndex);
+                        cameraName = core_.getCameraDevice();
                      } catch (Exception e) {
                         //continue waiting
                      }
@@ -482,7 +485,21 @@ public class Engine {
             }
             AcquisitionEvent correspondingEvent = event;
             if (event.getSequence() != null) {
-               correspondingEvent = cameraEventLists.get(actualCamIndex).remove(0);
+               // Find the event that corresponds to the camera that captured this image.
+               // This assumes that the images from a single camera are in order
+               // in the sequence, though different camera images may be interleaved
+               if (event.getSequence().get(0).getCameraDeviceName() != null) {
+                  // camera is specified in the acquisition event. Find the first event that matches
+                  // this camera name.
+                  final String theCameraName = cameraName;
+                  correspondingEvent = multiCamAdapterCameraEventLists.get(actualCamIndex).stream().filter(
+                          e -> e.getCameraDeviceName() != null && e.getCameraDeviceName().equals(theCameraName)).findFirst().get();
+                  multiCamAdapterCameraEventLists.get(actualCamIndex).remove(correspondingEvent);
+               } else {
+                  // multi camera adapter or just using the default camera
+                  correspondingEvent = multiCamAdapterCameraEventLists.get(actualCamIndex).remove(0);
+               }
+
             }
             //add metadata
             AcqEngMetadata.addImageMetadata(ti.tags, correspondingEvent,
