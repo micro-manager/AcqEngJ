@@ -1040,6 +1040,16 @@ public class AcqEngMetadata {
    }
 
    public static void setAxisPosition(JSONObject tags, String axis, Object position) {
+      if (position == null) {
+         if (hasAxis(tags, axis)) {
+            try {
+               tags.getJSONObject(AXES).remove(axis);
+               return;
+            } catch (JSONException ex) {
+               throw new RuntimeException("couldnt remove axes");
+            }
+         }
+      }
       if (!(position instanceof String || position instanceof Integer)) {
          throw new RuntimeException("position must be String or Integer");
       }
