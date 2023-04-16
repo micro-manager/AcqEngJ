@@ -45,21 +45,23 @@ public abstract class ImageProcessorBase implements TaggedImageProcessor {
             while (true) {
                TaggedImage img;
                try {
+
+                  try {
                      img = source_.takeFirst();
-                  if (img.tags == null && img.pix == null) {
-                     // time to shut down
-                     // propagate shutdown signal forward so that anything downstream also shuts down
+                     if (img.tags == null && img.pix == null) {
+                        // time to shut down
+                        // tell the subclass
+                        processImage(img);
+                        // propagate shutdown signal forward so that anything downstream also shuts down
                         sink_.putLast(img);
-
-                     imageProcessorExecutor_.shutdown();
-                     break;
+                        imageProcessorExecutor_.shutdown();
+                        break;
+                     }
+                  } catch (InterruptedException e) {
+                     // This should never happen
+                     throw new RuntimeException("Unexpected problem in image processor");
                   }
-               } catch (InterruptedException e) {
-                  // This should never happen
-                  throw new RuntimeException("Unexpected problem in image processor");
-               }
 
-               try {
                   TaggedImage result = processImage(img);
                   if (result != null) {
                      sink_.putLast(result);
