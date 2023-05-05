@@ -14,6 +14,7 @@ import java.util.List;
 
 import org.micromanager.acqj.main.AcqEngMetadata;
 import org.micromanager.acqj.internal.Engine;
+import org.micromanager.magellan.internal.main.Magellan;
 
 /**
  * Convenience class for using an Affine transform to translate between pixel coordinates and stage coordinates
@@ -30,8 +31,8 @@ public class CameraTilingStageTranslator {
    
    private AffineTransform affine_;
    private String xyStageName_;
+   private static Point2D.Double tile00StageCoords_ = null;
    private int tileWidth_, tileHeight_, displayTileHeight_, displayTileWidth_, overlapX_, overlapY_;
-   private List<XYStagePosition> positionList_ = new ArrayList<XYStagePosition>();
 
    public CameraTilingStageTranslator(AffineTransform transform, String xyStageName, int width,
                                       int height, int overlapX, int overlapY) {
@@ -45,6 +46,13 @@ public class CameraTilingStageTranslator {
       displayTileHeight_ = tileHeight_ - overlapY_;
       overlapX_ = overlapX;
       overlapY_ = overlapY;
+      if (tile00StageCoords_ == null) {
+         try {
+            tile00StageCoords_ = new Point2D.Double(Magellan.getCore().getXPosition(), Magellan.getCore().getYPosition());
+         } catch (Exception e) {
+            throw  new RuntimeException(e);
+         }
+      }
    }
 
    public Point getTileIndicesFromDisplayedPixel(double magnification, int x, int y,
@@ -117,14 +125,10 @@ public class CameraTilingStageTranslator {
     * @return stage coordinates of the given pixel position
     */
    public synchronized Point2D.Double getStageCoordsFromPixelCoords(long xAbsolute, long yAbsolute) {
-      if (positionList_.size() == 0) {
-         throw new RuntimeException("No positions yet defined");
-      }
-      XYStagePosition existingPosition = positionList_.get(0);
-      double existingX = existingPosition.getCenter().x;
-      double existingY = existingPosition.getCenter().y;
-      double existingRow = existingPosition.getGridRow();
-      double existingColumn = existingPosition.getGridCol();
+      double existingX = tile00StageCoords_.x;
+      double existingY = tile00StageCoords_.y;
+      double existingRow = 0;
+      double existingColumn = 0;
       //get pixel displacement from center of the tile we have coordinates for
       long dxPix = (long) (xAbsolute - (existingColumn + 0.5) * displayTileWidth_);
       long dyPix = (long) (yAbsolute - (existingRow + 0.5) * displayTileHeight_);
@@ -143,11 +147,10 @@ public class CameraTilingStageTranslator {
     */
    public synchronized Point getPixelCoordsFromStageCoords(double stageX, double stageY) {
       try {
-         XYStagePosition existingPosition = positionList_.get(0);
-         double existingX = existingPosition.getCenter().x;
-         double existingY = existingPosition.getCenter().y;
-         double existingRow = existingPosition.getGridRow();
-         double existingColumn = existingPosition.getGridCol();
+         double existingX = tile00StageCoords_.x;
+         double existingY = tile00StageCoords_.y;
+         double existingRow = 0;
+         double existingColumn = 0;
 
          //get stage displacement from center of the tile we have coordinates for
          double dx = stageX - existingX;
@@ -164,19 +167,13 @@ public class CameraTilingStageTranslator {
       }
    }
 
-   public synchronized XYStagePosition getXYPosition(int index) {
-      return new XYStagePosition(positionList_.get(index).getCenter(),
-              positionList_.get(index).getGridRow(), positionList_.get(index).getGridCol() );
-//
-//         JSONArray jsonPos = new JSONArray(positionList_.get(index).toJSON(xyStageName_).getJSONObject(
-//                 "DeviceCoordinatesUm").getJSONArray(xyStageName_).toString());
-//         Point2D.Double posCenter = new Point2D.Double(jsonPos.getDouble(0), jsonPos.getDouble(1));
-//         int gridRow = (int) AcqEngMetadata.getGridRow(positionList_.get(index).toJSON(xyStageName_));
-//         int gridCol = (int) AcqEngMetadata.getGridCol(positionList_.get(index).toJSON(xyStageName_));
-//         return new XYStagePosition(posCenter, gridRow, gridCol);
 
+   public Point getTileRowColFromStageCoords(double x, double y) {
+      Point pixelCoords = getPixelCoordsFromStageCoords(x, y);
+      long rowIndex = Math.round((double) (pixelCoords.y - displayTileHeight_ / 2) / (double) displayTileHeight_);
+      long colIndex = Math.round((double) (pixelCoords.x - displayTileWidth_ / 2) / (double) displayTileWidth_);
+      return new Point((int) colIndex, (int) rowIndex );
    }
-
    public int getFullResPositionIndexFromStageCoords(double x, double y) {
       Point pixelCoords = getPixelCoordsFromStageCoords(x, y);
       long rowIndex = Math.round((double) (pixelCoords.y - displayTileHeight_ / 2) / (double) displayTileHeight_);
