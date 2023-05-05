@@ -45,7 +45,6 @@ public class AffineTransformUtils {
                Point2D.Double pixelPos = new Point2D.Double(xPixelOffset, yPixelOffset);
                Point2D.Double stagePos = new Point2D.Double();
                transform.transform(pixelPos, stagePos);
-               AffineTransform posTransform = getAffineTransform(stagePos.x, stagePos.y);
                positions.add(new XYStagePosition(stagePos, row, col));
             }
          } else {

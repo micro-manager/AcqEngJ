@@ -11,10 +11,7 @@ import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.micromanager.acqj.main.AcqEngMetadata;
 import org.micromanager.acqj.internal.Engine;
-import org.micromanager.magellan.internal.main.Magellan;
 
 /**
  * Convenience class for using an Affine transform to translate between pixel coordinates and stage coordinates
@@ -23,9 +20,6 @@ import org.micromanager.magellan.internal.main.Magellan;
  * @author henrypinkard
  */
 public class CameraTilingStageTranslator {
-
-   //TODO: Much of this class could be removed, since position index is no longer a thing that is needed for
-   // tiled axes. They are now indexed by row and col axes
 
    private static final String COORDINATES_KEY = "DeviceCoordinatesUm";
    
@@ -48,7 +42,7 @@ public class CameraTilingStageTranslator {
       overlapY_ = overlapY;
       if (tile00StageCoords_ == null) {
          try {
-            tile00StageCoords_ = new Point2D.Double(Magellan.getCore().getXPosition(), Magellan.getCore().getYPosition());
+            tile00StageCoords_ = new Point2D.Double(Engine.getCore().getXPosition(), Engine.getCore().getYPosition());
          } catch (Exception e) {
             throw  new RuntimeException(e);
          }
@@ -56,10 +50,8 @@ public class CameraTilingStageTranslator {
    }
 
    public Point getTileIndicesFromDisplayedPixel(double magnification, int x, int y,
-                                                 double viewOffsetX, double viewOffsetY) {
-//      double scale = display_.getMagnification();
-//      int fullResX = (int) ((x / magnification) + display_.getViewOffset().x);
-//      int fullResY = (int) ((y / magnification) + display_.getViewOffset().y);
+                                                 double viewOffsetX, double viewOffsetY,
+                                                 int rowOffset, int colOffset) {
       int fullResX = (int) ((x / magnification) + viewOffsetX);
       int fullResY = (int) ((y / magnification) + viewOffsetY);
       int xTileIndex = fullResX / getDisplayTileWidth() - (fullResX >= 0 ? 0 : 1);
@@ -85,21 +77,14 @@ public class CameraTilingStageTranslator {
       return new Point(x, y);
    }
 
-
-//
-//   public Point2D.Double stageCoordsFromPixelCoords(int x, int y) {
-//      return stageCoordsFromPixelCoords(x, y, display_.getMagnification(),
-//              display_.getViewOffset());
-//   }
-
    /**
     *
     * @param absoluteX x coordinate in the full Res stitched image
     * @param absoluteY y coordinate in the full res stitched image
     * @return stage coordinates of the given pixel position
     */
-   public Point2D.Double stageCoordsFromPixelCoords(int absoluteX, int absoluteY,
-                                                    double mag, Point2D.Double offset) {
+   public Point2D.Double getStageCoordsFromPixelCoords(int absoluteX, int absoluteY,
+                                                       double mag, Point2D.Double offset) {
       long newX = (long) (absoluteX / mag + offset.x);
       long newY = (long) (absoluteY / mag + offset.y);
       return getStageCoordsFromPixelCoords(newX, newY);
@@ -110,8 +95,8 @@ public class CameraTilingStageTranslator {
     * @param stageCoords x and y coordinates of image in stage space
     * @return absolute, full resolution pixel coordinate of given stage posiiton
     */
-   public Point pixelCoordsFromStageCoords(double x, double y, double magnification,
-                                           Point2D.Double offset) {
+   public Point getPixelCoordsFromStageCoords(double x, double y, double magnification,
+                                              Point2D.Double offset) {
       Point fullResCoords = getPixelCoordsFromStageCoords(x, y);
       return new Point(
               (int) ((fullResCoords.x - offset.x) * magnification),
@@ -167,112 +152,39 @@ public class CameraTilingStageTranslator {
       }
    }
 
-
-   public Point getTileRowColFromStageCoords(double x, double y) {
+   /**
+    * Get the row and col indices of the tile closest to this stage position
+    */
+   public Point getTileRowColClosestToStageCoords(double x, double y) {
       Point pixelCoords = getPixelCoordsFromStageCoords(x, y);
       long rowIndex = Math.round((double) (pixelCoords.y - displayTileHeight_ / 2) / (double) displayTileHeight_);
       long colIndex = Math.round((double) (pixelCoords.x - displayTileWidth_ / 2) / (double) displayTileWidth_);
       return new Point((int) colIndex, (int) rowIndex );
    }
-   public int getFullResPositionIndexFromStageCoords(double x, double y) {
-      Point pixelCoords = getPixelCoordsFromStageCoords(x, y);
-      long rowIndex = Math.round((double) (pixelCoords.y - displayTileHeight_ / 2) / (double) displayTileHeight_);
-      long colIndex = Math.round((double) (pixelCoords.x - displayTileWidth_ / 2) / (double) displayTileWidth_);
-      int[] posIndex = getPositionIndices(new int[]{(int) rowIndex}, new int[]{(int) colIndex});
-      return posIndex[0];
-   }
-
-   public List<XYStagePosition> getPositionList() {
-      ArrayList<XYStagePosition> list = new ArrayList<XYStagePosition>();
-      for (int i = 0; i < positionList_.size(); i++) {
-         list.add(getXYPosition(i));
-      }
-      return list;
-   }
-   
    
    /**
-    * Calculate the x and y stage coordinates of a new position given its row
-    * and column and the existing metadata for another position
+    * Calculate the stage coordinates of the center of an image at the given row col
     *
     * @param row
     * @param col
     * @return
     */
-   private synchronized Point2D.Double getStagePositionCoordinates(int row, int col, int pixelOverlapX, int pixelOverlapY) {
-      if (positionList_.size() == 0) {
-         try {
-            //create position 0 based on current XY stage position--happens at start of explore acquisition
-            return new Point2D.Double(Engine.getCore().getXPosition(xyStageName_), Engine.getCore().getYPosition(xyStageName_));
-         } catch (Exception ex) {
-            throw new RuntimeException("Couldn't create position 0");
-         }
-      } else {
-         XYStagePosition existingPosition = positionList_.get(0);
-         double existingX = existingPosition.getCenter().x;
-         double existingY = existingPosition.getCenter().y;
-         double existingRow = existingPosition.getGridRow();
-         double existingColumn = existingPosition.getGridCol();
+      public Point2D.Double getStageCoordsFromTileIndices(int row, int col) {
+      double existingX = tile00StageCoords_.x;
+      double existingY = tile00StageCoords_.y;
+      double existingRow = 0;
+      double existingColumn = 0;
 
-         double xPixelOffset = (col - existingColumn) * (Engine.getCore().getImageWidth() - pixelOverlapX);
-         double yPixelOffset = (row - existingRow) * (Engine.getCore().getImageHeight() - pixelOverlapY);
+      double xPixelOffset = (col - existingColumn) * (Engine.getCore().getImageWidth() - overlapX_);
+      double yPixelOffset = (row - existingRow) * (Engine.getCore().getImageHeight() - overlapY_);
 
-         Point2D.Double stagePos = new Point2D.Double();
-         double[] mat = new double[4];
-         affine_.getMatrix(mat);
-         AffineTransform transform = new AffineTransform(mat[0], mat[1], mat[2], mat[3], existingX, existingY);
-         transform.transform(new Point2D.Double(xPixelOffset, yPixelOffset), stagePos);
-         return stagePos;
-      }
+      Point2D.Double stagePos = new Point2D.Double();
+      double[] mat = new double[4];
+      affine_.getMatrix(mat);
+      AffineTransform transform = new AffineTransform(mat[0], mat[1], mat[2], mat[3], existingX, existingY);
+      transform.transform(new Point2D.Double(xPixelOffset, yPixelOffset), stagePos);
+      return stagePos;
    }
-
-   /**
-    * Set a grid of XY stage positions, as generated from some external source, so that they can be used
-    * to in caculations relating pixel and stage coordinates
-    * @param positions
-    */
-   public void setPositions(List<XYStagePosition> positions) {
-      positionList_ = positions;
-   }
-
-     /**
-    * Return the position indices for the positions at the specified rows, cols.
-    * If no position exists at this location, create one and return its index
-    *
-    * @param rows
-    * @param cols
-    * @return
-    */
-     public synchronized int[] getPositionIndices(int[] rows, int[] cols) {
-        int[] posIndices = new int[rows.length];
-        boolean newPositionsAdded = false;
-
-        outerloop:
-        for (int h = 0; h < posIndices.length; h++) {
-           //check if position is already present in list, and if so, return its index
-           for (int i = 0; i < positionList_.size(); i++) {
-              if (positionList_.get(i).getGridRow() == rows[h]
-                      && positionList_.get(i).getGridCol() == cols[h]) {
-                 //we already have position, so return its index
-                 posIndices[h] = i;
-                 continue outerloop;
-              }
-           }
-           //add this position to list
-
-           Point2D.Double stageCoords = getStagePositionCoordinates(rows[h], cols[h], overlapX_, overlapY_);
-           positionList_.add(new XYStagePosition(stageCoords, rows[h], cols[h]));
-           newPositionsAdded = true;
-
-           posIndices[h] = positionList_.size() - 1;
-        }
-        //if size of grid wasn't expanded, return here
-        if (!newPositionsAdded) {
-           return posIndices;
-        }
-
-        return posIndices;
-     }
 
    public int getDisplayTileHeight() {
       return displayTileHeight_;
@@ -285,5 +197,20 @@ public class CameraTilingStageTranslator {
    public Point2D.Double[] getDisplayTileCornerStageCoords(XYStagePosition pos) {
       return pos.getVisibleTileCorners(overlapX_, overlapY_);
    }
- 
+
+   /**
+    * Get list of position objects corresponding to these rows and columns
+    * @param newPositionRows
+    * @param newPositionCols
+    * @return
+    */
+   public List<XYStagePosition> getPositions(int[] newPositionRows, int[] newPositionCols) {
+      ArrayList<XYStagePosition> positions = new ArrayList<XYStagePosition>();
+      for (int i = 0; i < newPositionRows.length; i++) {
+         Point2D.Double center = getStageCoordsFromTileIndices(newPositionRows[i], newPositionCols[i]);
+         XYStagePosition pos = new XYStagePosition(center, newPositionRows[i], newPositionCols[i]);
+         positions.add(pos);
+      }
+      return positions;
+   }
 }

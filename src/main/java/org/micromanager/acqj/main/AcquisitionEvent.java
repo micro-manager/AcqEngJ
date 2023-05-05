@@ -294,12 +294,11 @@ public class AcquisitionEvent {
             }
          }
          if (event.acquisition_ instanceof XYTiledAcquisition) {
-            int posIndex = ((XYTiledAcquisition) acq).getPixelStageTranslator().getPositionIndices(
-                    new int[]{(int) event.axisPositions_.get(AcqEngMetadata.AXES_GRID_ROW)},
-                    new int[]{(int) event.axisPositions_.get(AcqEngMetadata.AXES_GRID_COL)})[0];
-
             //infer XY stage position based on affine transform
-            Point2D.Double xyPos = ((XYTiledAcquisition) acq).getPixelStageTranslator().getXYPosition(posIndex).getCenter();
+            Point2D.Double xyPos = ((XYTiledAcquisition) acq).getPixelStageTranslator().getStageCoordsFromTileIndices(
+                  (Integer) event.axisPositions_.get(AcqEngMetadata.AXES_GRID_ROW),
+                  (Integer) event.axisPositions_.get(AcqEngMetadata.AXES_GRID_COL));
+
             event.xPosition_ = xyPos.x;
             event.yPosition_ = xyPos.y;
          }
@@ -595,8 +594,7 @@ public class AcquisitionEvent {
       displayedTileCorners[2] = new Point2D.Double();
       displayedTileCorners[3] = new Point2D.Double();
       //this AT is centered at the stage position, becuase there no global translation relevant to a single stage position
-      AffineTransform transform = AffineTransformUtils.getAffineTransform(
-              xPosition_, yPosition_);
+      AffineTransform transform = AffineTransformUtils.getAffineTransform(xPosition_, yPosition_);
       transform.transform(new Point2D.Double(-displayTileWidth / 2, -displayTileHeight / 2), displayedTileCorners[0]);
       transform.transform(new Point2D.Double(-displayTileWidth / 2, displayTileHeight / 2), displayedTileCorners[1]);
       transform.transform(new Point2D.Double(displayTileWidth / 2, displayTileHeight / 2), displayedTileCorners[2]);
@@ -611,7 +609,6 @@ public class AcquisitionEvent {
    public Double getYPosition() {
       return yPosition_;
    }
-
 
    public void setX(double x) {
       xPosition_ = x;
