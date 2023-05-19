@@ -22,7 +22,7 @@ public abstract class ImageProcessorBase implements TaggedImageProcessor {
    private ExecutorService imageProcessorExecutor_;
 
    AcquisitionAPI acq_;
-   volatile LinkedBlockingDeque<TaggedImage> source_, sink_;
+   protected volatile LinkedBlockingDeque<TaggedImage> source_, sink_;
 
    public ImageProcessorBase () {
       imageProcessorExecutor_ = Executors.newSingleThreadExecutor(
@@ -30,6 +30,14 @@ public abstract class ImageProcessorBase implements TaggedImageProcessor {
    }
 
    protected abstract TaggedImage processImage(TaggedImage img);
+
+   protected void addToOutputQueue(TaggedImage img) {
+      try {
+         sink_.putLast(img);
+      } catch (InterruptedException e) {
+         throw new RuntimeException("Unexpected problem in image processor");
+      }
+   }
 
    @Override
    public void setAcqAndDequeues(AcquisitionAPI acq,
