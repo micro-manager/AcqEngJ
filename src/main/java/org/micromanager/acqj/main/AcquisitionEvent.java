@@ -131,7 +131,7 @@ public class AcquisitionEvent {
       AcquisitionEvent e = new AcquisitionEvent(this.acquisition_);
       e.axisPositions_ = (HashMap<String, Object>) axisPositions_.clone();
       e.configPreset_ = configPreset_;
-      e.configGroup_ = configPreset_;
+      e.configGroup_ = configGroup_;
 //      e.zPosition_ = zPosition_;
       e.stageCoordinates_ = new HashMap<>(stageCoordinates_);
       e.stageDeviceNamesToAxisNames_ = new HashMap<>(stageDeviceNamesToAxisNames_);
