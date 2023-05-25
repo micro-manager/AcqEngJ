@@ -41,16 +41,20 @@ public class AcquisitionEventIterator implements Iterator<AcquisitionEvent> {
 
    @Override
    public AcquisitionEvent next() {
-      AcquisitionEvent next = currentLeaf_.iterator.next();
-      //Move to new branch or determine that all branches are exhausted
-      //May need to try ascent and descent multiple times in case a terminal iterator produces no events?
+      AcquisitionEvent next = null;
+      while (next == null && currentLeaf_.iterator.hasNext()) {
+         next = currentLeaf_.iterator.next();
+      }
+
+      // Move to new branch or determine that all branches are exhausted
+      // May need to try ascent and descent multiple times in case a terminal iterator
+      // produces no events?
       while (!currentLeaf_.iterator.hasNext()) {
          //ascend to node where next valid branch can be found
          while (!currentLeaf_.iterator.hasNext()) {
             currentLeaf_ = currentLeaf_.parent;
             if (currentLeaf_ == null) {
                eventsExhausted_ = true;
-//               System.out.println(next);
                if (eventMonitorFunction_ == null) {
                   return next;
                }
@@ -59,7 +63,7 @@ public class AcquisitionEventIterator implements Iterator<AcquisitionEvent> {
          }
          descendNewBranch();
       }
-//      System.out.println(next);
+
       if (eventMonitorFunction_ == null) {
          return next;
       }
