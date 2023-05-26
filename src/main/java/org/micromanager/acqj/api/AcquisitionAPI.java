@@ -19,10 +19,23 @@ import org.micromanager.acqj.main.AcquisitionEvent;
  */
 public interface AcquisitionAPI {
 
-   public static final int EVENT_GENERATION_HOOK = 0;
-   public static final int BEFORE_HARDWARE_HOOK = 1;
-   public static final int AFTER_HARDWARE_HOOK = 2;
-   public static final int AFTER_CAMERA_HOOK = 3;
+   int EVENT_GENERATION_HOOK = 0;
+
+   // This hook runs before changes to the hardware (corresponding to the instructions in the
+   // event) are made
+   int BEFORE_HARDWARE_HOOK = 1;
+
+   // This hook runs after changes to the hardware took place, but before camera exposure
+   // (either a snap or a sequence) is started
+   int AFTER_HARDWARE_HOOK = 2;
+
+   // Hook runs after the camera sequence acquisition has started. This can be used for
+   // external triggering of the camera
+   int AFTER_CAMERA_HOOK = 3;
+
+   // Hook runs after the camera exposure ended (when possible, before readout of the camera
+   // and availability of the images in memory).
+   int AFTER_EXPOSURE_HOOK = 4;
 
    /**
     * Call to ready acquisition to start receiving acquisiton events. No more hooks
