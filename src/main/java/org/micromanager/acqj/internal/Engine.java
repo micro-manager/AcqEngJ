@@ -122,6 +122,11 @@ public class Engine {
             AcquisitionAPI acq = null;
             while (eventIterator.hasNext()) {
                AcquisitionEvent event = eventIterator.next();
+               // Some iterators can return null, they still may have more events, but want to
+               // skip this one.
+               if (event == null) {
+                  continue;
+               }
                acq = event.acquisition_;
                if (acq.isDebugMode()) {
                   core_.logMessage("got event: " + event.toString()  );
