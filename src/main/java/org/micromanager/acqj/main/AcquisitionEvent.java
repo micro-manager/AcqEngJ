@@ -32,7 +32,7 @@ import org.micromanager.acqj.internal.AffineTransformUtils;
 import org.micromanager.acqj.internal.Engine;
 
 /**
- * Information about the acquisition of a single image or a sequence of image
+ * Information about the acquisition of a single image or a sequence of image.
  *
  */
 public class AcquisitionEvent {
@@ -71,7 +71,7 @@ public class AcquisitionEvent {
    //Pattern to project onto SLM. Can either be int[] or byte[]
    private Object slmImage_ = null;
 
-   //Arbitary additional properties
+   //Arbitrary additional properties
    private TreeSet<ThreeTuple> properties_ = new TreeSet<ThreeTuple>();
 
    //for hardware sequencing
@@ -86,7 +86,7 @@ public class AcquisitionEvent {
    }
 
    /**
-    * Constructor used for running a list of events in a sequence It should have
+    * Constructor used for running a list of events in a sequence. It should have
     * already been verified that these events are sequencable. This constructor
     * figures out which device types need a sequence and which ones can be left
     * with a single value

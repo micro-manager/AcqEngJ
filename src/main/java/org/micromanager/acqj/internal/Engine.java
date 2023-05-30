@@ -16,10 +16,9 @@
 //
 package org.micromanager.acqj.internal;
 
-/*
- * To change this template, choose Tools | Templates and open the template in
- * the editor.
- */
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
@@ -55,6 +54,7 @@ public class Engine {
    private static ExecutorService eventGeneratorExecutor_;
    //Thread on which all communication with hardware occurs
    private static ExecutorService acqExecutor_;
+   private static ExecutorService afterExposureExecutor_;
 
 
    public Engine(CMMCore core) {
@@ -64,6 +64,8 @@ public class Engine {
          acqExecutor_ = Executors.newSingleThreadExecutor(r -> {
             return new Thread(r, "Acquisition Engine Thread");
          });
+         afterExposureExecutor_ = Executors.newSingleThreadExecutor(r ->
+               new Thread(r, "After Exposure Thread"));
          eventGeneratorExecutor_ = Executors
                  .newSingleThreadExecutor((Runnable r) -> new Thread(r, "Acq Eng event generator"));
       }
@@ -290,6 +292,10 @@ public class Engine {
             h.run(event);
             h.close();
          }
+         for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
+            h.run(event);
+            h.close();
+         }
          event.acquisition_.addToOutput(new TaggedImage(null, null));
          event.acquisition_.markEventsFinished();
       } else {
@@ -348,39 +354,53 @@ public class Engine {
       return;
    }
 
-   private void acquireImages(AcquisitionEvent event) throws HardwareControlException {
-      acquireImages(event, true);
-   }
-
    /**
     * Acquire 1 or more images in a sequence, add some metadata, then
-    * put them into an output queue
+    * put them into an output queue.
     *
     * @param event
-    * @param runAfterCameraHook
     * @throws HardwareControlException
     */
-   private void acquireImages(final AcquisitionEvent event,
-                              boolean runAfterCameraHook) throws HardwareControlException {
+   private void acquireImages(final AcquisitionEvent event) throws HardwareControlException {
+      FutureTask<Void> future = null;
       try {
          if (event.getSequence() != null && event.getSequence().size() > 1) {
             //start hardware sequence
 //            core_.clearCircularBuffer();
 
-            if (event.getSequence().stream().filter(e -> e.getCameraDeviceName() != null).count() == 0) {
-               // Using the default (Core-Camera)
-               core_.startSequenceAcquisition(event.getSequence().size(), 0, true);
-            } else {
-               // figure out how many images on each camera and start sequence with appropriate number on each
-                HashMap<String, Integer> cameraImageCounts = new HashMap<String, Integer>();
-                Set<String> cameraDeviceNames = new HashSet<String>();
-                event.getSequence().stream().map(e -> e.getCameraDeviceName()).forEach(e -> cameraDeviceNames.add(e));
-                for (String cameraDeviceName : cameraDeviceNames) {
-                   cameraImageCounts.put(cameraDeviceName, (int) event.getSequence().stream().filter(
-                            e -> e.getCameraDeviceName() != null && e.getCameraDeviceName().equals(cameraDeviceName)).count());
-                   core_.startSequenceAcquisition(cameraDeviceName, cameraImageCounts.get(cameraDeviceName), 0, true);
-                }
+            // figure out how many images on each camera and start sequence with appropriate number on each
+            HashMap<String, Integer> cameraImageCounts = new HashMap<String, Integer>();
+            Set<String> cameraDeviceNames = new HashSet<String>();
+            event.getSequence().stream().map(e -> e.getCameraDeviceName()).forEach(e -> cameraDeviceNames.add(e));
+            cameraDeviceNames.remove(null);
+            if (cameraDeviceNames.isEmpty()) {
+               cameraDeviceNames.add(core_.getCameraDevice());
             }
+            for (String cameraDeviceName : cameraDeviceNames) {
+               cameraImageCounts.put(cameraDeviceName, (int) event.getSequence().stream().filter(
+                     e -> e.getCameraDeviceName() != null &&
+                           e.getCameraDeviceName().equals(cameraDeviceName)).count());
+               if (cameraDeviceNames.size() == 1 && cameraDeviceName.equals(core_.getCameraDevice())) {
+                  cameraImageCounts.put(cameraDeviceName, event.getSequence().size());
+               }
+               core_.startSequenceAcquisition(cameraDeviceName,
+                     cameraImageCounts.get(cameraDeviceName), 0, true);
+            }
+            // Run after exposure hooks on a separate thread that checks if
+            // sequence finished.  AcquireImages can only exit after the last
+            // future returns.
+            future = new FutureTask<>(() -> {
+               for (String cameraDeviceName : cameraDeviceNames) {
+                  while (core_.isSequenceRunning(cameraDeviceName)) {
+                     Thread.sleep(1);
+                  }
+               }
+               for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
+                  h.run(event);
+               }
+               return null;
+            });
+            afterExposureExecutor_.execute(future);
 
          } else {
             //snap one image with no sequencing
@@ -391,6 +411,13 @@ public class Engine {
                core_.setCameraDevice(currentCamera);
             } else {
                core_.snapImage();
+               // note: SnapImage will block until exposure finishes.
+               // If it is desired that AfterCameraHooks trigger cameras
+               // in Snap mode, those hooks (or SnapImage) should run in a separate thread, started
+               // after snapImage is started.
+               for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
+                  h.run(event);
+               }
             }
          }
       } catch (Exception ex) {
@@ -417,18 +444,16 @@ public class Engine {
          }
       }
 
-      //Run a hook after the camera sequence acquistion has started. This is used for setups
-      //where an external device is used to trigger the camera
-      if (runAfterCameraHook) {
-         for (AcquisitionHook h : event.acquisition_.getAfterCameraHooks()) {
-            h.run(event);
-         }
+      // Run a hook after the camera sequence acquisition has started. This can be used for
+      // external triggering of the camera (when it is in sequence mode).
+      for (AcquisitionHook h : event.acquisition_.getAfterCameraHooks()) {
+         h.run(event);
       }
 
       if (event.acquisition_.isDebugMode()) {
          core_.logMessage("images acquired, adding to output" );
       }
-      //Loop through and collect all acquired images. There will be
+      // Loop through and collect all acquired images. There will be
       // (# of images in sequence) x (# of camera channels) of them
       for (int i = 0; i < (event.getSequence() == null ? 1 : event.getSequence().size()); i++) {
          double exposure;
@@ -512,6 +537,18 @@ public class Engine {
             correspondingEvent.acquisition_.addToImageMetadata(ti.tags);
 
             correspondingEvent.acquisition_.addToOutput(ti);
+
+         }
+      }
+      if (future != null) {
+         try {
+            future.get();
+         } catch (InterruptedException e) {
+            e.printStackTrace();
+            core_.logMessage("Interrupted while waiting for the future");
+         } catch (ExecutionException e) {
+            e.printStackTrace();
+            core_.logMessage("Exception during future execution");
          }
       }
    }
@@ -883,7 +920,7 @@ public class Engine {
                }
 
             }
-         }, "Changing exposure");
+         }, "Changing additional properties");
 
          //keep track of last event to know what state the hardware was in without having to query it
          lastEvent_ = event.getSequence() == null ? event : event.getSequence().get(event.getSequence().size() - 1);

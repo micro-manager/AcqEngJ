@@ -51,6 +51,7 @@ public class Acquisition implements AcquisitionAPI {
    private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<AcquisitionHook> afterHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
    private CopyOnWriteArrayList<AcquisitionHook> afterCameraHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
+   private CopyOnWriteArrayList<AcquisitionHook> afterExposureHooks_ = new CopyOnWriteArrayList<>();
    private CopyOnWriteArrayList<TaggedImageProcessor> imageProcessors_ = new CopyOnWriteArrayList<TaggedImageProcessor>();
    protected LinkedBlockingDeque<TaggedImage> firstDequeue_
            = new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE);
@@ -240,7 +241,7 @@ public class Acquisition implements AcquisitionAPI {
    @Override
    public void addHook(AcquisitionHook h, int type) {
       if (started_) {
-         throw new RuntimeException("Cannot add hook after acquisiton started");
+         throw new RuntimeException("Cannot add hook after acquisition started");
       }
       if (type == EVENT_GENERATION_HOOK) {
          eventGenerationHooks_.add(h);
@@ -250,12 +251,14 @@ public class Acquisition implements AcquisitionAPI {
          afterHardwareHooks_.add(h);
       } else if (type == AFTER_CAMERA_HOOK) {
          afterCameraHooks_.add(h);
+      } else if (type == AFTER_EXPOSURE_HOOK) {
+         afterExposureHooks_.add(h);
       }
    }
 
    @Override
    /**
-    * Block until everything finished
+    * Block until everything finished.
     */
    public void waitForCompletion() {
       try {
@@ -363,9 +366,17 @@ public class Acquisition implements AcquisitionAPI {
       return beforeHardwareHooks_;
    }
 
-   public Iterable<AcquisitionHook> getAfterHardwareHooks() { return afterHardwareHooks_; }
+   public Iterable<AcquisitionHook> getAfterHardwareHooks() {
+      return afterHardwareHooks_;
+   }
 
-   public Iterable<AcquisitionHook> getAfterCameraHooks() { return afterCameraHooks_; }
+   public Iterable<AcquisitionHook> getAfterCameraHooks() {
+      return afterCameraHooks_;
+   }
+
+   public Iterable<AcquisitionHook> getAfterExposureHooks() {
+      return afterExposureHooks_;
+   }
 
    public void addToOutput(TaggedImage ti)  {
       try {
