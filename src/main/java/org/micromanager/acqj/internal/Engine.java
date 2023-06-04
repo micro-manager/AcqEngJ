@@ -534,6 +534,7 @@ public class Engine {
             //add metadata
             AcqEngMetadata.addImageMetadata(ti.tags, correspondingEvent,
                     currentTime - correspondingEvent.acquisition_.getStartTime_ms(), exposure);
+            correspondingEvent.acquisition_.addTagsToTaggedImage(ti.tags, correspondingEvent.getTags());
             correspondingEvent.acquisition_.addToImageMetadata(ti.tags);
 
             correspondingEvent.acquisition_.addToOutput(ti);

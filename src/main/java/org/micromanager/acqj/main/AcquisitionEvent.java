@@ -22,8 +22,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import mmcorej.org.json.JSONArray;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
@@ -64,6 +66,8 @@ public class AcquisitionEvent {
    private HashMap<String, Double> stageCoordinates_ = new HashMap<String, Double>();
    // Mapping from device names to axis names
    private HashMap<String, String> stageDeviceNamesToAxisNames_ = new HashMap<String, String>();
+   // tags to be added to the acquired image
+   private final HashMap<String, String> tags_ = new HashMap<String, String>();
 
    //Option to not acquire an image for SLM events
    private Boolean acquireImage_ = null;
@@ -434,9 +438,9 @@ public class AcquisitionEvent {
    }
 
    /**
-    * Set the minimum start time in ms relative to when the acq started
+    * Set the minimum start time in ms relative to when the acq started.
     *
-    * @param l
+    * @param l Minimum start time in ms.
     */
    public void setMinimumStartTime(Long l) {
       miniumumStartTime_ms_ = l;
@@ -544,7 +548,7 @@ public class AcquisitionEvent {
    }
 
    /**
-    * get the minimum start timein system time
+    * Get the minimum start time in system time.
     *
     * @return
     */
@@ -619,6 +623,18 @@ public class AcquisitionEvent {
 
    public void setY(double y) {
       yPosition_ = y;
+   }
+
+   public void setTags(HashMap<String, String> tags)  {
+      tags_.clear();
+      if (tags != null) {
+         tags_.putAll(tags);
+      }
+   }
+   public HashMap<String, String> getTags () {
+      HashMap<String, String> tags = new HashMap<>(tags_.size());
+      tags.putAll(tags_);
+      return tags;
    }
 
 

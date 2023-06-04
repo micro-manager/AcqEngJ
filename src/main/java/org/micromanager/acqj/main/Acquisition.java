@@ -16,7 +16,9 @@
 //
 package org.micromanager.acqj.main;
 
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
@@ -156,11 +158,27 @@ public class Acquisition implements AcquisitionAPI {
       }
    }
 
+   /**
+    * Add provided tags (Key-Value pairs of type String) to the Tagged Image tags.
+    *
+    * @param tags Tagged Image tags
+    * @param moreTags User-provided tags as Key-Value pairs
+    */
+   public void addTagsToTaggedImage(JSONObject tags, HashMap<String, String> moreTags) {
+      for (Map.Entry<String, String> entry : moreTags.entrySet()) {
+         try {
+            tags.put(entry.getKey(), entry.getValue());
+         } catch (JSONException e) {
+            e.printStackTrace();
+         }
+      }
+   }
+
    @Override
    public Future submitEventIterator(Iterator<AcquisitionEvent> evt) {
       if (!started_) {
          start();
-      }
+       }
       return Engine.getInstance().submitEventIterator(evt);
    }
 
