@@ -301,19 +301,21 @@ public class Acquisition implements AcquisitionAPI {
     * 3) Initialize data sink.
     */
    protected void initialize() {
-      JSONObject summaryMetadata = AcqEngMetadata.makeSummaryMD(this);
-      addToSummaryMetadata(summaryMetadata);
+      if (core_ != null) {
+         JSONObject summaryMetadata = AcqEngMetadata.makeSummaryMD(this);
+         addToSummaryMetadata(summaryMetadata);
 
-      try {
-         // Make a local in copy in case something else modifies it
-         summaryMetadata_ = new JSONObject(summaryMetadata.toString());
-      } catch (JSONException ex) {
-         System.err.print("Couldn't copy summaary metadata");
-         ex.printStackTrace();
-      }
-      if (dataSink_ != null) {
-         //It could be null if not using saving and viewing and diverting with custom processor
-         dataSink_.initialize(this, summaryMetadata);
+         try {
+            // Make a local in copy in case something else modifies it
+            summaryMetadata_ = new JSONObject(summaryMetadata.toString());
+         } catch (JSONException ex) {
+            System.err.print("Couldn't copy summaary metadata");
+            ex.printStackTrace();
+         }
+         if (dataSink_ != null) {
+            //It could be null if not using saving and viewing and diverting with custom processor
+            dataSink_.initialize(this, summaryMetadata);
+         }
       }
    }
 
