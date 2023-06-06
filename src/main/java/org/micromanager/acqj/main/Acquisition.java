@@ -160,18 +160,26 @@ public class Acquisition implements AcquisitionAPI {
 
    /**
     * Add provided tags (Key-Value pairs of type String) to the Tagged Image tags.
+    * These will appear as JSONObjects under the key:
+    * {@link org.micromanager.acqj.main.AcqEngMetadata#TAGS "Tags"}.
     *
     * @param tags Tagged Image tags
     * @param moreTags User-provided tags as Key-Value pairs
     */
-   public void addTagsToTaggedImage(JSONObject tags, HashMap<String, String> moreTags) {
+   public void addTagsToTaggedImage(JSONObject tags, HashMap<String, String> moreTags)
+         throws JSONException {
+      if (moreTags.isEmpty()) {
+         return;
+      }
+      JSONObject moreTagsObject = new JSONObject();
       for (Map.Entry<String, String> entry : moreTags.entrySet()) {
          try {
-            tags.put(entry.getKey(), entry.getValue());
+            moreTagsObject.put(entry.getKey(), entry.getValue());
          } catch (JSONException e) {
             e.printStackTrace();
          }
       }
+      tags.put(AcqEngMetadata.TAGS, moreTagsObject);
    }
 
    @Override
