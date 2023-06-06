@@ -21,7 +21,9 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import mmcorej.org.json.JSONArray;
@@ -64,6 +66,8 @@ public class AcquisitionEvent {
    private HashMap<String, Double> stageCoordinates_ = new HashMap<String, Double>();
    // Mapping from device names to axis names
    private HashMap<String, String> stageDeviceNamesToAxisNames_ = new HashMap<String, String>();
+   // tags to be added to the acquired image
+   private final HashMap<String, String> tags_ = new HashMap<String, String>();
 
    //Option to not acquire an image for SLM events
    private Boolean acquireImage_ = null;
@@ -142,6 +146,7 @@ public class AcquisitionEvent {
       e.acquireImage_ = acquireImage_;
       e.properties_ = new TreeSet<ThreeTuple>(this.properties_);
       e.camera_ = camera_;
+      e.setTags(tags_);
       return e;
    }
 
@@ -213,6 +218,14 @@ public class AcquisitionEvent {
             json.put("camera", e.camera_);
          }
 
+         if (e.getTags() != null) {
+            JSONObject jsonTags = new JSONObject();
+            for (Map.Entry<String, String> entry : e.getTags().entrySet()) {
+               jsonTags.put(entry.getKey(), entry.getValue());
+            }
+            json.put("tags", jsonTags);
+         }
+
          //TODO: galvo
          //TODO: more support for imperative API calls (i.e. SLM set image)
          //Arbitrary extra properties
@@ -223,7 +236,7 @@ public class AcquisitionEvent {
             prop.put(t.prop);
             prop.put(t.val);
             props.put(prop);
-         }
+          }
          if (props.length() > 0) {
             json.put("properties", props);
          }
@@ -316,6 +329,17 @@ public class AcquisitionEvent {
 
          if (json.has("camera")) {
             event.camera_ = json.getString("camera");
+         }
+
+         if (json.has("tags")) {
+            HashMap<String, String> tags = new HashMap<>();
+            JSONObject jsonTags = json.getJSONObject("tags");
+            Iterator<String> keys = jsonTags.keys();
+            while (keys.hasNext()) {
+               String key = keys.next();
+               tags.put(key, jsonTags.getString(key));
+            }
+            event.setTags(tags);
          }
 
          //TODO: galvo, etc (i.e. other aspects of imperative API)
@@ -434,9 +458,9 @@ public class AcquisitionEvent {
    }
 
    /**
-    * Set the minimum start time in ms relative to when the acq started
+    * Set the minimum start time in ms relative to when the acq started.
     *
-    * @param l
+    * @param l Minimum start time in ms.
     */
    public void setMinimumStartTime(Long l) {
       miniumumStartTime_ms_ = l;
@@ -544,7 +568,7 @@ public class AcquisitionEvent {
    }
 
    /**
-    * get the minimum start timein system time
+    * Get the minimum start time in system time.
     *
     * @return
     */
@@ -619,6 +643,18 @@ public class AcquisitionEvent {
 
    public void setY(double y) {
       yPosition_ = y;
+   }
+
+   public void setTags(HashMap<String, String> tags)  {
+      tags_.clear();
+      if (tags != null) {
+         tags_.putAll(tags);
+      }
+   }
+   public HashMap<String, String> getTags () {
+      HashMap<String, String> tags = new HashMap<>(tags_.size());
+      tags.putAll(tags_);
+      return tags;
    }
 
 

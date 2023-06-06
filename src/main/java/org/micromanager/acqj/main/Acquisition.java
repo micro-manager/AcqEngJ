@@ -16,7 +16,9 @@
 //
 package org.micromanager.acqj.main;
 
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
@@ -156,11 +158,35 @@ public class Acquisition implements AcquisitionAPI {
       }
    }
 
+   /**
+    * Add provided tags (Key-Value pairs of type String) to the Tagged Image tags.
+    * These will appear as JSONObjects under the key:
+    * {@link org.micromanager.acqj.main.AcqEngMetadata#TAGS "Tags"}.
+    *
+    * @param tags Tagged Image tags
+    * @param moreTags User-provided tags as Key-Value pairs
+    */
+   public void addTagsToTaggedImage(JSONObject tags, HashMap<String, String> moreTags)
+         throws JSONException {
+      if (moreTags.isEmpty()) {
+         return;
+      }
+      JSONObject moreTagsObject = new JSONObject();
+      for (Map.Entry<String, String> entry : moreTags.entrySet()) {
+         try {
+            moreTagsObject.put(entry.getKey(), entry.getValue());
+         } catch (JSONException e) {
+            e.printStackTrace();
+         }
+      }
+      tags.put(AcqEngMetadata.TAGS, moreTagsObject);
+   }
+
    @Override
    public Future submitEventIterator(Iterator<AcquisitionEvent> evt) {
       if (!started_) {
          start();
-      }
+       }
       return Engine.getInstance().submitEventIterator(evt);
    }
 
@@ -283,19 +309,21 @@ public class Acquisition implements AcquisitionAPI {
     * 3) Initialize data sink.
     */
    protected void initialize() {
-      JSONObject summaryMetadata = AcqEngMetadata.makeSummaryMD(this);
-      addToSummaryMetadata(summaryMetadata);
+      if (core_ != null) {
+         JSONObject summaryMetadata = AcqEngMetadata.makeSummaryMD(this);
+         addToSummaryMetadata(summaryMetadata);
 
-      try {
-         // Make a local in copy in case something else modifies it
-         summaryMetadata_ = new JSONObject(summaryMetadata.toString());
-      } catch (JSONException ex) {
-         System.err.print("Couldn't copy summaary metadata");
-         ex.printStackTrace();
-      }
-      if (dataSink_ != null) {
-         //It could be null if not using saving and viewing and diverting with custom processor
-         dataSink_.initialize(this, summaryMetadata);
+         try {
+            // Make a local in copy in case something else modifies it
+            summaryMetadata_ = new JSONObject(summaryMetadata.toString());
+         } catch (JSONException ex) {
+            System.err.print("Couldn't copy summaary metadata");
+            ex.printStackTrace();
+         }
+         if (dataSink_ != null) {
+            //It could be null if not using saving and viewing and diverting with custom processor
+            dataSink_.initialize(this, summaryMetadata);
+         }
       }
    }
 

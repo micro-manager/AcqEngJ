@@ -19,6 +19,7 @@ package org.micromanager.acqj.internal;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import mmcorej.org.json.JSONException;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
@@ -534,6 +535,12 @@ public class Engine {
             //add metadata
             AcqEngMetadata.addImageMetadata(ti.tags, correspondingEvent,
                     currentTime - correspondingEvent.acquisition_.getStartTime_ms(), exposure);
+            try {
+               correspondingEvent.acquisition_.addTagsToTaggedImage(ti.tags,
+                     correspondingEvent.getTags());
+            } catch (JSONException jse) {
+               core_.logMessage("Error adding tags to image metadata", false);
+            }
             correspondingEvent.acquisition_.addToImageMetadata(ti.tags);
 
             correspondingEvent.acquisition_.addToOutput(ti);

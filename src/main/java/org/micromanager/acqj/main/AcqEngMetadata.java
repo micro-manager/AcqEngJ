@@ -77,10 +77,11 @@ public class AcqEngMetadata {
    public static final String CORE_XYSTAGE = "Core-XYStage";
    public static final String CORE_FOCUS = "Core-Focus";
    public static final String AXES = "Axes";
-   
    public static final String CHANNEL_AXIS = "channel";
    public static final String TIME_AXIS = "time";
    public static final String Z_AXIS = "z";
+   public static final String TAGS = "tags";
+
    private static final String ACQUISITION_EVENT = "Event";
 
 
