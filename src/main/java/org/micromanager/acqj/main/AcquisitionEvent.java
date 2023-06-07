@@ -218,7 +218,7 @@ public class AcquisitionEvent {
             json.put("camera", e.camera_);
          }
 
-         if (e.getTags() != null) {
+         if (e.getTags() != null && !e.getTags().isEmpty()) {
             JSONObject jsonTags = new JSONObject();
             for (Map.Entry<String, String> entry : e.getTags().entrySet()) {
                jsonTags.put(entry.getKey(), entry.getValue());
