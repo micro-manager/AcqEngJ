@@ -17,8 +17,6 @@
 package org.micromanager.acqj.internal;
 
 import java.util.concurrent.FutureTask;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import mmcorej.org.json.JSONException;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.main.AcquisitionEvent;
@@ -348,6 +346,7 @@ public class Engine {
                while (core_.isSequenceRunning()) {
                   Thread.sleep(2);
                }
+               stopHardwareSequences(hardwareSequencesInProgress);
             }
          }
 
@@ -564,13 +563,13 @@ public class Engine {
                                  HardwareSequences hardwareSequencesInProgress) {
       if (event.acquisition_.isAbortRequested()) {
          if (hardwareSequencesInProgress != null) {
-            abortHardwareSequences(hardwareSequencesInProgress);
+            stopHardwareSequences(hardwareSequencesInProgress);
          }
          return;
       }
    }
 
-   private void abortHardwareSequences(HardwareSequences hardwareSequencesInProgress) {
+   private void stopHardwareSequences(HardwareSequences hardwareSequencesInProgress) {
       // Stop any hardware sequences
       for (String deviceName : hardwareSequencesInProgress.deviceNames) {
          try {
