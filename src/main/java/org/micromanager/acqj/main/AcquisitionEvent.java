@@ -129,6 +129,10 @@ public class AcquisitionEvent {
       configGroupSequenced_ = configSet.size() > 1;
       xySequenced_ = xPosSet.size() > 1 && yPosSet.size() > 1;
       zSequenced_ = zPosSet.size() > 1;
+      // set exposure time if it is provided and exposure is not sequenced
+      if (sequence_.get(0).exposure_ != null && !exposureSequenced_) {
+         exposure_ = sequence.get(0).exposure_;
+      };
    }
 
    public AcquisitionEvent copy() {
