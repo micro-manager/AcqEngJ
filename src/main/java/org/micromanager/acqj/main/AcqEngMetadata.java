@@ -127,6 +127,9 @@ public class AcqEngMetadata {
          if (event.getZPosition() != null) {
             AcqEngMetadata.setStageZIntended(tags, event.getZPosition());
          }
+         if (event.getPositionName() != null) {
+            AcqEngMetadata.setPositionName(tags, event.getPositionName());
+         }
 
          if (event.getSequence() != null) {
             //Dont add the event to image metadata if it is a sequence, because it could potentially be very large
