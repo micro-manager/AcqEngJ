@@ -61,7 +61,6 @@ public class AcquisitionEvent {
 
    //positions for devices that are generically hardcoded into MMCore
    private Double zPosition_ = null, xPosition_ = null, yPosition_ = null;
-   private String positionName_ = null;
 
    //TODO: SLM, Galvo, etc
 
@@ -147,7 +146,6 @@ public class AcquisitionEvent {
       e.stageDeviceNamesToAxisNames_ = new HashMap<>(stageDeviceNamesToAxisNames_);
       e.xPosition_ = xPosition_;
       e.yPosition_ = yPosition_;
-      e.positionName_ = positionName_;
       e.miniumumStartTime_ms_ = miniumumStartTime_ms_;
       e.slmImage_ = slmImage_;
       e.acquireImage_ = acquireImage_;
@@ -328,10 +326,6 @@ public class AcquisitionEvent {
          }
          if (json.has("y")) {
             event.yPosition_ = json.getDouble("y");
-         }
-
-         if (event.getAxisPosition("position") instanceof String) {
-            event.positionName_ = (String) event.getAxisPosition("position");
          }
 
          if (json.has("slm_pattern")) {
@@ -648,6 +642,13 @@ public class AcquisitionEvent {
    }
 
    public String getPositionName() {
+      String positionName_ = null;
+      Object axisPosition_ = getAxisPosition("position");
+
+      if (axisPosition_ instanceof String) {
+         positionName_ = (String) axisPosition_;
+      }
+
       return positionName_;
    }
 
