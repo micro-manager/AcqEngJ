@@ -643,7 +643,7 @@ public class AcquisitionEvent {
 
    public String getPositionName() {
       String positionName_ = null;
-      Object axisPosition_ = getAxisPosition("position");
+      Object axisPosition_ = getAxisPosition(AcqEngMetadata.POSITION_AXIS);
 
       if (axisPosition_ instanceof String) {
          positionName_ = (String) axisPosition_;
