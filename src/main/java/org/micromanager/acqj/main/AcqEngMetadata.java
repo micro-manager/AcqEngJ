@@ -80,6 +80,7 @@ public class AcqEngMetadata {
    public static final String CHANNEL_AXIS = "channel";
    public static final String TIME_AXIS = "time";
    public static final String Z_AXIS = "z";
+   public static final String POSITION_AXIS = "position";
    public static final String TAGS = "tags";
 
    private static final String ACQUISITION_EVENT = "Event";
@@ -126,6 +127,9 @@ public class AcqEngMetadata {
          }
          if (event.getZPosition() != null) {
             AcqEngMetadata.setStageZIntended(tags, event.getZPosition());
+         }
+         if (event.getPositionName() != null) {
+            AcqEngMetadata.setPositionName(tags, event.getPositionName());
          }
 
          if (event.getSequence() != null) {
