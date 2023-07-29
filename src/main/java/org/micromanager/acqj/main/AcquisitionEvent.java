@@ -61,6 +61,7 @@ public class AcquisitionEvent {
 
    //positions for devices that are generically hardcoded into MMCore
    private Double zPosition_ = null, xPosition_ = null, yPosition_ = null;
+
    //TODO: SLM, Galvo, etc
 
    private HashMap<String, Double> stageCoordinates_ = new HashMap<String, Double>();
@@ -640,6 +641,16 @@ public class AcquisitionEvent {
       return yPosition_;
    }
 
+   public String getPositionName() {
+      String positionName_ = null;
+      Object axisPosition_ = getAxisPosition(AcqEngMetadata.POSITION_AXIS);
+
+      if (axisPosition_ instanceof String) {
+         positionName_ = (String) axisPosition_;
+      }
+
+      return positionName_;
+   }
 
    public void setX(double x) {
       xPosition_ = x;
