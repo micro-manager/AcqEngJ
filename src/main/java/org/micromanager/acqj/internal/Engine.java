@@ -451,7 +451,7 @@ public class Engine {
       }
 
       if (event.acquisition_.isDebugMode()) {
-         core_.logMessage("images acquired, adding to output" );
+         core_.logMessage("images acquired, copying from core" );
       }
       // Loop through and collect all acquired images. There will be
       // (# of images in sequence) x (# of camera channels) of them
@@ -476,7 +476,6 @@ public class Engine {
                try {
                   if (event.getSequence() != null && event.getSequence().size() > 1) {
                      if (core_.isBufferOverflowed()) {
-
                         throw new RuntimeException("Sequence buffer overflow");
                      }
                      try {
@@ -484,6 +483,9 @@ public class Engine {
                         cameraName = ti.tags.getString("Camera");
                      } catch (Exception e) {
                         //continue waiting
+                        if (!core_.isSequenceRunning() && core_.getRemainingImageCount() == 0) {
+                           throw new RuntimeException("Expected images did not arrive in circular buffer");
+                        }
                      }
                   } else {
                      try {
