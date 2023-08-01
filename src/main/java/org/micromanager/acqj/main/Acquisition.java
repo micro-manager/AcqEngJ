@@ -244,6 +244,7 @@ public class Acquisition implements AcquisitionAPI {
          } catch (Exception ex) {
             System.err.println(ex);
             ex.printStackTrace();
+            this.abort(ex);
          }
       });
    }
