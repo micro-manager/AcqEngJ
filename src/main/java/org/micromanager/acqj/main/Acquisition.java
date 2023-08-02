@@ -201,7 +201,7 @@ public class Acquisition implements AcquisitionAPI {
                   core_.logMessage("Image queue size: " + firstDequeue_.size());
                }
                TaggedImage img;
-               // Grab the image, either directly from the queue to acqEng added it to,
+               // Grab the image, either directly from the queue the acqEng added it to,
                // or from the output of the last image processor
                if (imageProcessors_.isEmpty()) {
                   if (debugMode_) {
@@ -211,11 +211,10 @@ public class Acquisition implements AcquisitionAPI {
                   if (debugMode_) {
                      core_.logMessage("got image to save" );
                   }
-                  saveImage(img);
-                  if (debugMode_) {
-                     core_.logMessage("image saved; finished = " +
-                             (img.pix == null && img.tags == null));
+                  if (img.pix == null && img.tags == null) {
+                     break;
                   }
+                  saveImage(img);
                } else {
                   // get the last processor
                   LinkedBlockingDeque<TaggedImage> dequeue = processorOutputQueues_.get(
@@ -225,18 +224,14 @@ public class Acquisition implements AcquisitionAPI {
                      if (debugMode_) {
                         core_.logMessage("Saving image");
                      }
+                     if (img.pix == null && img.tags == null) {
+                        break;
+                     }
                      saveImage(img);
                      if (debugMode_) {
                         core_.logMessage("Finished saving image");
                      }
                   }
-               }
-               if (img.pix == null && img.tags == null) {
-                  // Last image because acquisition is shutting down.
-                  // Storage and image processors will also recieve this
-                  // signal and shut down on their own
-                  savingExecutor_.shutdown();
-                  return;
                }
             }
          } catch (InterruptedException e) {
@@ -245,6 +240,10 @@ public class Acquisition implements AcquisitionAPI {
             System.err.println(ex);
             ex.printStackTrace();
             this.abort(ex);
+         } finally {
+            // Signal the storage to shutdown and then shut down the executor
+            saveImage(new TaggedImage(null, null));
+            savingExecutor_.shutdown();
          }
       });
    }
