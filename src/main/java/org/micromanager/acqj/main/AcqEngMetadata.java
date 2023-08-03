@@ -51,6 +51,8 @@ public class AcqEngMetadata {
    public static final String X_UM_INTENDED = "XPosition_um_Intended";
    public static final String Y_UM_INTENDED = "YPosition_um_Intended";
    public static final String Z_UM_INTENDED = "ZPosition_um_Intended";
+   public static final String GENERIC_UM_INTENDED_SUFFIX = "Position_um_Intended";
+
    public static final String X_UM = "XPosition_um";
    public static final String Y_UM = "YPosition_um";
    public static final String Z_UM = "ZPosition_um";
@@ -114,8 +116,13 @@ public class AcqEngMetadata {
          //AcqEngMetadata.setZPositionUm(tags, Engine.getCore().getPosition());
 
 
-         //Axes (i.e. channel. z, t, or arbitray other indices)
+         //Axes (i.e. channel. z, t, or arbitrary other indices)
          AcqEngMetadata.createAxes(tags);
+         ////// Axes positions /////
+         for (String s : event.getDefinedAxes()) {
+            AcqEngMetadata.setAxisPosition(tags, s, event.getAxisPosition(s));
+         }
+
 
          /////////  XY Stage Positions (with optional support for grid layout) ////////
          if (event.getXPosition() != null && event.getYPosition() != null) {
@@ -123,27 +130,29 @@ public class AcqEngMetadata {
 //            AcqEngMetadata.setPositionIndex(tags, event.acquisition_.getPositionIndexFromName(event.getXY()));
             AcqEngMetadata.setStageXIntended(tags, event.getXPosition());
             AcqEngMetadata.setStageYIntended(tags, event.getYPosition());
-
-         }
-         if (event.getZPosition() != null) {
-            AcqEngMetadata.setStageZIntended(tags, event.getZPosition());
          }
          if (event.getPositionName() != null) {
             AcqEngMetadata.setPositionName(tags, event.getPositionName());
          }
 
+
+         if (event.getZPosition() != null) {
+            AcqEngMetadata.setStageZIntended(tags, event.getZPosition());
+         } else if (event.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice()) != null) {
+            AcqEngMetadata.setStageZIntended(tags, event.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice()));
+         }
+         // Other non-coreFocusZ positions
+         for (String name : event.getStageDeviceNames()) {
+            if (!name.equals(Engine.getCore().getFocusDevice())) {
+               AcqEngMetadata.setStagePositionIntended(tags, name, event.getStageSingleAxisStagePosition(name));
+            }
+         }
+
+
          if (event.getSequence() != null) {
             //Dont add the event to image metadata if it is a sequence, because it could potentially be very large
-            // Could probably pop out the individual event in the squence this corresponds to
+            // Could probably pop out the individual event in the sequence this corresponds to
             AcqEngMetadata.addAcquisitionEvent(tags, event);
-         }
-         
-         ////// Generic image coordinate axes //////
-         // Position and channel indices are inferred at acquisition time
-         //All other axes (including T and Z) must be explicitly defined in the 
-         //acquisition event and get added here
-         for (String s : event.getDefinedAxes()) {
-            AcqEngMetadata.setAxisPosition(tags, s, event.getAxisPosition(s));
          }
 
          AcqEngMetadata.setExposure(tags, exposure);
@@ -838,6 +847,15 @@ public class AcqEngMetadata {
          return smd.getDouble(Z_UM_INTENDED);
       } catch (JSONException ex) {
          throw new RuntimeException("Could not get stage Z");
+      }
+   }
+
+   public static void setStagePositionIntended(JSONObject tags,
+                                               String name, Double stageSingleAxisStagePosition) {
+      try {
+         tags.put(name + GENERIC_UM_INTENDED_SUFFIX, stageSingleAxisStagePosition);
+      } catch (JSONException ex) {
+         throw new RuntimeException("Couldnt set stage y");
       }
    }
 

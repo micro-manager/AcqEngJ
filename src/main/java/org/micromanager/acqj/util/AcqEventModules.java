@@ -134,8 +134,19 @@ public class AcqEventModules {
                channelEvent.setChannelName(channelList.get(index).config_);
                boolean hasZOffsets = channelList.stream().map(t -> t.offset_).
                        filter(t -> t != 0).collect(Collectors.toList()).size() > 0;
-               Double zPos;
-               if (channelEvent.getZPosition() == null) {
+               Double zPos = null;
+               if (channelEvent.getZPosition() != null) {
+                  zPos = channelEvent.getZPosition();
+               }
+               if (channelEvent.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice()) != null) {
+                  if (zPos != null) {
+                     throw new RuntimeException("Can't have both a z position and a named axis focus position");
+                  } else {
+                     zPos = channelEvent.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice());
+                  }
+               }
+
+               if (zPos == null) {
                   if (hasZOffsets) {
                      try {
                         zPos = Engine.getCore().getPosition() + channelList.get(index).offset_;
@@ -146,20 +157,17 @@ public class AcqEventModules {
                      zPos = null;
                   }
                } else {
-                  zPos = channelEvent.getZPosition() + channelList.get(index).offset_;
+                  zPos += hasZOffsets ? channelList.get(index).offset_ : 0;
                }
-               channelEvent.setZ(channelEvent.getZIndex(), zPos);
+               if (zPos != null) {
+                  // Its either stored as a named stage or as "z", keep it con
+                  if (channelEvent.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice()) != null) {
+                     channelEvent.setStageCoordinate(Engine.getCore().getFocusDevice(), zPos);
+                  } else {
+                     channelEvent.setZ(channelEvent.getZIndex(), zPos);
+                  }
+               }
 
-//               try {
-//                  channelEvent.setZ(channelEvent.getZIndex(),
-//                          channelEvent.getZPosition() == null ?
-//                                  hasZOffsets ?
-//                                          Engine.getCore().getPosition() + channelList.get(index).offset_ : null
-//                                  : channelEvent.getZPosition() + channelList.get(index).offset_
-//                  );
-//               } catch (Exception e) {
-//                  throw new RuntimeException(e);
-//               }
                channelEvent.setExposure(channelList.get(index).exposure_);
                index++;
                return channelEvent;
