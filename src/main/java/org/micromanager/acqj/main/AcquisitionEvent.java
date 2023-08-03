@@ -493,6 +493,9 @@ public class AcquisitionEvent {
 
 
    public Double getStageSingleAxisStagePosition(String deviceName) {
+      if (deviceName == null) {
+         return null;
+      }
       if (!stageCoordinates_.containsKey(deviceName)) {
          return null;
       }
