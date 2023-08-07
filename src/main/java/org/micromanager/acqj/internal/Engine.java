@@ -484,7 +484,9 @@ public class Engine {
                      } catch (Exception e) {
                         //continue waiting
                         if (!core_.isSequenceRunning() && core_.getRemainingImageCount() == 0) {
-                           throw new RuntimeException("Expected images did not arrive in circular buffer");
+//                           throw new RuntimeException("Expected images did not arrive in circular buffer");
+                           core_.logMessage("Error: Expected number of images did not arrive in circular buffer", false);
+                           return;
                         }
                      }
                   } else {
