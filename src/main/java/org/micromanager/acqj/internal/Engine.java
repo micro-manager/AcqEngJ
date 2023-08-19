@@ -32,6 +32,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.lang.Double;
+import java.util.concurrent.TimeoutException;
+
 import mmcorej.CMMCore;
 import mmcorej.Configuration;
 import mmcorej.DoubleVector;
@@ -336,7 +338,13 @@ public class Engine {
             if (event.acquisition_.isDebugMode()) {
                core_.logMessage("acquiring image(s)" );
             }
-            acquireImages(event);
+            try {
+               acquireImages(event, hardwareSequencesInProgress);
+            } catch (TimeoutException e) {
+               // Don't abort on a timeout
+               // TODO: this could probably be an option to the acquisition in the future
+               System.err.println("Timeout while acquiring images");
+            }
 
             // if the acquisition was aborted, make sure everything shuts down properly
             abortIfRequested(event, hardwareSequencesInProgress);
@@ -361,7 +369,8 @@ public class Engine {
     * @param event
     * @throws HardwareControlException
     */
-   private void acquireImages(final AcquisitionEvent event) throws HardwareControlException {
+   private void acquireImages(final AcquisitionEvent event,
+                              HardwareSequences hardwareSequencesInProgress) throws HardwareControlException, TimeoutException {
       FutureTask<Void> future = null;
       try {
          if (event.getSequence() != null && event.getSequence().size() > 1) {
@@ -453,9 +462,16 @@ public class Engine {
       if (event.acquisition_.isDebugMode()) {
          core_.logMessage("images acquired, copying from core" );
       }
+      long startCopyTime = System.currentTimeMillis();
       // Loop through and collect all acquired images. There will be
       // (# of images in sequence) x (# of camera channels) of them
+      boolean timeout = false;
       for (int i = 0; i < (event.getSequence() == null ? 1 : event.getSequence().size()); i++) {
+         if (timeout) {
+            // Cancel the rest of the sequence
+            stopHardwareSequences(hardwareSequencesInProgress);
+            break;
+         }
          double exposure;
 
          try {
@@ -486,9 +502,18 @@ public class Engine {
                         if (!core_.isSequenceRunning() && core_.getRemainingImageCount() == 0) {
                            throw new RuntimeException("Expected images did not arrive in circular buffer");
                         }
+                        // check it timeout has been exceeded
+                        if (event.getSequence().get(i).getTimeout_ms() != null) {
+                           if (System.currentTimeMillis() - startCopyTime > event.getSequence().get(i).getTimeout_ms()) {
+                              timeout = true;
+                              break;
+                           }
+                        }
                      }
                   } else {
                      try {
+                        // TODO: probably there should be a timeout here too, but I'm
+                        //  not sure the snapImage system supports it (as opposed to sequences)
                         ti = core_.getTaggedImage(camIndex);
                         cameraName = core_.getCameraDevice();
                      } catch (Exception e) {
@@ -502,7 +527,10 @@ public class Engine {
                   throw e;
                }
             }
-            //Doesnt seem to be a version in the API in which you dont have to do this
+            if (timeout) {
+               break;
+            }
+            // Doesnt seem to be a version in the API in which you dont have to do this
             int actualCamIndex = camIndex;
             if (ti.tags.has("Multi Camera-CameraChannelIndex")) {
                try {
@@ -531,21 +559,18 @@ public class Engine {
                   // multi camera adapter or just using the default camera
                   correspondingEvent = multiCamAdapterCameraEventLists.get(actualCamIndex).remove(0);
                }
-
             }
-            //add metadata
+            // add standard metadata
             AcqEngMetadata.addImageMetadata(ti.tags, correspondingEvent,
                     currentTime - correspondingEvent.acquisition_.getStartTime_ms(), exposure);
+            // add user metadata specified in the event
             try {
-               correspondingEvent.acquisition_.addTagsToTaggedImage(ti.tags,
-                     correspondingEvent.getTags());
+               correspondingEvent.acquisition_.addTagsToTaggedImage(ti.tags, correspondingEvent.getTags());
             } catch (JSONException jse) {
                core_.logMessage("Error adding tags to image metadata", false);
             }
             correspondingEvent.acquisition_.addToImageMetadata(ti.tags);
-
             correspondingEvent.acquisition_.addToOutput(ti);
-
          }
       }
       if (future != null) {
@@ -558,6 +583,9 @@ public class Engine {
             e.printStackTrace();
             core_.logMessage("Exception during future execution");
          }
+      }
+      if (timeout) {
+         throw new TimeoutException("Timeout waiting for images to arrive in circular buffer");
       }
    }
 
