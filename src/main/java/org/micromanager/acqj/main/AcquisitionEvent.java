@@ -53,6 +53,7 @@ public class AcquisitionEvent {
 
    // If null, use Core-camera, otherwise, use this camera
    private String camera_ = null;
+   private Double timeout_ms_ = null;
 
    private String configGroup_, configPreset_ = null;
    private Double exposure_ = null; //leave null to keep exposaure unchanged
@@ -151,6 +152,7 @@ public class AcquisitionEvent {
       e.acquireImage_ = acquireImage_;
       e.properties_ = new TreeSet<ThreeTuple>(this.properties_);
       e.camera_ = camera_;
+      e.timeout_ms_ = timeout_ms_;
       e.setTags(tags_);
       return e;
    }
@@ -184,6 +186,10 @@ public class AcquisitionEvent {
 
          if (e.slmImage_ != null) {
             json.put("slm_pattern", e.slmImage_);
+         }
+
+         if (e.timeout_ms_ != null) {
+            json.put("timeout_ms", e.timeout_ms_);
          }
 
          //Coordinate indices
@@ -280,6 +286,10 @@ public class AcquisitionEvent {
             event.miniumumStartTime_ms_ = (long) (json.getDouble("min_start_time") * 1000);
          }
 
+         if (json.has("timeout")) {
+            event.timeout_ms_ = json.getDouble("timeout");
+         }
+
          // Config group (usually this is a channel, but doesnt have to be)
          if (json.has("config_group")) {
             event.configGroup_ = json.getJSONArray("config_group").getString(0);
@@ -287,6 +297,10 @@ public class AcquisitionEvent {
          }
          if (json.has("exposure")) {
             event.exposure_ = json.getDouble("exposure");
+         }
+
+         if (json.has("timeout_ms")) {
+            event.slmImage_ = json.getDouble("timeout_ms");
          }
 
          if (json.has("stage_positions")) {
@@ -511,6 +525,10 @@ public class AcquisitionEvent {
          return null;
       }
       return axisPositions_.get(label);
+   }
+
+   public Double getTimeout_ms() {
+      return timeout_ms_;
    }
 
    public void setTimeIndex(int index) {
