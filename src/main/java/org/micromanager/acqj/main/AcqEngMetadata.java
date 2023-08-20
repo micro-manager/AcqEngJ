@@ -1062,6 +1062,18 @@ public class AcqEngMetadata {
       }
    }
 
+   public static JSONObject getAxesAsJSON(HashMap<String, Object> axes) {
+      try {
+         JSONObject axesJSON = new JSONObject();
+         for (String key : axes.keySet()) {
+            axesJSON.put(key, axes.get(key));
+         }
+         return axesJSON;
+      } catch (JSONException ex) {
+         throw new RuntimeException("couldnt convert axes to JSON");
+      }
+   }
+
    public static void setAxisPosition(JSONObject tags, String axis, Object position) {
       if (position == null) {
          if (hasAxis(tags, axis)) {
