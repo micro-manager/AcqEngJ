@@ -19,6 +19,7 @@ package org.micromanager.acqj.internal;
 import java.util.concurrent.FutureTask;
 import mmcorej.org.json.JSONException;
 import org.micromanager.acqj.api.AcquisitionAPI;
+import org.micromanager.acqj.main.AcqNotification;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
 
@@ -299,7 +300,10 @@ public class Engine {
          }
          event.acquisition_.addToOutput(new TaggedImage(null, null));
          event.acquisition_.markEventsFinished();
+
       } else {
+         event.acquisition_.postNotification( new AcqNotification(
+                 AcqNotification.TYPE.HARDWARE, event, AcqNotification.PHASE.PRE_HARDWARE_STAGE));
          for (AcquisitionHook h : event.acquisition_.getBeforeHardwareHooks()) {
             event = h.run(event);
             if (event == null) {
@@ -313,13 +317,14 @@ public class Engine {
          } catch (HardwareControlException e) {
             throw e;
          }
+         event.acquisition_.postNotification( new AcqNotification(
+                 AcqNotification.TYPE.HARDWARE, event, AcqNotification.PHASE.POST_HARDWARE_STAGE));
          for (AcquisitionHook h : event.acquisition_.getAfterHardwareHooks()) {
             event = h.run(event);
             if (event == null) {
                return; //The hook cancelled this event
             }
             abortIfRequested(event, hardwareSequencesInProgress);
-
          }
          // Hardware hook may have modified wait time, so check again if we should
          // pause until the minimum start time of the event has occurred.
@@ -342,7 +347,7 @@ public class Engine {
                acquireImages(event, hardwareSequencesInProgress);
             } catch (TimeoutException e) {
                // Don't abort on a timeout
-               // TODO: this could probably be an option to the acquisition in the future
+               // TODO: this could probably be an option added to the acquisition in the future
                System.err.println("Timeout while acquiring images");
             }
 
@@ -387,13 +392,16 @@ public class Engine {
             }
             for (String cameraDeviceName : cameraDeviceNames) {
                cameraImageCounts.put(cameraDeviceName, (int) event.getSequence().stream().filter(
-                     e -> e.getCameraDeviceName() != null &&
-                           e.getCameraDeviceName().equals(cameraDeviceName)).count());
+                       e -> e.getCameraDeviceName() != null &&
+                               e.getCameraDeviceName().equals(cameraDeviceName)).count());
                if (cameraDeviceNames.size() == 1 && cameraDeviceName.equals(core_.getCameraDevice())) {
                   cameraImageCounts.put(cameraDeviceName, event.getSequence().size());
                }
                core_.startSequenceAcquisition(cameraDeviceName,
-                     cameraImageCounts.get(cameraDeviceName), 0, true);
+                       cameraImageCounts.get(cameraDeviceName), 0, true);
+               event.acquisition_.postNotification(
+                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
+                               event, AcqNotification.PHASE.SEQUENCE_STARTED));
             }
             // Run after exposure hooks on a separate thread that checks if
             // sequence finished.  AcquireImages can only exit after the last
@@ -404,6 +412,9 @@ public class Engine {
                      Thread.sleep(1);
                   }
                }
+               event.acquisition_.postNotification(
+                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
+                               event, AcqNotification.PHASE.POST_EXPOSURE_STAGE));
                for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
                   h.run(event);
                }
@@ -413,13 +424,25 @@ public class Engine {
 
          } else {
             //snap one image with no sequencing
+            event.acquisition_.postNotification(
+                    new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
+                            event, AcqNotification.PHASE.SNAPPING));
             if (event.getCameraDeviceName() != null) {
                String currentCamera = core_.getCameraDevice();
                core_.setCameraDevice(event.getCameraDeviceName());
                core_.snapImage();
+               event.acquisition_.postNotification(
+                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
+                               event, AcqNotification.PHASE.POST_EXPOSURE_STAGE));
                core_.setCameraDevice(currentCamera);
+               for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
+                  h.run(event);
+               }
             } else {
                core_.snapImage();
+               event.acquisition_.postNotification(
+                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
+                               event, AcqNotification.PHASE.POST_EXPOSURE_STAGE));
                // note: SnapImage will block until exposure finishes.
                // If it is desired that AfterCameraHooks trigger cameras
                // in Snap mode, those hooks (or SnapImage) should run in a separate thread, started
@@ -428,6 +451,7 @@ public class Engine {
                   h.run(event);
                }
             }
+
          }
       } catch (Exception ex) {
          throw new HardwareControlException(ex.getMessage());

@@ -18,6 +18,7 @@ package org.micromanager.acqj.main;
 
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -26,11 +27,13 @@ import mmcorej.CMMCore;
 import mmcorej.TaggedImage;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
+import org.micromanager.acqj.api.AcqNotificationListener;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.api.AcquisitionHook;
 import org.micromanager.acqj.api.AcqEngJDataSink;
 import org.micromanager.acqj.api.TaggedImageProcessor;
 import org.micromanager.acqj.internal.Engine;
+import org.micromanager.acqj.internal.NotificationHandler;
 
 /**
  * This is the main class for using AcqEngJ. AcquisitionAPI defines its public API.
@@ -63,6 +66,7 @@ public class Acquisition implements AcquisitionAPI {
    private ThreadPoolExecutor savingExecutor_ = null;
    private Exception abortException_ = null;
    private Consumer<JSONObject> imageMetadataProcessor_;
+   private NotificationHandler notificationHandler_ = new NotificationHandler();
    protected volatile boolean started_ = false;
 
    /**
@@ -100,6 +104,14 @@ public class Acquisition implements AcquisitionAPI {
       }
    }
 
+   public void postNotification(AcqNotification notification) {
+      notificationHandler_.postNotification(notification);
+   }
+
+   @Override
+   public void addAcqNotificationListener(AcqNotificationListener listener) {
+      notificationHandler_.addListener(listener);
+   }
 
    /**
     * Don't delete, called by python side
@@ -186,7 +198,7 @@ public class Acquisition implements AcquisitionAPI {
    public Future submitEventIterator(Iterator<AcquisitionEvent> evt) {
       if (!started_) {
          start();
-       }
+      }
       return Engine.getInstance().submitEventIterator(evt);
    }
 
@@ -331,6 +343,7 @@ public class Acquisition implements AcquisitionAPI {
       if (dataSink_ != null) {
          startSavingExecutor();
       }
+      postNotification(AcqNotification.createAcqStartedEvent());
       started_ = true;
    }
 
@@ -420,6 +433,7 @@ public class Acquisition implements AcquisitionAPI {
 
    public void markEventsFinished() {
       eventsFinished_ = true;
+      postNotification(AcqNotification.createAcqFinishedEvent());
    }
 
    @Override

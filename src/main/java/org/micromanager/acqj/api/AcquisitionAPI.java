@@ -48,6 +48,11 @@ public interface AcquisitionAPI {
    public void start();
 
    /**
+    * Add a AcqNotificationListener to receive asynchronous notifications about the acquisition
+    */
+   public void addAcqNotificationListener(AcqNotificationListener listener);
+
+   /**
     * Block until acquisition finished and all resources complete.
     */
    public void waitForCompletion();
