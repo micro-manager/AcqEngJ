@@ -300,7 +300,7 @@ public class AcquisitionEvent {
          }
 
          if (json.has("timeout")) {
-            event.slmImage_ = json.getDouble("timeout");
+            event.timeout_ms_ = json.getDouble("timeout");
          }
 
          if (json.has("stage_positions")) {
