@@ -26,8 +26,8 @@ public class AcqNotification {
    public static enum PHASE {
       PRE_HARDWARE_STAGE("pre_hardware"),
       POST_HARDWARE_STAGE("post_hardware"),
-      SEQUENCE_STARTED("sequence_started"),
-      SNAPPING("snapping"),
+      PRE_SEQUENCE_STARTED("pre_sequence_started"),
+      PRE_SNAP("pre_snap"),
       POST_EXPOSURE_STAGE("post_exposure");
 
       private final String phase;

@@ -397,11 +397,11 @@ public class Engine {
                if (cameraDeviceNames.size() == 1 && cameraDeviceName.equals(core_.getCameraDevice())) {
                   cameraImageCounts.put(cameraDeviceName, event.getSequence().size());
                }
-               core_.startSequenceAcquisition(cameraDeviceName,
-                       cameraImageCounts.get(cameraDeviceName), 0, true);
                event.acquisition_.postNotification(
                        new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                               event, AcqNotification.PHASE.SEQUENCE_STARTED));
+                               event, AcqNotification.PHASE.PRE_SEQUENCE_STARTED));
+               core_.startSequenceAcquisition(cameraDeviceName,
+                       cameraImageCounts.get(cameraDeviceName), 0, true);
             }
             // Run after exposure hooks on a separate thread that checks if
             // sequence finished.  AcquireImages can only exit after the last
@@ -426,7 +426,7 @@ public class Engine {
             //snap one image with no sequencing
             event.acquisition_.postNotification(
                     new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                            event, AcqNotification.PHASE.SNAPPING));
+                            event, AcqNotification.PHASE.PRE_SNAP));
             if (event.getCameraDeviceName() != null) {
                String currentCamera = core_.getCameraDevice();
                core_.setCameraDevice(event.getCameraDeviceName());
