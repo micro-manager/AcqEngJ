@@ -421,6 +421,10 @@ public class Acquisition implements AcquisitionAPI {
 
    public void addToOutput(TaggedImage ti)  {
       try {
+         if (ti.tags == null && ti.pix == null) {
+            //this is a shutdown signal
+            eventsFinished_ = true;
+         }
          firstDequeue_.putLast(ti);
       } catch (InterruptedException ex) {
          throw new RuntimeException(ex);
@@ -429,11 +433,6 @@ public class Acquisition implements AcquisitionAPI {
 
    public void finish() {
       Engine.getInstance().finishAcquisition(this);
-   }
-
-   public void markEventsFinished() {
-      eventsFinished_ = true;
-      postNotification(AcqNotification.createAcqFinishedEvent());
    }
 
    @Override
