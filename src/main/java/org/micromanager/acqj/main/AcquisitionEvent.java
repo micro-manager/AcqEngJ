@@ -189,7 +189,7 @@ public class AcquisitionEvent {
          }
 
          if (e.timeout_ms_ != null) {
-            json.put("timeout_ms", e.timeout_ms_);
+            json.put("timeout", e.timeout_ms_);
          }
 
          //Coordinate indices
@@ -299,8 +299,8 @@ public class AcquisitionEvent {
             event.exposure_ = json.getDouble("exposure");
          }
 
-         if (json.has("timeout_ms")) {
-            event.slmImage_ = json.getDouble("timeout_ms");
+         if (json.has("timeout")) {
+            event.timeout_ms_ = json.getDouble("timeout");
          }
 
          if (json.has("stage_positions")) {
@@ -402,6 +402,9 @@ public class AcquisitionEvent {
       }
    }
 
+   /**
+    * Create an event or sequence of events from JSON
+    */
    public static AcquisitionEvent fromJSON(JSONObject json, AcquisitionAPI acq)  {
       try {
          if (!json.has("events")) {
