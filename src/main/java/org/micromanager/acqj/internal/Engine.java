@@ -16,10 +16,10 @@
 //
 package org.micromanager.acqj.internal;
 
-import java.util.concurrent.FutureTask;
 import mmcorej.org.json.JSONException;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.main.AcqNotification;
+import org.micromanager.acqj.main.Acquisition;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
 
@@ -56,7 +56,6 @@ public class Engine {
    private static ExecutorService eventGeneratorExecutor_;
    //Thread on which all communication with hardware occurs
    private static ExecutorService acqExecutor_;
-   private static ExecutorService afterExposureExecutor_;
 
 
    public Engine(CMMCore core) {
@@ -66,8 +65,6 @@ public class Engine {
          acqExecutor_ = Executors.newSingleThreadExecutor(r -> {
             return new Thread(r, "Acquisition Engine Thread");
          });
-         afterExposureExecutor_ = Executors.newSingleThreadExecutor(r ->
-               new Thread(r, "After Exposure Thread"));
          eventGeneratorExecutor_ = Executors
                  .newSingleThreadExecutor((Runnable r) -> new Thread(r, "Acq Eng event generator"));
       }
@@ -85,10 +82,13 @@ public class Engine {
 
    /**
     * No more data to be collected for this acquisition. Execute a finishing event so everything shuts down properly
+    *
+    * Note that this is not the only route to finishing an acquisition, but merely a convenient way
+    * of submitting an AcquisitionFinishedEvent
     * @param acq the acquisition to be finished
     * @return
     */
-   public Future<Future> finishAcquisition(AcquisitionAPI acq) {
+   public Future<Future> finishAcquisition(Acquisition acq) {
       return eventGeneratorExecutor_.submit(() -> {
          Future f = acqExecutor_.submit(() -> {
             try {
@@ -102,9 +102,7 @@ public class Engine {
                   core_.logMessage("creating acquisition finished event");
                }
                executeAcquisitionEvent(AcquisitionEvent.createAcquisitionFinishedEvent(acq));
-               while (!acq.areEventsFinished()) {
-                  Thread.sleep(1);
-               }
+               acq.blockUntilEventsFinished(null);
             } catch (InterruptedException ex) {
                throw new RuntimeException(ex);
             }
@@ -259,6 +257,8 @@ public class Engine {
       //check if we should pause until the minimum start time of the event has occured
       while (event.getMinimumStartTimeAbsolute() != null && 
               System.currentTimeMillis() < event.getMinimumStartTimeAbsolute()) {
+         long waitTime = event.getMinimumStartTimeAbsolute() - System.currentTimeMillis();
+         event.acquisition_.blockUnlessAborted(waitTime);
          try {
             if (event.acquisition_.isAbortRequested()) {
                return;
@@ -298,9 +298,10 @@ public class Engine {
             h.close();
          }
          event.acquisition_.addToOutput(new TaggedImage(null, null));
+         event.acquisition_.postNotification(AcqNotification.createAcqEventsFinishedNotification());
       } else {
          event.acquisition_.postNotification( new AcqNotification(
-                 AcqNotification.TYPE.HARDWARE, event, AcqNotification.PHASE.PRE_HARDWARE_STAGE));
+                 AcqNotification.Hardware.class, event.getAxesAsJSONString(), AcqNotification.Hardware.PRE_HARDWARE));
          for (AcquisitionHook h : event.acquisition_.getBeforeHardwareHooks()) {
             event = h.run(event);
             if (event == null) {
@@ -316,7 +317,7 @@ public class Engine {
             throw e;
          }
          event.acquisition_.postNotification( new AcqNotification(
-                 AcqNotification.TYPE.HARDWARE, event, AcqNotification.PHASE.POST_HARDWARE_STAGE));
+                 AcqNotification.Hardware.class, event.getAxesAsJSONString(), AcqNotification.Hardware.POST_HARDWARE));
          for (AcquisitionHook h : event.acquisition_.getAfterHardwareHooks()) {
             event = h.run(event);
             if (event == null) {
@@ -351,105 +352,52 @@ public class Engine {
 
             // if the acquisition was aborted, make sure everything shuts down properly
             abortIfRequested(event, hardwareSequencesInProgress);
-
-            // wait for camera to shut down
-            if (event.getSequence() != null) {
-               while (core_.isSequenceRunning()) {
-                  Thread.sleep(2);
-               }
-               stopHardwareSequences(hardwareSequencesInProgress);
-            }
          }
-
       }
-      return;
    }
 
    /**
     * Acquire 1 or more images in a sequence, add some metadata, then
     * put them into an output queue.
     *
+    * If the event is a sequence and a sequence acquisition is started in the core,
+    * It should be completed by the time this method returns.
+    *
     * @param event
     * @throws HardwareControlException
     */
    private void acquireImages(final AcquisitionEvent event,
                               HardwareSequences hardwareSequencesInProgress) throws HardwareControlException, TimeoutException {
-      FutureTask<Void> future = null;
+      HashMap<String, Integer> cameraImageCounts = event.getCameraImageCounts(core_.getCameraDevice());
       try {
          if (event.getSequence() != null && event.getSequence().size() > 1) {
-            //start hardware sequence
-//            core_.clearCircularBuffer();
-
-            // figure out how many images on each camera and start sequence with appropriate number on each
-            HashMap<String, Integer> cameraImageCounts = new HashMap<String, Integer>();
-            Set<String> cameraDeviceNames = new HashSet<String>();
-            event.getSequence().stream().map(e -> e.getCameraDeviceName()).forEach(e -> cameraDeviceNames.add(e));
-            cameraDeviceNames.remove(null);
-            if (cameraDeviceNames.isEmpty()) {
-               cameraDeviceNames.add(core_.getCameraDevice());
-            }
-            for (String cameraDeviceName : cameraDeviceNames) {
-               cameraImageCounts.put(cameraDeviceName, (int) event.getSequence().stream().filter(
-                       e -> e.getCameraDeviceName() != null &&
-                               e.getCameraDeviceName().equals(cameraDeviceName)).count());
-               if (cameraDeviceNames.size() == 1 && cameraDeviceName.equals(core_.getCameraDevice())) {
-                  cameraImageCounts.put(cameraDeviceName, event.getSequence().size());
-               }
+            // Start sequences on one or more cameras
+            for (String cameraDeviceName : cameraImageCounts.keySet()) {
                event.acquisition_.postNotification(
-                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                               event, AcqNotification.PHASE.PRE_SEQUENCE_STARTED));
+                       new AcqNotification(AcqNotification.Camera.class,
+                               event.getAxesAsJSONString(), AcqNotification.Camera.PRE_SEQUENCE_STARTED));
                core_.startSequenceAcquisition(cameraDeviceName,
                        cameraImageCounts.get(cameraDeviceName), 0, true);
             }
-            // Run after exposure hooks on a separate thread that checks if
-            // sequence finished.  AcquireImages can only exit after the last
-            // future returns.
-            future = new FutureTask<>(() -> {
-               for (String cameraDeviceName : cameraDeviceNames) {
-                  while (core_.isSequenceRunning(cameraDeviceName)) {
-                     Thread.sleep(1);
-                  }
-               }
-               event.acquisition_.postNotification(
-                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                               event, AcqNotification.PHASE.POST_EXPOSURE_STAGE));
-               for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
-                  h.run(event);
-               }
-               return null;
-            });
-            afterExposureExecutor_.execute(future);
-
          } else {
             //snap one image with no sequencing
             event.acquisition_.postNotification(
-                    new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                            event, AcqNotification.PHASE.PRE_SNAP));
+                    new AcqNotification(AcqNotification.Camera.class,
+                            event.getAxesAsJSONString(), AcqNotification.Camera.PRE_SNAP));
             if (event.getCameraDeviceName() != null) {
                String currentCamera = core_.getCameraDevice();
                core_.setCameraDevice(event.getCameraDeviceName());
                core_.snapImage();
-               event.acquisition_.postNotification(
-                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                               event, AcqNotification.PHASE.POST_EXPOSURE_STAGE));
                core_.setCameraDevice(currentCamera);
-               for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
-                  h.run(event);
-               }
             } else {
                core_.snapImage();
-               event.acquisition_.postNotification(
-                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                               event, AcqNotification.PHASE.POST_EXPOSURE_STAGE));
-               // note: SnapImage will block until exposure finishes.
-               // If it is desired that AfterCameraHooks trigger cameras
-               // in Snap mode, those hooks (or SnapImage) should run in a separate thread, started
-               // after snapImage is started.
-               for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
-                  h.run(event);
-               }
             }
-
+            event.acquisition_.postNotification(
+                  new AcqNotification(AcqNotification.Camera.class,
+                        event.getAxesAsJSONString(), AcqNotification.Camera.POST_EXPOSURE));
+            for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
+               h.run(event);
+            }
          }
       } catch (Exception ex) {
          throw new HardwareControlException(ex.getMessage());
@@ -477,6 +425,11 @@ public class Engine {
 
       // Run a hook after the camera sequence acquisition has started. This can be used for
       // external triggering of the camera (when it is in sequence mode).
+      // note: SnapImage will block until exposure finishes.
+      // If it is desired that AfterCameraHooks trigger cameras
+      // in Snap mode, one possibility is that those hooks (or SnapImage) should run in
+      // a separate thread, started after snapImage is started. But there is no guarantee
+      // with this approach that the camera will be triggered at the correct time.
       for (AcquisitionHook h : event.acquisition_.getAfterCameraHooks()) {
          h.run(event);
       }
@@ -501,8 +454,9 @@ public class Engine {
          } catch (Exception ex) {
             throw new RuntimeException("Couldnt get exposure form core");
          }
-
          long numCamChannels = core_.getNumberOfCameraChannels();
+
+         boolean needToRunAfterExposureHooks = event.acquisition_.getAfterExposureHooks().iterator().hasNext();
          for (int camIndex = 0; camIndex < numCamChannels; camIndex++) {
             TaggedImage ti = null;
             String cameraName = null;
@@ -524,10 +478,19 @@ public class Engine {
                         if (!core_.isSequenceRunning() && core_.getRemainingImageCount() == 0) {
                            throw new RuntimeException("Expected images did not arrive in circular buffer");
                         }
-                        // check it timeout has been exceeded
+                        // check it timeout has been exceeded. This is used in the case of a camera waiting for
+                        // a trigger that never comes.
                         if (event.getSequence().get(i).getTimeout_ms() != null) {
                            if (System.currentTimeMillis() - startCopyTime > event.getSequence().get(i).getTimeout_ms()) {
                               timeout = true;
+                              core_.stopSequenceAcquisition();
+                              while (core_.isSequenceRunning()) {
+                                    try {
+                                        Thread.sleep(1);
+                                    } catch (InterruptedException ex) {
+                                        throw new RuntimeException("Interrupted while waiting for sequence to stop");
+                                    }
+                              }
                               break;
                            }
                         }
@@ -549,9 +512,33 @@ public class Engine {
                   throw e;
                }
             }
+            if (needToRunAfterExposureHooks) {
+               for (String cameraDeviceName : cameraImageCounts.keySet()) {
+                  try {
+                     if (core_.isSequenceRunning(cameraDeviceName)) {
+                        // All sequences are not yet done, this will be handled on another iteration
+                        // of the loop
+                        break;
+                     }
+                  } catch (Exception e) {
+                     // not sure hos this would happen
+                     event.acquisition_.abort(e);
+                     throw new RuntimeException(e);
+                  }
+               }
+               event.acquisition_.postNotification(
+                     new AcqNotification(AcqNotification.Camera.class,
+                           event.getAxesAsJSONString(), AcqNotification.Camera.POST_EXPOSURE));
+               for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
+                  h.run(event);
+               }
+               needToRunAfterExposureHooks = false;
+            }
             if (timeout) {
                break;
             }
+
+
             // Doesnt seem to be a version in the API in which you dont have to do this
             int actualCamIndex = camIndex;
             if (ti.tags.has("Multi Camera-CameraChannelIndex")) {
@@ -595,17 +582,7 @@ public class Engine {
             correspondingEvent.acquisition_.addToOutput(ti);
          }
       }
-      if (future != null) {
-         try {
-            future.get();
-         } catch (InterruptedException e) {
-            e.printStackTrace();
-            core_.logMessage("Interrupted while waiting for the future");
-         } catch (ExecutionException e) {
-            e.printStackTrace();
-            core_.logMessage("Exception during future execution");
-         }
-      }
+
       if (timeout) {
          throw new TimeoutException("Timeout waiting for images to arrive in circular buffer");
       }
@@ -771,15 +748,11 @@ public class Engine {
                   }
 
                   //wait for it to not be busy (is this even needed?)
-                  while (core_.deviceBusy(zStage)) {
-                     Thread.sleep(1);
-                  }
+                  core_.waitForDevice(zStage);
                   //Move Z
                   core_.setPosition(zStage, currentZ);
                   //wait for move to finish
-                  while (core_.deviceBusy(zStage)) {
-                     Thread.sleep(1);
-                  }
+                  core_.waitForDevice(zStage);
                }
             } catch (Exception ex) {
                throw new HardwareControlException(ex.getMessage());
@@ -813,15 +786,11 @@ public class Engine {
 //                  }
 
                   //wait for it to not be busy (is this even needed?)
-                  while (core_.deviceBusy(stageDeviceName)) {
-                     Thread.sleep(1);
-                  }
+                  core_.waitForDevice(stageDeviceName);
                   //Move Z
                   core_.setPosition(stageDeviceName, event.getStageSingleAxisStagePosition(stageDeviceName));
                   //wait for move to finish
-                  while (core_.deviceBusy(stageDeviceName)) {
-                     Thread.sleep(1);
-                  }
+                  core_.waitForDevice(stageDeviceName);
                }
 //               }
             } catch (Exception ex) {
@@ -856,15 +825,11 @@ public class Engine {
                      return;
                   }
                   //wait for it to not be busy (is this even needed?)
-                  while (core_.deviceBusy(xyStage)) {
-                     Thread.sleep(1);
-                  }
+                  core_.waitForDevice(xyStage);
                   //Move XY
                   core_.setXYPosition(xyStage, xPosition, yPosition);
                   //wait for move to finish
-                  while (core_.deviceBusy(xyStage)) {
-                     Thread.sleep(1);
-                  }
+                  core_.waitForDevice(xyStage);
                }
             } catch (Exception ex) {
                core_.logMessage(stackTraceToString(ex));

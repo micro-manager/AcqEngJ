@@ -75,8 +75,14 @@ public interface AcquisitionAPI {
    public boolean areEventsFinished();
 
    /**
-    * Cancel any pending events and shutdown
+    * Blcok until all acquisitions events are finished or timeout is reached
+    * @param timeoutSeconds
     */
+   public void blockUntilEventsFinished(Double timeoutSeconds) throws InterruptedException;
+
+      /**
+       * Cancel any pending events and shutdown
+       */
    public void abort();
 
    /**

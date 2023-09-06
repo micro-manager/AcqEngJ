@@ -18,7 +18,6 @@ package org.micromanager.acqj.main;
 
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -44,8 +43,8 @@ public class Acquisition implements AcquisitionAPI {
    private static final int IMAGE_QUEUE_SIZE = 30;
 
    protected String xyStage_, zStage_, slm_;
-   protected volatile boolean eventsFinished_;
-   protected volatile boolean abortRequested_ = false;
+   protected volatile CountDownLatch eventsFinished_ = new CountDownLatch(1);
+   protected volatile CountDownLatch abortRequested_ = new CountDownLatch(1);
    protected JSONObject summaryMetadata_;
    private long startTime_ms_ = -1;
    private volatile boolean paused_ = false;
@@ -128,7 +127,7 @@ public class Acquisition implements AcquisitionAPI {
    public boolean isDebugMode() {return debugMode_;}
 
    public boolean isAbortRequested() {
-      return abortRequested_;
+      return abortRequested_.getCount() == 0;
    }
 
    /**
@@ -148,10 +147,10 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    public void abort() {
-      if (abortRequested_) {
+      if (abortRequested_.getCount() == 0) {
          return;
       }
-      abortRequested_ = true;
+      abortRequested_.countDown();
       if (this.isPaused()) {
          this.setPaused(false);
       }
@@ -202,7 +201,7 @@ public class Acquisition implements AcquisitionAPI {
       return Engine.getInstance().submitEventIterator(evt);
    }
 
-   private void startSavingExecutor() {
+   private void startSavingThread() {
       savingExecutor_ = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
               (Runnable r) -> new Thread(r, "Acquisition image processing and saving thread"));
 
@@ -269,10 +268,17 @@ public class Acquisition implements AcquisitionAPI {
       processorOutputQueues_.put(p, new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE));
 
       if (imageProcessors_.size() == 1) {
+         p.setAcqAndQueues(this, firstDequeue_, processorOutputQueues_.get(p));
+         // For backwards compatibility
+         // TODO: remove in a future version
          p.setAcqAndDequeues(this, firstDequeue_, processorOutputQueues_.get(p));
       } else {
+         p.setAcqAndQueues(this, processorOutputQueues_.get(imageProcessors_.size() - 2),
+               processorOutputQueues_.get(imageProcessors_.size() - 1));
+         // For backwards compatibility
+         // TODO: remove in a future version
          p.setAcqAndDequeues(this, processorOutputQueues_.get(imageProcessors_.size() - 2),
-                 processorOutputQueues_.get(imageProcessors_.size() - 1));
+               processorOutputQueues_.get(imageProcessors_.size() - 1));
       }
    }
 
@@ -301,13 +307,12 @@ public class Acquisition implements AcquisitionAPI {
    public void waitForCompletion() {
       try {
          // wait for event generation to shut down
-         while (!eventsFinished_) {
-            Thread.sleep(5);
-         }
+         blockUntilEventsFinished(null);
+
          // Waiting for saving to finish and all resources to complete
          if (savingExecutor_ != null) {
             while (!savingExecutor_.isTerminated()) {
-               Thread.sleep(5);
+               savingExecutor_.awaitTermination(5, TimeUnit.MILLISECONDS);
             }
          }
       } catch (InterruptedException ex) {
@@ -341,9 +346,9 @@ public class Acquisition implements AcquisitionAPI {
 
    public void  start() {
       if (dataSink_ != null) {
-         startSavingExecutor();
+         startSavingThread();
       }
-      postNotification(AcqNotification.createAcqStartedEvent());
+      postNotification(AcqNotification.createAcqStartedNotification());
       started_ = true;
    }
 
@@ -354,10 +359,12 @@ public class Acquisition implements AcquisitionAPI {
    private void saveImage(TaggedImage image) {
       if (image.tags == null && image.pix == null) {
          dataSink_.finish();
-         eventsFinished_ = true; //should have already been done, but just in case
+         postNotification(AcqNotification.createDataSinkFinishedNotification());
       } else {
          //this method doesn't return until all images have been written to disk
-         dataSink_.putImage(image);
+         Object imageSaveDescriptor = dataSink_.putImage(image);
+         postNotification(AcqNotification.createImageSavedNotification(
+               imageSaveDescriptor == null ?  "" : imageSaveDescriptor.toString()));
       }
    }
 
@@ -423,7 +430,7 @@ public class Acquisition implements AcquisitionAPI {
       try {
          if (ti.tags == null && ti.pix == null) {
             //this is a shutdown signal
-            eventsFinished_ = true;
+            eventsFinished_.countDown();
          }
          firstDequeue_.putLast(ti);
       } catch (InterruptedException ex) {
@@ -437,8 +444,17 @@ public class Acquisition implements AcquisitionAPI {
 
    @Override
    public boolean areEventsFinished() {
-      return eventsFinished_;
+      return eventsFinished_.getCount() == 0;
    }
+
+    @Override
+    public void blockUntilEventsFinished(Double timeoutSeconds) throws InterruptedException {
+      if (timeoutSeconds == null) {
+        eventsFinished_.await();
+      } else {
+         eventsFinished_.await((long) (timeoutSeconds * 1000), TimeUnit.MILLISECONDS);
+      }
+    }
 
    public int getImageTransferQueueSize() {
       return IMAGE_QUEUE_SIZE;
@@ -446,5 +462,13 @@ public class Acquisition implements AcquisitionAPI {
 
    public int getImageTransferQueueCount() {
       return firstDequeue_.size();
+   }
+
+   public void blockUnlessAborted(long timeout_ms) {
+      try {
+         abortRequested_.await(timeout_ms, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+         throw new RuntimeException(e);
+      }
    }
 }

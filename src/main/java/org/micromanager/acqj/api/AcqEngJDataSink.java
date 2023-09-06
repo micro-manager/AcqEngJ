@@ -21,7 +21,7 @@ public interface AcqEngJDataSink {
    public void initialize(Acquisition acq, JSONObject summaryMetadata);
 
    /**
-    * Called when no more data will be collected. Ideally should block until all resources cleaned up
+    * Called when no more data will be collected. Block until all relevent resources are freed.
     */
    public void finish();
 
@@ -31,10 +31,12 @@ public interface AcqEngJDataSink {
    public boolean isFinished();
 
    /**
-    * Add a new image to saving/display etc
-    * @param image 
+    * Add a new image to saving/display etc. If saving to disk,
+    * do not return until the image written
+    * @param image
+    * @return An optional object describing the image's location in the data set
     */
-   public void putImage(TaggedImage image);
+   public Object putImage(TaggedImage image);
 
    /**
     * Has putImage been called yet?

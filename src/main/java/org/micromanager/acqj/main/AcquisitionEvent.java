@@ -157,6 +157,35 @@ public class AcquisitionEvent {
       return e;
    }
 
+   /**
+    * Convert the event's axes to a JSONObject, or if it is a sequence event,
+    * then convert to a json array of json objects
+    */
+   public String getAxesAsJSONString() {
+      try {
+         if (this.sequence_ != null) {
+            JSONArray array = new JSONArray();
+            for (AcquisitionEvent e : sequence_) {
+               //Coordinate indices
+               JSONObject axes = new JSONObject();
+               for (String axis : e.axisPositions_.keySet()) {
+                  axes.put(axis, e.axisPositions_.get(axis));
+               }
+               array.put(axes);
+            }
+            return array.toString();
+         } else {
+            JSONObject axes = new JSONObject();
+            for (String axis : axisPositions_.keySet()) {
+               axes.put(axis, axisPositions_.get(axis));
+            }
+            return axes.toString();
+         }
+      } catch (JSONException e) {
+         throw new RuntimeException(e);
+      }
+   }
+
    private static JSONObject eventToJSON(AcquisitionEvent e) {
       try {
          JSONObject json = new JSONObject();
@@ -655,6 +684,38 @@ public class AcquisitionEvent {
       transform.transform(new Point2D.Double(displayTileWidth / 2, displayTileHeight / 2), displayedTileCorners[2]);
       transform.transform(new Point2D.Double(displayTileWidth / 2, -displayTileHeight / 2), displayedTileCorners[3]);
       return displayedTileCorners;
+   }
+
+   /**
+    * Get the number of images to be acquired on each camera in a sequence event.
+    * For a non-sequence event, the number of images is 1, and the camera is the core camera
+    * This is passed in as an argument in order to avoid this class talking to the core directly
+    * @param defaultCameraDeviceName
+    * @return
+    */
+   public HashMap<String, Integer> getCameraImageCounts(String defaultCameraDeviceName) {
+      // figure out how many images on each camera and start sequence with appropriate number on each
+      HashMap<String, Integer> cameraImageCounts = new HashMap<String, Integer>();
+      Set<String> cameraDeviceNames = new HashSet<String>();
+      if (this.getSequence() == null) {
+         cameraImageCounts.put(defaultCameraDeviceName, 1);
+         return cameraImageCounts;
+      }
+      this.getSequence().stream().map(e -> e.getCameraDeviceName()).forEach(e -> cameraDeviceNames.add(e));
+      // replace null with the default camera
+       if (cameraDeviceNames.size() == 1 && cameraDeviceNames.contains(null)) {
+         cameraDeviceNames.remove(null);
+         cameraDeviceNames.add(defaultCameraDeviceName);
+        }
+      for (String cameraDeviceName : cameraDeviceNames) {
+         cameraImageCounts.put(cameraDeviceName, (int) this.getSequence().stream().filter(
+               e -> e.getCameraDeviceName() != null &&
+                     e.getCameraDeviceName().equals(cameraDeviceName)).count());
+         if (cameraDeviceNames.size() == 1 && cameraDeviceName.equals(defaultCameraDeviceName)) {
+            cameraImageCounts.put(cameraDeviceName, this.getSequence().size());
+         }
+      }
+      return cameraImageCounts;
    }
 
    public Double getXPosition() {

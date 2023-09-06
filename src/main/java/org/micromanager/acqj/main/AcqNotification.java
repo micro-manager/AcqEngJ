@@ -6,84 +6,95 @@ import mmcorej.org.json.JSONObject;
 
 public class AcqNotification {
 
-   public static enum TYPE {
-      ACQ_STARTED("acq_started"),
-      ACQ_FINISHED("acq_finished"),
-      HARDWARE("hardware"),
-      CAMERA_NOTIFICATIONS("camera");
+   public class Acquisition {
+      public static final String ACQ_STARTED = "acq_started";
+      public static final String EVENTS_FINISHED = "acq_events_finished";
 
-      private final String type;
+   }
 
-      TYPE(String stage) {
-         this.type = stage;
-      }
+   public class Hardware {
+      public static final String PRE_HARDWARE = "pre_hardware";
+      public static final String POST_HARDWARE = "post_hardware";
 
-      public String toString() {
-         return type;
+   }
+
+   public class Camera {
+      public static final String PRE_SEQUENCE_STARTED = "pre_sequence_started";
+      public static final String PRE_SNAP = "pre_snap";
+      public static final String POST_EXPOSURE = "post_exposure";
+
+   }
+
+   public class Image {
+      public static final String IMAGE_SAVED = "image_saved";
+      public static final String DATA_SINK_FINISHED = "data_sink_finished";
+   }
+
+   public static String notificationTypeToString(Class type) {
+      if (type.equals(Acquisition.class)) {
+         return "global";
+      } else if (type.equals(Hardware.class)) {
+         return "hardware";
+      } else if (type.equals(Camera.class)) {
+         return "camera";
+      } else if (type.equals(Image.class)) {
+         return "image";
+      } else {
+         throw new RuntimeException("Unknown notification type");
       }
    }
 
-   public static enum PHASE {
-      PRE_HARDWARE_STAGE("pre_hardware"),
-      POST_HARDWARE_STAGE("post_hardware"),
-      PRE_SEQUENCE_STARTED("pre_sequence_started"),
-      PRE_SNAP("pre_snap"),
-      POST_EXPOSURE_STAGE("post_exposure");
-
-      private final String phase;
-
-      PHASE(String phase) {
-         this.phase = phase;
-      }
-
-      public String toString() {
-         return phase;
-      }
-   }
+   final public String type_;
+   final String identifier_;
+   final public String phase_;
 
 
-   final public TYPE type_;
-   final AcquisitionEvent event_;
-   final public PHASE phase_;
-
-
-   public AcqNotification(TYPE type, AcquisitionEvent event, PHASE phase) {
-      type_ = type;
-      event_ = event;
+   public AcqNotification(Class type, String identifier, String phase) {
+      type_ = notificationTypeToString(type);
+      identifier_ = identifier;
       phase_ = phase;
    }
 
-   public static AcqNotification createAcqFinishedEvent() {
-      return new AcqNotification(TYPE.ACQ_FINISHED, null, null);
+   public static AcqNotification createAcqEventsFinishedNotification() {
+      return new AcqNotification(Acquisition.class, null, Acquisition.EVENTS_FINISHED);
    }
 
-   public static AcqNotification createAcqStartedEvent() {
-      return new AcqNotification(TYPE.ACQ_STARTED, null, null);
+   public static AcqNotification createAcqStartedNotification() {
+      return new AcqNotification(Acquisition.class, null, Acquisition.ACQ_STARTED);
+   }
+
+   public static AcqNotification createDataSinkFinishedNotification() {
+      return new AcqNotification(Image.class, null, Image.DATA_SINK_FINISHED);
+   }
+
+   public static AcqNotification createImageSavedNotification(String imageDescriptor) {
+      return new AcqNotification(Image.class, imageDescriptor, Image.IMAGE_SAVED);
    }
 
    public JSONObject toJSON() throws JSONException {
       JSONObject message = new JSONObject();
       message.put("type", type_);
 
-      if (event_ != null) {
-         if (event_.getSequence() == null) {
-            message.put("axes", AcqEngMetadata.getAxesAsJSON(event_.getAxisPositions()));
-         } else {
-            JSONArray sequenceAxes = new JSONArray();
-            for (AcquisitionEvent event : event_.getSequence()) {
-               sequenceAxes.put(AcqEngMetadata.getAxesAsJSON(event.getAxisPositions()));
-            }
-            message.put("axes", sequenceAxes);
-         }
-      }
       if (phase_ != null) {
          message.put("phase", phase_);
+      }
+
+      if (identifier_ != null) {
+         message.put("id", identifier_.toString());
       }
 
       return message;
    }
 
-   public boolean isAcquisitionFinishedNotification() {
-      return type_.toString().equals(TYPE.ACQ_FINISHED.toString());
+   public boolean isAcquisitionEventsFinishedNotification() {
+      return phase_.equals(Acquisition.EVENTS_FINISHED);
+   }
+
+   public boolean isDataSinkFinishedNotification() {
+      return phase_.equals(Image.DATA_SINK_FINISHED);
+   }
+
+   public boolean isImageSavedNotification() {
+      return type_.equals(Image.IMAGE_SAVED);
    }
 }

@@ -1,5 +1,6 @@
 package org.micromanager.acqj.example;
 
+import java.util.concurrent.Future;
 import mmcorej.TaggedImage;
 import mmcorej.org.json.JSONObject;
 import org.micromanager.acqj.api.AcqEngJDataSink;
@@ -32,9 +33,10 @@ public class BlackHoleDataSink implements AcqEngJDataSink {
    }
 
    @Override
-   public void putImage(TaggedImage image) {
+   public Object putImage(TaggedImage image) {
       somethingAcquired_ = true;
       System.out.println("throwing away an image forever");
+      return null;
    }
 
    @Override
