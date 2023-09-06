@@ -1,6 +1,7 @@
 package org.micromanager.acqj.util;
 
 
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -22,7 +23,7 @@ public abstract class ImageProcessorBase implements TaggedImageProcessor {
    private ExecutorService imageProcessorExecutor_;
 
    AcquisitionAPI acq_;
-   protected volatile LinkedBlockingDeque<TaggedImage> source_, sink_;
+   protected volatile BlockingQueue<TaggedImage> source_, sink_;
 
    public ImageProcessorBase () {
       imageProcessorExecutor_ = Executors.newSingleThreadExecutor(
@@ -33,15 +34,15 @@ public abstract class ImageProcessorBase implements TaggedImageProcessor {
 
    protected void addToOutputQueue(TaggedImage img) {
       try {
-         sink_.putLast(img);
+         sink_.put(img);
       } catch (InterruptedException e) {
          throw new RuntimeException("Unexpected problem in image processor");
       }
    }
 
    @Override
-   public void setAcqAndDequeues(AcquisitionAPI acq,
-         LinkedBlockingDeque<TaggedImage> source, LinkedBlockingDeque<TaggedImage> sink) {
+   public void setAcqAndQueues(AcquisitionAPI acq, BlockingQueue<TaggedImage> source,
+                               BlockingQueue<TaggedImage> sink) {
       // This function is called automatically by the acquisition engine on startup.
       // Once it is called and the Dequeus are set, processing can begin
       acq_ = acq;
@@ -55,13 +56,13 @@ public abstract class ImageProcessorBase implements TaggedImageProcessor {
                try {
 
                   try {
-                     img = source_.takeFirst();
+                     img = source_.take();
                      if (img.tags == null && img.pix == null) {
                         // time to shut down
                         // tell the subclass
                         processImage(img);
                         // propagate shutdown signal forward so that anything downstream also shuts down
-                        sink_.putLast(img);
+                        sink_.put(img);
                         imageProcessorExecutor_.shutdown();
                         break;
                      }
@@ -72,7 +73,7 @@ public abstract class ImageProcessorBase implements TaggedImageProcessor {
 
                   TaggedImage result = processImage(img);
                   if (result != null) {
-                     sink_.putLast(result);
+                     sink_.put(result);
                   }
                } catch (Exception e) {
                   // Uncaught exception in image processor
@@ -82,6 +83,12 @@ public abstract class ImageProcessorBase implements TaggedImageProcessor {
 
          }
       });
+   }
+
+   @Override
+   public void setAcqAndDequeues(AcquisitionAPI acq,
+         LinkedBlockingDeque<TaggedImage> source, LinkedBlockingDeque<TaggedImage> sink) {
+      // This is deprecated
    }
 
 

@@ -1,6 +1,8 @@
 package org.micromanager.acqj.example;
 
+import java.util.concurrent.BlockingQueue;
 import mmcorej.TaggedImage;
+import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.util.ImageProcessorBase;
 
 public class WorthlessImageProcessor extends ImageProcessorBase {

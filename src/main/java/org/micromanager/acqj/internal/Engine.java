@@ -16,10 +16,10 @@
 //
 package org.micromanager.acqj.internal;
 
-import java.util.concurrent.FutureTask;
 import mmcorej.org.json.JSONException;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.main.AcqNotification;
+import org.micromanager.acqj.main.Acquisition;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.api.AcquisitionHook;
 
@@ -56,7 +56,6 @@ public class Engine {
    private static ExecutorService eventGeneratorExecutor_;
    //Thread on which all communication with hardware occurs
    private static ExecutorService acqExecutor_;
-   private static ExecutorService afterExposureExecutor_;
 
 
    public Engine(CMMCore core) {
@@ -66,8 +65,6 @@ public class Engine {
          acqExecutor_ = Executors.newSingleThreadExecutor(r -> {
             return new Thread(r, "Acquisition Engine Thread");
          });
-         afterExposureExecutor_ = Executors.newSingleThreadExecutor(r ->
-               new Thread(r, "After Exposure Thread"));
          eventGeneratorExecutor_ = Executors
                  .newSingleThreadExecutor((Runnable r) -> new Thread(r, "Acq Eng event generator"));
       }
@@ -85,10 +82,13 @@ public class Engine {
 
    /**
     * No more data to be collected for this acquisition. Execute a finishing event so everything shuts down properly
+    *
+    * Note that this is not the only route to finishing an acquisition, but merely a convenient way
+    * of submitting an AcquisitionFinishedEvent
     * @param acq the acquisition to be finished
     * @return
     */
-   public Future<Future> finishAcquisition(AcquisitionAPI acq) {
+   public Future<Future> finishAcquisition(Acquisition acq) {
       return eventGeneratorExecutor_.submit(() -> {
          Future f = acqExecutor_.submit(() -> {
             try {
@@ -102,9 +102,7 @@ public class Engine {
                   core_.logMessage("creating acquisition finished event");
                }
                executeAcquisitionEvent(AcquisitionEvent.createAcquisitionFinishedEvent(acq));
-               while (!acq.areEventsFinished()) {
-                  Thread.sleep(1);
-               }
+               acq.blockUntilEventsFinished(null);
             } catch (InterruptedException ex) {
                throw new RuntimeException(ex);
             }
@@ -242,7 +240,6 @@ public class Engine {
             }
             throw new RuntimeException("Acquisition canceled");
          }
-         return null;
       });
       return imageAcquiredFuture;
    }
@@ -260,6 +257,8 @@ public class Engine {
       //check if we should pause until the minimum start time of the event has occured
       while (event.getMinimumStartTimeAbsolute() != null && 
               System.currentTimeMillis() < event.getMinimumStartTimeAbsolute()) {
+         long waitTime = event.getMinimumStartTimeAbsolute() - System.currentTimeMillis();
+         event.acquisition_.blockUnlessAborted(waitTime);
          try {
             if (event.acquisition_.isAbortRequested()) {
                return;
@@ -299,11 +298,10 @@ public class Engine {
             h.close();
          }
          event.acquisition_.addToOutput(new TaggedImage(null, null));
-         event.acquisition_.markEventsFinished();
-
+         event.acquisition_.postNotification(AcqNotification.createAcqEventsFinishedNotification());
       } else {
          event.acquisition_.postNotification( new AcqNotification(
-                 AcqNotification.TYPE.HARDWARE, event, AcqNotification.PHASE.PRE_HARDWARE_STAGE));
+                 AcqNotification.Hardware.class, event.getAxesAsJSONString(), AcqNotification.Hardware.PRE_HARDWARE));
          for (AcquisitionHook h : event.acquisition_.getBeforeHardwareHooks()) {
             event = h.run(event);
             if (event == null) {
@@ -311,14 +309,15 @@ public class Engine {
             }
             abortIfRequested(event, null);
          }
-         HardwareSequences hardwareSequencesInProgress;
+         HardwareSequences hardwareSequencesInProgress = new HardwareSequences();
          try {
-            hardwareSequencesInProgress = prepareHardware(event);
+            prepareHardware(event, hardwareSequencesInProgress);
          } catch (HardwareControlException e) {
+            stopHardwareSequences(hardwareSequencesInProgress);
             throw e;
          }
          event.acquisition_.postNotification( new AcqNotification(
-                 AcqNotification.TYPE.HARDWARE, event, AcqNotification.PHASE.POST_HARDWARE_STAGE));
+                 AcqNotification.Hardware.class, event.getAxesAsJSONString(), AcqNotification.Hardware.POST_HARDWARE));
          for (AcquisitionHook h : event.acquisition_.getAfterHardwareHooks()) {
             event = h.run(event);
             if (event == null) {
@@ -353,105 +352,52 @@ public class Engine {
 
             // if the acquisition was aborted, make sure everything shuts down properly
             abortIfRequested(event, hardwareSequencesInProgress);
-
-            // wait for camera to shut down
-            if (event.getSequence() != null) {
-               while (core_.isSequenceRunning()) {
-                  Thread.sleep(2);
-               }
-               stopHardwareSequences(hardwareSequencesInProgress);
-            }
          }
-
       }
-      return;
    }
 
    /**
     * Acquire 1 or more images in a sequence, add some metadata, then
     * put them into an output queue.
     *
+    * If the event is a sequence and a sequence acquisition is started in the core,
+    * It should be completed by the time this method returns.
+    *
     * @param event
     * @throws HardwareControlException
     */
    private void acquireImages(final AcquisitionEvent event,
                               HardwareSequences hardwareSequencesInProgress) throws HardwareControlException, TimeoutException {
-      FutureTask<Void> future = null;
+      HashMap<String, Integer> cameraImageCounts = event.getCameraImageCounts(core_.getCameraDevice());
       try {
          if (event.getSequence() != null && event.getSequence().size() > 1) {
-            //start hardware sequence
-//            core_.clearCircularBuffer();
-
-            // figure out how many images on each camera and start sequence with appropriate number on each
-            HashMap<String, Integer> cameraImageCounts = new HashMap<String, Integer>();
-            Set<String> cameraDeviceNames = new HashSet<String>();
-            event.getSequence().stream().map(e -> e.getCameraDeviceName()).forEach(e -> cameraDeviceNames.add(e));
-            cameraDeviceNames.remove(null);
-            if (cameraDeviceNames.isEmpty()) {
-               cameraDeviceNames.add(core_.getCameraDevice());
-            }
-            for (String cameraDeviceName : cameraDeviceNames) {
-               cameraImageCounts.put(cameraDeviceName, (int) event.getSequence().stream().filter(
-                       e -> e.getCameraDeviceName() != null &&
-                               e.getCameraDeviceName().equals(cameraDeviceName)).count());
-               if (cameraDeviceNames.size() == 1 && cameraDeviceName.equals(core_.getCameraDevice())) {
-                  cameraImageCounts.put(cameraDeviceName, event.getSequence().size());
-               }
+            // Start sequences on one or more cameras
+            for (String cameraDeviceName : cameraImageCounts.keySet()) {
                event.acquisition_.postNotification(
-                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                               event, AcqNotification.PHASE.PRE_SEQUENCE_STARTED));
+                       new AcqNotification(AcqNotification.Camera.class,
+                               event.getAxesAsJSONString(), AcqNotification.Camera.PRE_SEQUENCE_STARTED));
                core_.startSequenceAcquisition(cameraDeviceName,
                        cameraImageCounts.get(cameraDeviceName), 0, true);
             }
-            // Run after exposure hooks on a separate thread that checks if
-            // sequence finished.  AcquireImages can only exit after the last
-            // future returns.
-            future = new FutureTask<>(() -> {
-               for (String cameraDeviceName : cameraDeviceNames) {
-                  while (core_.isSequenceRunning(cameraDeviceName)) {
-                     Thread.sleep(1);
-                  }
-               }
-               event.acquisition_.postNotification(
-                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                               event, AcqNotification.PHASE.POST_EXPOSURE_STAGE));
-               for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
-                  h.run(event);
-               }
-               return null;
-            });
-            afterExposureExecutor_.execute(future);
-
          } else {
             //snap one image with no sequencing
             event.acquisition_.postNotification(
-                    new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                            event, AcqNotification.PHASE.PRE_SNAP));
+                    new AcqNotification(AcqNotification.Camera.class,
+                            event.getAxesAsJSONString(), AcqNotification.Camera.PRE_SNAP));
             if (event.getCameraDeviceName() != null) {
                String currentCamera = core_.getCameraDevice();
                core_.setCameraDevice(event.getCameraDeviceName());
                core_.snapImage();
-               event.acquisition_.postNotification(
-                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                               event, AcqNotification.PHASE.POST_EXPOSURE_STAGE));
                core_.setCameraDevice(currentCamera);
-               for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
-                  h.run(event);
-               }
             } else {
                core_.snapImage();
-               event.acquisition_.postNotification(
-                       new AcqNotification(AcqNotification.TYPE.CAMERA_NOTIFICATIONS,
-                               event, AcqNotification.PHASE.POST_EXPOSURE_STAGE));
-               // note: SnapImage will block until exposure finishes.
-               // If it is desired that AfterCameraHooks trigger cameras
-               // in Snap mode, those hooks (or SnapImage) should run in a separate thread, started
-               // after snapImage is started.
-               for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
-                  h.run(event);
-               }
             }
-
+            event.acquisition_.postNotification(
+                  new AcqNotification(AcqNotification.Camera.class,
+                        event.getAxesAsJSONString(), AcqNotification.Camera.POST_EXPOSURE));
+            for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
+               h.run(event);
+            }
          }
       } catch (Exception ex) {
          throw new HardwareControlException(ex.getMessage());
@@ -479,6 +425,11 @@ public class Engine {
 
       // Run a hook after the camera sequence acquisition has started. This can be used for
       // external triggering of the camera (when it is in sequence mode).
+      // note: SnapImage will block until exposure finishes.
+      // If it is desired that AfterCameraHooks trigger cameras
+      // in Snap mode, one possibility is that those hooks (or SnapImage) should run in
+      // a separate thread, started after snapImage is started. But there is no guarantee
+      // with this approach that the camera will be triggered at the correct time.
       for (AcquisitionHook h : event.acquisition_.getAfterCameraHooks()) {
          h.run(event);
       }
@@ -503,8 +454,9 @@ public class Engine {
          } catch (Exception ex) {
             throw new RuntimeException("Couldnt get exposure form core");
          }
-
          long numCamChannels = core_.getNumberOfCameraChannels();
+
+         boolean needToRunAfterExposureHooks = event.acquisition_.getAfterExposureHooks().iterator().hasNext();
          for (int camIndex = 0; camIndex < numCamChannels; camIndex++) {
             TaggedImage ti = null;
             String cameraName = null;
@@ -526,10 +478,19 @@ public class Engine {
                         if (!core_.isSequenceRunning() && core_.getRemainingImageCount() == 0) {
                            throw new RuntimeException("Expected images did not arrive in circular buffer");
                         }
-                        // check it timeout has been exceeded
+                        // check it timeout has been exceeded. This is used in the case of a camera waiting for
+                        // a trigger that never comes.
                         if (event.getSequence().get(i).getTimeout_ms() != null) {
                            if (System.currentTimeMillis() - startCopyTime > event.getSequence().get(i).getTimeout_ms()) {
                               timeout = true;
+                              core_.stopSequenceAcquisition();
+                              while (core_.isSequenceRunning()) {
+                                    try {
+                                        Thread.sleep(1);
+                                    } catch (InterruptedException ex) {
+                                        throw new RuntimeException("Interrupted while waiting for sequence to stop");
+                                    }
+                              }
                               break;
                            }
                         }
@@ -551,9 +512,33 @@ public class Engine {
                   throw e;
                }
             }
+            if (needToRunAfterExposureHooks) {
+               for (String cameraDeviceName : cameraImageCounts.keySet()) {
+                  try {
+                     if (core_.isSequenceRunning(cameraDeviceName)) {
+                        // All sequences are not yet done, this will be handled on another iteration
+                        // of the loop
+                        break;
+                     }
+                  } catch (Exception e) {
+                     // not sure hos this would happen
+                     event.acquisition_.abort(e);
+                     throw new RuntimeException(e);
+                  }
+               }
+               event.acquisition_.postNotification(
+                     new AcqNotification(AcqNotification.Camera.class,
+                           event.getAxesAsJSONString(), AcqNotification.Camera.POST_EXPOSURE));
+               for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
+                  h.run(event);
+               }
+               needToRunAfterExposureHooks = false;
+            }
             if (timeout) {
                break;
             }
+
+
             // Doesnt seem to be a version in the API in which you dont have to do this
             int actualCamIndex = camIndex;
             if (ti.tags.has("Multi Camera-CameraChannelIndex")) {
@@ -597,17 +582,7 @@ public class Engine {
             correspondingEvent.acquisition_.addToOutput(ti);
          }
       }
-      if (future != null) {
-         try {
-            future.get();
-         } catch (InterruptedException e) {
-            e.printStackTrace();
-            core_.logMessage("Interrupted while waiting for the future");
-         } catch (ExecutionException e) {
-            e.printStackTrace();
-            core_.logMessage("Exception during future execution");
-         }
-      }
+
       if (timeout) {
          throw new TimeoutException("Timeout waiting for images to arrive in circular buffer");
       }
@@ -662,145 +637,141 @@ public class Engine {
     * triggered to start, which will happen in another function
     *
     * @param event
+    * @param hardwareSequencesInProgress -- keep track of which hardware sequences have been started
     * @throws HardwareControlException
     * @return Data class describing which hardware devices have had sequences activated
     */
-   private HardwareSequences prepareHardware(final AcquisitionEvent event) throws HardwareControlException {
-      HardwareSequences sequence = new HardwareSequences();
-      try {
-         //Get the hardware specific to this acquisition
-         final String xyStage = core_.getXYStageDevice();
-         final String zStage = core_.getFocusDevice();
-         final String slm = core_.getSLMDevice();
-         //prepare sequences if applicable
-         if (event.getSequence() != null) {
-            try {
-               DoubleVector zSequence = event.isZSequenced() ? new DoubleVector() : null;
-               DoubleVector xSequence = event.isXYSequenced() ? new DoubleVector() : null;
-               DoubleVector ySequence = event.isXYSequenced() ? new DoubleVector() : null;
-               DoubleVector exposureSequence_ms =event.isExposureSequenced() ? new DoubleVector() : null;
-               String group = event.getSequence().get(0).getConfigGroup();
-               Configuration config = event.getSequence().get(0).getConfigPreset() == null ? null :
-                     core_.getConfigData(group, event.getSequence().get(0).getConfigPreset());
-               LinkedList<StrVector> propSequences = event.isConfigGroupSequenced() ? new LinkedList<StrVector>() : null;
-               for (AcquisitionEvent e : event.getSequence()) {
-                  if (zSequence != null) {
-                     zSequence.add(e.getZPosition());
-                  }
-                  if (xSequence != null) {
-                     xSequence.add(e.getXPosition());
-                  }
-                  if (ySequence != null) {
-                     ySequence.add(e.getYPosition());
-                  }
-                  if (exposureSequence_ms != null) {
-                     exposureSequence_ms.add(e.getExposure());
-                  }
-                  //et sequences for all channel properties
-                  if (propSequences != null) {
-                     for (int i = 0; i < config.size(); i++) {
-                        PropertySetting ps = config.getSetting(i);
-                        String deviceName = ps.getDeviceLabel();
-                        String propName = ps.getPropertyName();
-                        if (e == event.getSequence().get(0)) { //first property
-                           propSequences.add(new StrVector());
-                        }
-                        Configuration channelPresetConfig = core_.getConfigData(group,
-                              e.getConfigPreset());
-                        String propValue = channelPresetConfig.getSetting(deviceName, propName).getPropertyValue();
-                        if (core_.isPropertySequenceable(deviceName, propName)) {
-                           propSequences.get(i).add(propValue);
-                        }
-                     }
-                  }
+   private void prepareHardware(final AcquisitionEvent event,
+                                             HardwareSequences hardwareSequencesInProgress) throws HardwareControlException {
+      //Get the hardware specific to this acquisition
+      final String xyStage = core_.getXYStageDevice();
+      final String zStage = core_.getFocusDevice();
+      final String slm = core_.getSLMDevice();
+      //prepare sequences if applicable
+      if (event.getSequence() != null) {
+         try {
+            DoubleVector zSequence = event.isZSequenced() ? new DoubleVector() : null;
+            DoubleVector xSequence = event.isXYSequenced() ? new DoubleVector() : null;
+            DoubleVector ySequence = event.isXYSequenced() ? new DoubleVector() : null;
+            DoubleVector exposureSequence_ms =event.isExposureSequenced() ? new DoubleVector() : null;
+            String group = event.getSequence().get(0).getConfigGroup();
+            Configuration config = event.getSequence().get(0).getConfigPreset() == null ? null :
+                  core_.getConfigData(group, event.getSequence().get(0).getConfigPreset());
+            LinkedList<StrVector> propSequences = event.isConfigGroupSequenced() ? new LinkedList<StrVector>() : null;
+            for (AcquisitionEvent e : event.getSequence()) {
+               if (zSequence != null) {
+                  zSequence.add(e.getZPosition());
                }
-               sequence.deviceNames.add(core_.getCameraDevice());
-               //Now have built up all the sequences, apply them
-               if (event.isExposureSequenced()) {
-                  core_.loadExposureSequence(core_.getCameraDevice(), exposureSequence_ms);
-                  // already added camera
+               if (xSequence != null) {
+                  xSequence.add(e.getXPosition());
                }
-               if (event.isXYSequenced()) {
-                  core_.loadXYStageSequence(xyStage, xSequence, ySequence);
-                  sequence.deviceNames.add(xyStage);
+               if (ySequence != null) {
+                  ySequence.add(e.getYPosition());
                }
-               if (event.isZSequenced()) {
-                  core_.loadStageSequence(zStage, zSequence);
-                  sequence.deviceNames.add(zStage);
+               if (exposureSequence_ms != null) {
+                  exposureSequence_ms.add(e.getExposure());
                }
-               if (event.isConfigGroupSequenced()) {
+               //Set sequences for all channel properties
+               if (propSequences != null) {
                   for (int i = 0; i < config.size(); i++) {
                      PropertySetting ps = config.getSetting(i);
                      String deviceName = ps.getDeviceLabel();
                      String propName = ps.getPropertyName();
-                     if (propSequences.get(i).size() > 0) {
-                        core_.loadPropertySequence(deviceName, propName, propSequences.get(i));
-                        sequence.propertyNames.add(propName);
-                        sequence.propertyDeviceNames.add(deviceName);
+                     if (e == event.getSequence().get(0)) { //first property
+                        propSequences.add(new StrVector());
+                     }
+                     Configuration channelPresetConfig = core_.getConfigData(group,
+                           e.getConfigPreset());
+                     String propValue = channelPresetConfig.getSetting(deviceName, propName).getPropertyValue();
+                     if (core_.isPropertySequenceable(deviceName, propName)) {
+                        propSequences.get(i).add(propValue);
                      }
                   }
                }
-               core_.prepareSequenceAcquisition(core_.getCameraDevice());
+            }
+            hardwareSequencesInProgress.deviceNames.add(core_.getCameraDevice());
+            //Now have built up all the sequences, apply them
+            if (event.isExposureSequenced()) {
+               core_.loadExposureSequence(core_.getCameraDevice(), exposureSequence_ms);
+               // already added camera
+            }
+            if (event.isXYSequenced()) {
+               core_.loadXYStageSequence(xyStage, xSequence, ySequence);
+               hardwareSequencesInProgress.deviceNames.add(xyStage);
+            }
+            if (event.isZSequenced()) {
+               core_.loadStageSequence(zStage, zSequence);
+               hardwareSequencesInProgress.deviceNames.add(zStage);
+            }
+            if (event.isConfigGroupSequenced()) {
+               for (int i = 0; i < config.size(); i++) {
+                  PropertySetting ps = config.getSetting(i);
+                  String deviceName = ps.getDeviceLabel();
+                  String propName = ps.getPropertyName();
+                  if (propSequences.get(i).size() > 0) {
+                     core_.loadPropertySequence(deviceName, propName, propSequences.get(i));
+                     hardwareSequencesInProgress.propertyNames.add(propName);
+                     hardwareSequencesInProgress.propertyDeviceNames.add(deviceName);
+                  }
+               }
+            }
+            core_.prepareSequenceAcquisition(core_.getCameraDevice());
 
 
+         } catch (Exception ex) {
+            ex.printStackTrace();
+            throw new HardwareControlException(ex.getMessage());
+         }
+      }
+
+      //compare to last event to see what needs to change
+      if (lastEvent_ != null && lastEvent_.acquisition_ != event.acquisition_) {
+         lastEvent_ = null; //update all hardware if switching to a new acquisition
+      }
+      /////////////////////////////Z stage////////////////////////////////////////////
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               if (event.isZSequenced()) {
+                  core_.startStageSequence(zStage);
+               } else  {
+                  Double previousZ = lastEvent_ == null ? null : lastEvent_.getSequence() == null ? lastEvent_.getZPosition() :
+                        lastEvent_.getSequence().get(0).getZPosition();
+                  Double currentZ =  event.getSequence() == null ? event.getZPosition() : event.getSequence().get(0).getZPosition();
+                  if (currentZ == null) {
+                     return;
+                  }
+                  boolean change = previousZ == null || !previousZ.equals(currentZ);
+                  if (!change) {
+                     return;
+                  }
+
+                  //wait for it to not be busy (is this even needed?)
+                  core_.waitForDevice(zStage);
+                  //Move Z
+                  core_.setPosition(zStage, currentZ);
+                  //wait for move to finish
+                  core_.waitForDevice(zStage);
+               }
             } catch (Exception ex) {
-               ex.printStackTrace();
                throw new HardwareControlException(ex.getMessage());
             }
+
          }
+      }, "Moving Z device");
 
-         //compare to last event to see what needs to change
-         if (lastEvent_ != null && lastEvent_.acquisition_ != event.acquisition_) {
-            lastEvent_ = null; //update all hardware if switching to a new acquisition
-         }
-         /////////////////////////////Z stage////////////////////////////////////////////
-         loopHardwareCommandRetries(new Runnable() {
-            @Override
-            public void run() {
-               try {
-                  if (event.isZSequenced()) {
-                     core_.startStageSequence(zStage);
-                  } else  {
-                     Double previousZ = lastEvent_ == null ? null : lastEvent_.getSequence() == null ? lastEvent_.getZPosition() :
-                           lastEvent_.getSequence().get(0).getZPosition();
-                     Double currentZ =  event.getSequence() == null ? event.getZPosition() : event.getSequence().get(0).getZPosition();
-                     if (currentZ == null) {
-                        return;
-                     }
-                     boolean change = previousZ == null || !previousZ.equals(currentZ);
-                     if (!change) {
-                        return;
-                     }
-
-                     //wait for it to not be busy (is this even needed?)
-                     while (core_.deviceBusy(zStage)) {
-                        Thread.sleep(1);
-                     }
-                     //Move Z
-                     core_.setPosition(zStage, currentZ);
-                     //wait for move to finish
-                     while (core_.deviceBusy(zStage)) {
-                        Thread.sleep(1);
-                     }
-                  }
-               } catch (Exception ex) {
-                  throw new HardwareControlException(ex.getMessage());
-               }
-
-            }
-         }, "Moving Z device");
-
-         /////////////////////////////Other stage devices ////////////////////////////////////////////
-         loopHardwareCommandRetries(new Runnable() {
-            @Override
-            public void run() {
-               try {
-                  // TODO implement Z sequencing for other devices
+      /////////////////////////////Other stage devices ////////////////////////////////////////////
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               // TODO implement Z sequencing for other devices
 //               if (event.isZSequenced()) {
 //                  core_.startStageSequence(zStage);
 //               } else  {
-                  for (String stageDeviceName : event.getStageDeviceNames()) {
-                     // TODO: could reimplement logic here to decide when to try to move
+               for (String stageDeviceName : event.getStageDeviceNames()) {
+                  // TODO: could reimplement logic here to decide when to try to move
 //                  Double previousZ = lastEvent_ == null ? null :
 //                        lastEvent_.getSequence() == null ? lastEvent_.getZPosition() :
 //                              lastEvent_.getSequence().get(0).getZPosition();
@@ -814,182 +785,168 @@ public class Engine {
 //                     return;
 //                  }
 
-                     //wait for it to not be busy (is this even needed?)
-                     while (core_.deviceBusy(stageDeviceName)) {
-                        Thread.sleep(1);
-                     }
-                     //Move Z
-                     core_.setPosition(stageDeviceName, event.getStageSingleAxisStagePosition(stageDeviceName));
-                     //wait for move to finish
-                     while (core_.deviceBusy(stageDeviceName)) {
-                        Thread.sleep(1);
-                     }
-                  }
+                  //wait for it to not be busy (is this even needed?)
+                  core_.waitForDevice(stageDeviceName);
+                  //Move Z
+                  core_.setPosition(stageDeviceName, event.getStageSingleAxisStagePosition(stageDeviceName));
+                  //wait for move to finish
+                  core_.waitForDevice(stageDeviceName);
+               }
 //               }
-               } catch (Exception ex) {
-                  throw new HardwareControlException(ex.getMessage());
+            } catch (Exception ex) {
+               throw new HardwareControlException(ex.getMessage());
+            }
+
+         }
+      }, "Moving other stage devices");
+
+      /////////////////////////////XY Stage////////////////////////////////////////////////////
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               if (event.isXYSequenced()) {
+                  core_.startXYStageSequence(xyStage);
+               } else  {
+                  //could be sequenced over other devices, in that case get xy position from first in sequence
+                  Double prevXPosition = lastEvent_ == null ? null :
+                        lastEvent_.getSequence() == null ? lastEvent_.getXPosition() : lastEvent_.getSequence().get(0).getXPosition();
+                  Double xPosition = event.getSequence() == null ? event.getXPosition() : event.getSequence().get(0).getXPosition();
+                  Double prevYPosition = lastEvent_ == null ? null :
+                        lastEvent_.getSequence() == null ? lastEvent_.getYPosition() : lastEvent_.getSequence().get(0).getYPosition();
+                  Double yPosition = event.getSequence() == null ? event.getYPosition() : event.getSequence().get(0).getYPosition();
+                  boolean previousXYDefined = event != null && prevXPosition != null && prevYPosition != null;
+                  boolean currentXYDefined = event != null && xPosition != null && yPosition != null;
+                  if (!currentXYDefined) {
+                     return;
+                  }
+                  boolean xyChanged = !previousXYDefined || !prevXPosition.equals(xPosition) || !prevYPosition.equals(yPosition);
+                  if (!xyChanged) {
+                     return;
+                  }
+                  //wait for it to not be busy (is this even needed?)
+                  core_.waitForDevice(xyStage);
+                  //Move XY
+                  core_.setXYPosition(xyStage, xPosition, yPosition);
+                  //wait for move to finish
+                  core_.waitForDevice(xyStage);
+               }
+            } catch (Exception ex) {
+               core_.logMessage(stackTraceToString(ex));
+               ex.printStackTrace();
+               throw new HardwareControlException(ex.getMessage());
+            }
+         }
+      }, "Moving XY stage");
+
+      /////////////////////////////Channels//////////////////////////////////////////////////
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               //Get the values of current channel, pulling from the first event in a sequence if one is present
+               String currentConfig = event.getSequence() == null ?
+                     event.getConfigPreset() : event.getSequence().get(0).getConfigPreset();
+               String currentGroup = event.getSequence() == null ?
+                     event.getConfigGroup() : event.getSequence().get(0).getConfigGroup();
+               String previousConfig = lastEvent_ == null ? null : lastEvent_.getSequence() == null ?
+                     lastEvent_.getConfigPreset() : lastEvent_.getSequence().get(0).getConfigPreset();
+
+               boolean newChannel = currentConfig != null && (previousConfig == null || !previousConfig.equals(currentConfig));
+               if ( newChannel ) {
+                  //set exposure
+                  if (event.getExposure() != null) {
+                     core_.setExposure(event.getExposure());
+                  }
+                  //set other channel props
+                  core_.setConfig(currentGroup, currentConfig);
+                  // TODO: haven't tested if this is actually needed
+                  core_.waitForConfig(currentGroup, currentConfig);
                }
 
-            }
-         }, "Moving other stage devices");
-
-         /////////////////////////////XY Stage////////////////////////////////////////////////////
-         loopHardwareCommandRetries(new Runnable() {
-            @Override
-            public void run() {
-               try {
-                  if (event.isXYSequenced()) {
-                     core_.startXYStageSequence(xyStage);
-                  } else  {
-                     //could be sequenced over other devices, in that case get xy position from first in sequence
-                     Double prevXPosition = lastEvent_ == null ? null :
-                           lastEvent_.getSequence() == null ? lastEvent_.getXPosition() : lastEvent_.getSequence().get(0).getXPosition();
-                     Double xPosition = event.getSequence() == null ? event.getXPosition() : event.getSequence().get(0).getXPosition();
-                     Double prevYPosition = lastEvent_ == null ? null :
-                           lastEvent_.getSequence() == null ? lastEvent_.getYPosition() : lastEvent_.getSequence().get(0).getYPosition();
-                     Double yPosition = event.getSequence() == null ? event.getYPosition() : event.getSequence().get(0).getYPosition();
-                     boolean previousXYDefined = event != null && prevXPosition != null && prevYPosition != null;
-                     boolean currentXYDefined = event != null && xPosition != null && yPosition != null;
-                     if (!currentXYDefined) {
-                        return;
-                     }
-                     boolean xyChanged = !previousXYDefined || !prevXPosition.equals(xPosition) || !prevYPosition.equals(yPosition);
-                     if (!xyChanged) {
-                        return;
-                     }
-                     //wait for it to not be busy (is this even needed?)
-                     while (core_.deviceBusy(xyStage)) {
-                        Thread.sleep(1);
-                     }
-                     //Move XY
-                     core_.setXYPosition(xyStage, xPosition, yPosition);
-                     //wait for move to finish
-                     while (core_.deviceBusy(xyStage)) {
-                        Thread.sleep(1);
+               if (event.isConfigGroupSequenced()) {
+                  //Channels
+                  String group = event.getSequence().get(0).getConfigGroup();
+                  Configuration config = core_.getConfigData(group, event.getSequence().get(0).getConfigPreset());
+                  for (int i = 0; i < config.size(); i++) {
+                     PropertySetting ps = config.getSetting(i);
+                     String deviceName = ps.getDeviceLabel();
+                     String propName = ps.getPropertyName();
+                     if (core_.isPropertySequenceable(deviceName, propName)) {
+                        core_.startPropertySequence(deviceName, propName);
                      }
                   }
-               } catch (Exception ex) {
-                  core_.logMessage(stackTraceToString(ex));
-                  ex.printStackTrace();
-                  throw new HardwareControlException(ex.getMessage());
                }
+            } catch (Exception ex) {
+               ex.printStackTrace();
+               throw new HardwareControlException(ex.getMessage());
             }
-         }, "Moving XY stage");
 
-         /////////////////////////////Channels//////////////////////////////////////////////////
-         loopHardwareCommandRetries(new Runnable() {
-            @Override
-            public void run() {
-               try {
-                  //Get the values of current channel, pulling from the first event in a sequence if one is present
-                  String currentConfig = event.getSequence() == null ?
-                        event.getConfigPreset() : event.getSequence().get(0).getConfigPreset();
-                  String currentGroup = event.getSequence() == null ?
-                        event.getConfigGroup() : event.getSequence().get(0).getConfigGroup();
-                  String previousConfig = lastEvent_ == null ? null : lastEvent_.getSequence() == null ?
-                        lastEvent_.getConfigPreset() : lastEvent_.getSequence().get(0).getConfigPreset();
+         }
+      }, "Changing channels");
 
-                  boolean newChannel = currentConfig != null && (previousConfig == null || !previousConfig.equals(currentConfig));
-                  if ( newChannel ) {
-                     //set exposure
-                     if (event.getExposure() != null) {
-                        core_.setExposure(event.getExposure());
-                     }
-                     //set other channel props
-                     core_.setConfig(currentGroup, currentConfig);
-                     // TODO: haven't tested if this is actually needed
-                     core_.waitForConfig(currentGroup, currentConfig);
+      /////////////////////////////Camera exposure//////////////////////////////////////////////
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               if (event.isExposureSequenced()) {
+                  core_.startExposureSequence(core_.getCameraDevice());
+               } else {
+                  Double currentExposure = event.getExposure();
+                  Double prevExposure = lastEvent_ == null ? null : lastEvent_.getExposure();
+                  boolean changeExposure = currentExposure != null &&
+                        (prevExposure == null || !prevExposure.equals(currentExposure));
+                  if (changeExposure) {
+                     core_.setExposure(currentExposure);
                   }
-
-                  if (event.isConfigGroupSequenced()) {
-                     //Channels
-                     String group = event.getSequence().get(0).getConfigGroup();
-                     Configuration config = core_.getConfigData(group, event.getSequence().get(0).getConfigPreset());
-                     for (int i = 0; i < config.size(); i++) {
-                        PropertySetting ps = config.getSetting(i);
-                        String deviceName = ps.getDeviceLabel();
-                        String propName = ps.getPropertyName();
-                        if (core_.isPropertySequenceable(deviceName, propName)) {
-                           core_.startPropertySequence(deviceName, propName);
-                        }
-                     }
-                  }
-               } catch (Exception ex) {
-                  ex.printStackTrace();
-                  throw new HardwareControlException(ex.getMessage());
                }
-
+            } catch (Exception ex) {
+               throw new HardwareControlException(ex.getMessage());
             }
-         }, "Changing channels");
 
-         /////////////////////////////Camera exposure//////////////////////////////////////////////
-         loopHardwareCommandRetries(new Runnable() {
-            @Override
-            public void run() {
-               try {
-                  if (event.isExposureSequenced()) {
-                     core_.startExposureSequence(core_.getCameraDevice());
+         }
+      }, "Changing exposure");
+
+
+      /////////////////////////////   SLM    //////////////////////////////////////////////
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               if (event.getSLMImage() != null) {
+                  if (event.getSLMImage() instanceof byte[]) {
+                     core_.setSLMImage(slm, (byte[]) event.getSLMImage());
+                  } else if (event.getSLMImage() instanceof int[]) {
+                     core_.setSLMImage(slm, (int[]) event.getSLMImage());
                   } else {
-                     Double currentExposure = event.getExposure();
-                     Double prevExposure = lastEvent_ == null ? null : lastEvent_.getExposure();
-                     boolean changeExposure = currentExposure != null &&
-                           (prevExposure == null || !prevExposure.equals(currentExposure));
-                     if (changeExposure) {
-                        core_.setExposure(currentExposure);
-                     }
+                     throw new RuntimeException("SLM api only supports 8 bit and 32 bit patterns");
                   }
-               } catch (Exception ex) {
-                  throw new HardwareControlException(ex.getMessage());
                }
-
+            } catch (Exception ex) {
+               throw new HardwareControlException(ex.getMessage());
             }
-         }, "Changing exposure");
 
+         }
+      }, "Setting SLM pattern");
 
-         /////////////////////////////   SLM    //////////////////////////////////////////////
-         loopHardwareCommandRetries(new Runnable() {
-            @Override
-            public void run() {
-               try {
-                  if (event.getSLMImage() != null) {
-                     if (event.getSLMImage() instanceof byte[]) {
-                        core_.setSLMImage(slm, (byte[]) event.getSLMImage());
-                     } else if (event.getSLMImage() instanceof int[]) {
-                        core_.setSLMImage(slm, (int[]) event.getSLMImage());
-                     } else {
-                        throw new RuntimeException("SLM api only supports 8 bit and 32 bit patterns");
-                     }
-                  }
-               } catch (Exception ex) {
-                  throw new HardwareControlException(ex.getMessage());
+      //////////////////////////   Arbitrary Properties //////////////////////////////////
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               for (String[] s : event.getAdditonalProperties()) {
+                  core_.setProperty(s[0], s[1], s[2]);
                }
-
+            } catch (Exception ex) {
+               throw new HardwareControlException(ex.getMessage());
             }
-         }, "Setting SLM pattern");
 
-         //////////////////////////   Arbitrary Properties //////////////////////////////////
-         loopHardwareCommandRetries(new Runnable() {
-            @Override
-            public void run() {
-               try {
-                  for (String[] s : event.getAdditonalProperties()) {
-                     core_.setProperty(s[0], s[1], s[2]);
-                  }
-               } catch (Exception ex) {
-                  throw new HardwareControlException(ex.getMessage());
-               }
+         }
+      }, "Changing additional properties");
 
-            }
-         }, "Changing additional properties");
-
-         //keep track of last event to know what state the hardware was in without having to query it
-         lastEvent_ = event.getSequence() == null ? event : event.getSequence().get(event.getSequence().size() - 1);
-      } catch (HardwareControlException e) {
-         e.printStackTrace();
-         core_.logMessage(stackTraceToString(e));
-      } finally {
-         return sequence;
-      }
+      //keep track of last event to know what state the hardware was in without having to query it
+      lastEvent_ = event.getSequence() == null ? event : event.getSequence().get(event.getSequence().size() - 1);
    }
 
    /**
