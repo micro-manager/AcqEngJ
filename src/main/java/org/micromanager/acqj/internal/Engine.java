@@ -188,6 +188,17 @@ public class Engine {
       });
    }
 
+   public void checkForDefaultDevices(AcquisitionEvent event) {
+      final String xyStage = core_.getXYStageDevice();
+      final String zStage = core_.getFocusDevice();
+      if (event.getZPosition() != null && (zStage == null || zStage.equals(""))) {
+         throw new RuntimeException("Event requires a z position, but no Core-Focus device is set");
+      }
+     if (event.getXPosition() != null && (xyStage == null || xyStage.equals(""))) {
+          throw new RuntimeException("Event requires an x position, but no Core-XYStage device is set");
+     }
+   }
+
    /**
     * Check if this event is compatible with hardware sequencing with any previous events that have been built up
     * in a queue. If it is, merge it into the sequence. Calling this function might result in an event/sequence being
@@ -201,6 +212,8 @@ public class Engine {
    private Future processAcquisitionEvent(AcquisitionEvent event)  {
       Future imageAcquiredFuture = acqExecutor_.submit(() -> {
          try {
+            checkForDefaultDevices(event);
+
             if (event.acquisition_.isDebugMode()) {
                core_.logMessage("Processing event: " + event.toString() );
             }
