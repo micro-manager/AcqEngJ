@@ -51,12 +51,13 @@ public class Acquisition implements AcquisitionAPI {
    protected AcqEngJDataSink dataSink_;
    private Consumer<JSONObject> summaryMetadataProcessor_;
    final public CMMCore core_;
-   private CopyOnWriteArrayList<AcquisitionHook> eventGenerationHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
-   private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
-   private CopyOnWriteArrayList<AcquisitionHook> afterHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
-   private CopyOnWriteArrayList<AcquisitionHook> afterCameraHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
+   private CopyOnWriteArrayList<AcquisitionHook> eventGenerationHooks_ = new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> afterHardwareHooks_ = new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> afterCameraHooks_ = new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> afterSequenceHooks_ = new CopyOnWriteArrayList<>();
    private CopyOnWriteArrayList<AcquisitionHook> afterExposureHooks_ = new CopyOnWriteArrayList<>();
-   private CopyOnWriteArrayList<TaggedImageProcessor> imageProcessors_ = new CopyOnWriteArrayList<TaggedImageProcessor>();
+   private CopyOnWriteArrayList<TaggedImageProcessor> imageProcessors_ = new CopyOnWriteArrayList<>();
    protected LinkedBlockingDeque<TaggedImage> firstDequeue_
            = new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE);
    private ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>> processorOutputQueues_
@@ -297,6 +298,8 @@ public class Acquisition implements AcquisitionAPI {
          afterCameraHooks_.add(h);
       } else if (type == AFTER_EXPOSURE_HOOK) {
          afterExposureHooks_.add(h);
+      } else if (type == AFTER_SEQUENCE_HOOK) {
+         afterSequenceHooks_.add(h);
       }
    }
 
@@ -420,6 +423,9 @@ public class Acquisition implements AcquisitionAPI {
 
    public Iterable<AcquisitionHook> getAfterCameraHooks() {
       return afterCameraHooks_;
+   }
+   public Iterable<AcquisitionHook> getAfterSequenceHooks() {
+      return afterSequenceHooks_;
    }
 
    public Iterable<AcquisitionHook> getAfterExposureHooks() {

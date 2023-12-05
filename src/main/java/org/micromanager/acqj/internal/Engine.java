@@ -595,6 +595,10 @@ public class Engine {
             correspondingEvent.acquisition_.addToOutput(ti);
          }
       }
+      for (AcquisitionHook h : event.acquisition_.getAfterSequenceHooks()) {
+         h.run(event);
+      }
+
 
       if (timeout) {
          throw new TimeoutException("Timeout waiting for images to arrive in circular buffer");

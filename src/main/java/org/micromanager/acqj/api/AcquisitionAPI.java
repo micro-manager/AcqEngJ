@@ -37,6 +37,10 @@ public interface AcquisitionAPI {
    // and availability of the images in memory).
    int AFTER_EXPOSURE_HOOK = 4;
 
+
+   // Hook that runs after a sequence ended
+   int AFTER_SEQUENCE_HOOK = 5;
+
    /**
     * Call to ready acquisition to start receiving acquisiton events. No more hooks
     * or image processors should be added after this has been called
