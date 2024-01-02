@@ -194,9 +194,9 @@ public class Engine {
       if (event.getZPosition() != null && (zStage == null || zStage.equals(""))) {
          throw new RuntimeException("Event requires a z position, but no Core-Focus device is set");
       }
-     if (event.getXPosition() != null && (xyStage == null || xyStage.equals(""))) {
-          throw new RuntimeException("Event requires an x position, but no Core-XYStage device is set");
-     }
+      if (event.getXPosition() != null && (xyStage == null || xyStage.equals(""))) {
+         throw new RuntimeException("Event requires an x position, but no Core-XYStage device is set");
+      }
    }
 
    /**
@@ -713,6 +713,11 @@ public class Engine {
                hardwareSequencesInProgress.deviceNames.add(xyStage);
             }
             if (event.isZSequenced()) {
+               // at least some zStages freak out (in this case, NIDAQ board) when you
+               // try to load a sequence while the sequence is still running.  Nothing in
+               // the engine stops a stage sequence if all goes well.
+               // Stopping a sequence if it is not running hopefully will not harm anyone.
+               core_.stopStageSequence(zStage);
                core_.loadStageSequence(zStage, zSequence);
                hardwareSequencesInProgress.deviceNames.add(zStage);
             }
@@ -727,6 +732,11 @@ public class Engine {
                      hardwareSequencesInProgress.propertyDeviceNames.add(deviceName);
                   }
                }
+            }
+            // preparing a sequence while one is running is deadly.  There must be a
+            // better way than this...
+            while (core_.isSequenceRunning()) {
+               Thread.sleep(1);
             }
             core_.prepareSequenceAcquisition(core_.getCameraDevice());
 
