@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.micro-manager.acqengj</groupId>
     <artifactId>AcqEngJ</artifactId>
-    <version>0.34.0</version>
+    <version>0.34.2</version>
     <packaging>jar</packaging>
      <name>AcqEngJ</name>
     <description>Java-based Acquisition engine for Micro-Manager</description>
