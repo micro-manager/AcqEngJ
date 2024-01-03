@@ -727,6 +727,7 @@ public class Engine {
                   String deviceName = ps.getDeviceLabel();
                   String propName = ps.getPropertyName();
                   if (propSequences.get(i).size() > 0) {
+                     core_.stopPropertySequence(deviceName, propName);
                      core_.loadPropertySequence(deviceName, propName, propSequences.get(i));
                      hardwareSequencesInProgress.propertyNames.add(propName);
                      hardwareSequencesInProgress.propertyDeviceNames.add(deviceName);
