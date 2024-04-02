@@ -595,6 +595,9 @@ public class Engine {
             correspondingEvent.acquisition_.addToOutput(ti);
          }
       }
+      // Most devices loop sequences, and need to be stopped explicitly
+      // this is not the most pleasant place to put this call, but I can not find anything better.
+      stopHardwareSequences(hardwareSequencesInProgress);
 
       if (timeout) {
          throw new TimeoutException("Timeout waiting for images to arrive in circular buffer");
