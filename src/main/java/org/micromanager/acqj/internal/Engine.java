@@ -454,6 +454,7 @@ public class Engine {
       // Loop through and collect all acquired images. There will be
       // (# of images in sequence) x (# of camera channels) of them
       boolean timeout = false;
+      final String axesAsJSONString = event.getAxesAsJSONString();
       for (int i = 0; i < (event.getSequence() == null ? 1 : event.getSequence().size()); i++) {
          if (timeout) {
             // Cancel the rest of the sequence
@@ -541,7 +542,7 @@ public class Engine {
                }
                event.acquisition_.postNotification(
                      new AcqNotification(AcqNotification.Camera.class,
-                           event.getAxesAsJSONString(), AcqNotification.Camera.POST_EXPOSURE));
+                           axesAsJSONString, AcqNotification.Camera.POST_EXPOSURE));
                for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
                   h.run(event);
                }
