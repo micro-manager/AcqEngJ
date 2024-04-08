@@ -194,9 +194,9 @@ public class Engine {
       if (event.getZPosition() != null && (zStage == null || zStage.equals(""))) {
          throw new RuntimeException("Event requires a z position, but no Core-Focus device is set");
       }
-     if (event.getXPosition() != null && (xyStage == null || xyStage.equals(""))) {
-          throw new RuntimeException("Event requires an x position, but no Core-XYStage device is set");
-     }
+      if (event.getXPosition() != null && (xyStage == null || xyStage.equals(""))) {
+         throw new RuntimeException("Event requires an x position, but no Core-XYStage device is set");
+      }
    }
 
    /**
@@ -454,6 +454,7 @@ public class Engine {
       // Loop through and collect all acquired images. There will be
       // (# of images in sequence) x (# of camera channels) of them
       boolean timeout = false;
+      final String axesAsJSONString = event.getAxesAsJSONString();
       for (int i = 0; i < (event.getSequence() == null ? 1 : event.getSequence().size()); i++) {
          if (timeout) {
             // Cancel the rest of the sequence
@@ -541,7 +542,7 @@ public class Engine {
                }
                event.acquisition_.postNotification(
                      new AcqNotification(AcqNotification.Camera.class,
-                           event.getAxesAsJSONString(), AcqNotification.Camera.POST_EXPOSURE));
+                           axesAsJSONString, AcqNotification.Camera.POST_EXPOSURE));
                for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
                   h.run(event);
                }
@@ -595,6 +596,9 @@ public class Engine {
             correspondingEvent.acquisition_.addToOutput(ti);
          }
       }
+      // Most devices loop sequences, and need to be stopped explicitly
+      // this is not the most pleasant place to put this call, but I can not find anything better.
+      stopHardwareSequences(hardwareSequencesInProgress);
 
       if (timeout) {
          throw new TimeoutException("Timeout waiting for images to arrive in circular buffer");
@@ -713,6 +717,11 @@ public class Engine {
                hardwareSequencesInProgress.deviceNames.add(xyStage);
             }
             if (event.isZSequenced()) {
+               // at least some zStages freak out (in this case, NIDAQ board) when you
+               // try to load a sequence while the sequence is still running.  Nothing in
+               // the engine stops a stage sequence if all goes well.
+               // Stopping a sequence if it is not running hopefully will not harm anyone.
+               core_.stopStageSequence(zStage);
                core_.loadStageSequence(zStage, zSequence);
                hardwareSequencesInProgress.deviceNames.add(zStage);
             }
@@ -722,11 +731,17 @@ public class Engine {
                   String deviceName = ps.getDeviceLabel();
                   String propName = ps.getPropertyName();
                   if (propSequences.get(i).size() > 0) {
+                     core_.stopPropertySequence(deviceName, propName);
                      core_.loadPropertySequence(deviceName, propName, propSequences.get(i));
                      hardwareSequencesInProgress.propertyNames.add(propName);
                      hardwareSequencesInProgress.propertyDeviceNames.add(deviceName);
                   }
                }
+            }
+            // preparing a sequence while one is running is deadly.  There must be a
+            // better way than this...
+            while (core_.isSequenceRunning()) {
+               Thread.sleep(1);
             }
             core_.prepareSequenceAcquisition(core_.getCameraDevice());
 
