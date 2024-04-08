@@ -24,6 +24,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.TreeSet;
 
 import mmcorej.org.json.JSONArray;
 import mmcorej.org.json.JSONException;
@@ -1059,6 +1060,20 @@ public class AcqEngMetadata {
          return axesMap;
       } catch (JSONException ex) {
          throw new RuntimeException("couldnt create axes");
+      }
+   }
+
+   public static String serializeAxes(HashMap<String, Object> axes) {
+//      Convert axes to string
+      try {
+         JSONObject json = new JSONObject();
+         //put into a new set to sort
+         for (String key : new TreeSet<String>(axes.keySet())) {
+            json.put(key, axes.get(key));
+         }
+         return json.toString();
+      } catch (Exception e) {
+         throw new RuntimeException(e);
       }
    }
 
