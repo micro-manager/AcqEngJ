@@ -48,9 +48,9 @@ public class AcqNotification {
    final public String milestone_;
 
 
-   public AcqNotification(Class type, String identifier, String milestone) {
+   public AcqNotification(Class type, String payload, String milestone) {
       type_ = notificationTypeToString(type);
-      payload_ = identifier;
+      payload_ = payload;
       milestone_ = milestone;
    }
 
