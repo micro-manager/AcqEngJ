@@ -407,7 +407,7 @@ public class Engine {
             }
             event.acquisition_.postNotification(
                   new AcqNotification(AcqNotification.Camera.class,
-                        event.getAxesAsJSONString(), AcqNotification.Camera.POST_EXPOSURE));
+                        event.getAxesAsJSONString(), AcqNotification.Camera.POST_SNAP));
             for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
                h.run(event);
             }
@@ -540,9 +540,7 @@ public class Engine {
                      throw new RuntimeException(e);
                   }
                }
-               event.acquisition_.postNotification(
-                     new AcqNotification(AcqNotification.Camera.class,
-                           axesAsJSONString, AcqNotification.Camera.POST_EXPOSURE));
+
                for (AcquisitionHook h : event.acquisition_.getAfterExposureHooks()) {
                   h.run(event);
                }
@@ -599,6 +597,10 @@ public class Engine {
       // Most devices loop sequences, and need to be stopped explicitly
       // this is not the most pleasant place to put this call, but I can not find anything better.
       stopHardwareSequences(hardwareSequencesInProgress);
+
+      event.acquisition_.postNotification(
+              new AcqNotification(AcqNotification.Camera.class,
+                      axesAsJSONString, AcqNotification.Camera.POST_SEQUENCE_STOPPED));
 
       if (timeout) {
          throw new TimeoutException("Timeout waiting for images to arrive in circular buffer");
