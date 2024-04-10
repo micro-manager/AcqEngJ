@@ -19,8 +19,9 @@ public class AcqNotification {
 
    public class Camera {
       public static final String PRE_SEQUENCE_STARTED = "pre_sequence_started";
+      public static final String POST_SEQUENCE_STOPPED = "post_sequence_stopped";
       public static final String PRE_SNAP = "pre_snap";
-      public static final String POST_EXPOSURE = "post_exposure";
+      public static final String POST_SNAP = "post_snap";
 
    }
 
