@@ -162,8 +162,9 @@ public class Engine {
                   //cancelled
                   return;
                } catch (ExecutionException ex) {
-                  //some problem with acuisition, abort and propagate exception
-                  ex.printStackTrace();
+                  //some problem with acquisition, abort and propagate exception
+                  core_.logMessage(ex.getMessage());
+                  core_.logMessage(ex.getStackTrace().toString());
                   acq.abort(ex);
                   throw new RuntimeException(ex);
                }
@@ -802,10 +803,14 @@ public class Engine {
                   core_.waitForDevice(stageDeviceName);
                   //Move Z
                   core_.setPosition(stageDeviceName, event.getStageSingleAxisStagePosition(stageDeviceName));
+               }
+               // wait only after having started to move all stages.
+               // there is a possibility this approach creates complications for certain devices
+               // but could bring significant speed advantages
+               for (String stageDeviceName : event.getStageDeviceNames()) {
                   //wait for move to finish
                   core_.waitForDevice(stageDeviceName);
                }
-//               }
             } catch (Exception ex) {
                throw new HardwareControlException(ex.getMessage());
             }
@@ -971,11 +976,13 @@ public class Engine {
     * @throws HardwareControlException
     */
    private void loopHardwareCommandRetries(Runnable r, String commandName) throws HardwareControlException {
+      Exception ex = null;
       for (int i = 0; i < HARDWARE_ERROR_RETRIES; i++) {
          try {
             r.run();
             return;
          } catch (Exception e) {
+            ex = e;
             core_.logMessage(stackTraceToString(e));
             System.err.println(getCurrentDateAndTime() + ": Problem "
                     + commandName + "\n Retry #" + i + " in " + DELAY_BETWEEN_RETRIES_MS + " ms");
@@ -987,7 +994,7 @@ public class Engine {
             }
          }
       }
-      throw new HardwareControlException(commandName + " unsuccessful");
+      throw new HardwareControlException(commandName + " unsuccessful" + ": " + ex.getMessage());
    }
 
    private static String getCurrentDateAndTime() {
