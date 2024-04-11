@@ -472,7 +472,7 @@ public class AcquisitionEvent {
       if (sequence_ != null) {
          return true;
       } else {
-         return configPreset_ != null || axisPositions_.keySet().size() > 0;
+         return configPreset_ != null || axisPositions_ != null;
       }
    }
 

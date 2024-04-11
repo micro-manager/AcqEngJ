@@ -1,6 +1,5 @@
 package org.micromanager.acqj.main;
 
-import mmcorej.org.json.JSONArray;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
 
@@ -21,8 +20,9 @@ public class AcqNotification {
 
    public class Camera {
       public static final String PRE_SEQUENCE_STARTED = "pre_sequence_started";
+      public static final String POST_SEQUENCE_STOPPED = "post_sequence_stopped";
       public static final String PRE_SNAP = "pre_snap";
-      public static final String POST_EXPOSURE = "post_exposure";
+      public static final String POST_SNAP = "post_snap";
 
    }
 
@@ -46,14 +46,14 @@ public class AcqNotification {
    }
 
    final public String type_;
-   final String identifier_;
-   final public String phase_;
+   final String payload_;
+   final public String milestone_;
 
 
-   public AcqNotification(Class type, String identifier, String phase) {
+   public AcqNotification(Class type, String payload, String milestone) {
       type_ = notificationTypeToString(type);
-      identifier_ = identifier;
-      phase_ = phase;
+      payload_ = payload;
+      milestone_ = milestone;
    }
 
    public static AcqNotification createAcqEventsFinishedNotification() {
@@ -76,23 +76,23 @@ public class AcqNotification {
       JSONObject message = new JSONObject();
       message.put("type", type_);
 
-      if (phase_ != null) {
-         message.put("phase", phase_);
+      if (milestone_ != null) {
+         message.put("milestone", milestone_);
       }
 
-      if (identifier_ != null) {
-         message.put("id", identifier_.toString());
+      if (payload_ != null) {
+         message.put("payload", payload_.toString());
       }
 
       return message;
    }
 
    public boolean isAcquisitionEventsFinishedNotification() {
-      return phase_.equals(Acquisition.EVENTS_FINISHED);
+      return milestone_.equals(Acquisition.EVENTS_FINISHED);
    }
 
    public boolean isDataSinkFinishedNotification() {
-      return phase_.equals(Image.DATA_SINK_FINISHED);
+      return milestone_.equals(Image.DATA_SINK_FINISHED);
    }
 
    public boolean isImageSavedNotification() {
