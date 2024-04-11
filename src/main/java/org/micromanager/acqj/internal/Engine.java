@@ -323,9 +323,26 @@ public class Engine {
             }
             abortIfRequested(event, null);
          }
+
          HardwareSequences hardwareSequencesInProgress = new HardwareSequences();
          try {
             prepareHardware(event, hardwareSequencesInProgress);
+         } catch (HardwareControlException e) {
+            stopHardwareSequences(hardwareSequencesInProgress);
+            throw e;
+         }
+         event.acquisition_.postNotification( new AcqNotification(
+                 AcqNotification.Hardware.class, event.getAxesAsJSONString(), AcqNotification.Hardware.PRE_Z_DRIVE));
+         for (AcquisitionHook h : event.acquisition_.getBeforeZDriveHooks()) {
+            event = h.run(event);
+            if (event == null) {
+               return; //The hook cancelled this event
+            }
+            abortIfRequested(event, hardwareSequencesInProgress);
+         }
+
+         try {
+            startZDrive(event, hardwareSequencesInProgress);
          } catch (HardwareControlException e) {
             stopHardwareSequences(hardwareSequencesInProgress);
             throw e;
@@ -339,6 +356,7 @@ public class Engine {
             }
             abortIfRequested(event, hardwareSequencesInProgress);
          }
+
          // Hardware hook may have modified wait time, so check again if we should
          // pause until the minimum start time of the event has occurred.
          while (event.getMinimumStartTimeAbsolute() != null &&
@@ -664,7 +682,6 @@ public class Engine {
       //prepare sequences if applicable
       if (event.getSequence() != null) {
          try {
-            DoubleVector zSequence = event.isZSequenced() ? new DoubleVector() : null;
             DoubleVector xSequence = event.isXYSequenced() ? new DoubleVector() : null;
             DoubleVector ySequence = event.isXYSequenced() ? new DoubleVector() : null;
             DoubleVector exposureSequence_ms =event.isExposureSequenced() ? new DoubleVector() : null;
@@ -673,9 +690,6 @@ public class Engine {
                   core_.getConfigData(group, event.getSequence().get(0).getConfigPreset());
             LinkedList<StrVector> propSequences = event.isConfigGroupSequenced() ? new LinkedList<StrVector>() : null;
             for (AcquisitionEvent e : event.getSequence()) {
-               if (zSequence != null) {
-                  zSequence.add(e.getZPosition());
-               }
                if (xSequence != null) {
                   xSequence.add(e.getXPosition());
                }
@@ -713,10 +727,6 @@ public class Engine {
                core_.loadXYStageSequence(xyStage, xSequence, ySequence);
                hardwareSequencesInProgress.deviceNames.add(xyStage);
             }
-            if (event.isZSequenced()) {
-               core_.loadStageSequence(zStage, zSequence);
-               hardwareSequencesInProgress.deviceNames.add(zStage);
-            }
             if (event.isConfigGroupSequenced()) {
                for (int i = 0; i < config.size(); i++) {
                   PropertySetting ps = config.getSetting(i);
@@ -742,38 +752,6 @@ public class Engine {
       if (lastEvent_ != null && lastEvent_.acquisition_ != event.acquisition_) {
          lastEvent_ = null; //update all hardware if switching to a new acquisition
       }
-      /////////////////////////////Z stage////////////////////////////////////////////
-      loopHardwareCommandRetries(new Runnable() {
-         @Override
-         public void run() {
-            try {
-               if (event.isZSequenced()) {
-                  core_.startStageSequence(zStage);
-               } else  {
-                  Double previousZ = lastEvent_ == null ? null : lastEvent_.getSequence() == null ? lastEvent_.getZPosition() :
-                        lastEvent_.getSequence().get(0).getZPosition();
-                  Double currentZ =  event.getSequence() == null ? event.getZPosition() : event.getSequence().get(0).getZPosition();
-                  if (currentZ == null) {
-                     return;
-                  }
-                  boolean change = previousZ == null || !previousZ.equals(currentZ);
-                  if (!change) {
-                     return;
-                  }
-
-                  //wait for it to not be busy (is this even needed?)
-                  core_.waitForDevice(zStage);
-                  //Move Z
-                  core_.setPosition(zStage, currentZ);
-                  //wait for move to finish
-                  core_.waitForDevice(zStage);
-               }
-            } catch (Exception ex) {
-               throw new HardwareControlException(ex.getMessage());
-            }
-
-         }
-      }, "Moving Z device");
 
       /////////////////////////////Other stage devices ////////////////////////////////////////////
       loopHardwareCommandRetries(new Runnable() {
@@ -965,6 +943,69 @@ public class Engine {
 
       //keep track of last event to know what state the hardware was in without having to query it
       lastEvent_ = event.getSequence() == null ? event : event.getSequence().get(event.getSequence().size() - 1);
+   }
+
+   /**
+    * Separate function to set the ZDrive.  This should happen after
+    * all other devices are in place.  This order makes it possible to
+    * create a hook that can be used to run a (hardware) autofocus routine
+    * after all other devices are in place and before the zDrive is set.
+    *
+    * @param event acquisition event with all information we need.
+    */
+   private void startZDrive(final AcquisitionEvent event,
+                            HardwareSequences hardwareSequencesInProgress) throws HardwareControlException {
+      final String zStage = core_.getFocusDevice();
+      DoubleVector zSequence = event.isZSequenced() ? new DoubleVector() : null;
+      for (AcquisitionEvent e : event.getSequence()) {
+         if (zSequence != null) {
+            zSequence.add(e.getZPosition());
+         }
+      }
+      try {
+         if (event.isZSequenced()) {
+            core_.loadStageSequence(zStage, zSequence);
+            hardwareSequencesInProgress.deviceNames.add(zStage);
+         }
+      } catch (Exception ex) {
+         ex.printStackTrace();
+         throw new HardwareControlException(ex.getMessage());
+      }
+
+      ////////////////////////////Set the Z Drive////////////////////////////////////////////
+      loopHardwareCommandRetries(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               if (event.isZSequenced()) {
+                  core_.startStageSequence(zStage);
+               } else {
+                  Double previousZ = lastEvent_ == null ? null
+                          : lastEvent_.getSequence() == null ? lastEvent_.getZPosition()
+                          : lastEvent_.getSequence().get(0).getZPosition();
+                  Double currentZ = event.getSequence() == null ? event.getZPosition()
+                          : event.getSequence().get(0).getZPosition();
+                  if (currentZ == null) {
+                     return;
+                  }
+                  boolean change = previousZ == null || !previousZ.equals(currentZ);
+                  if (!change) {
+                     return;
+                  }
+
+                  //wait for it to not be busy (is this even needed?)
+                  core_.waitForDevice(zStage);
+                  //Move Z
+                  core_.setPosition(zStage, currentZ);
+                  //wait for move to finish
+                  core_.waitForDevice(zStage);
+               }
+            } catch (Exception ex) {
+               throw new HardwareControlException(ex.getMessage());
+            }
+
+         }
+      }, "Moving Z device");
    }
 
    /**

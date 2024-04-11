@@ -24,6 +24,9 @@ public interface AcquisitionAPI {
    // This hook runs before changes to the hardware (corresponding to the instructions in the
    // event) are made
    int BEFORE_HARDWARE_HOOK = 1;
+   // This hook runs after all hardware except for the Z-drive has been set in place.  This is
+   // an ideal place for things such as autofocussing.
+   int BEFORE_Z_DRIVE_HOOK = 5;
 
    // This hook runs after changes to the hardware took place, but before camera exposure
    // (either a snap or a sequence) is started
@@ -38,17 +41,17 @@ public interface AcquisitionAPI {
    int AFTER_EXPOSURE_HOOK = 4;
 
    /**
-    * Call to ready acquisition to start receiving acquisiton events. No more hooks
-    * or image processors should be added after this has been called
+    * Call to ready acquisition to start receiving acquisition events. No more hooks
+    * or image processors should be added after this has been called.
     *
-    * This method is no longer needed, because it is called automatically when
+    * <p>This method is no longer needed, because it is called automatically when
     * the first call to submitEventIterator is made
     */
    @Deprecated
    public void start();
 
    /**
-    * Add a AcqNotificationListener to receive asynchronous notifications about the acquisition
+    * Add a AcqNotificationListener to receive asynchronous notifications about the acquisition.
     */
    public void addAcqNotificationListener(AcqNotificationListener listener);
 
@@ -75,30 +78,34 @@ public interface AcquisitionAPI {
    public boolean areEventsFinished();
 
    /**
-    * Blcok until all acquisitions events are finished or timeout is reached
-    * @param timeoutSeconds
+    * Block until all acquisitions events are finished or timeout is reached.
+    *
+    * @param timeoutSeconds wait a maximum of this many seconds.
     */
    public void blockUntilEventsFinished(Double timeoutSeconds) throws InterruptedException;
 
-      /**
-       * Cancel any pending events and shutdown
-       */
+   /**
+    * Cancel any pending events and shutdown.
+    */
    public void abort();
 
    /**
     * Abort, and provide an exception that is the reason for the abort. This
-    * is useful for passing exceptions across threads
-    * @param e
+    * is useful for passing exceptions across threads.
+    *
+    * @param e Exception that caused the abort.
     */
    public void abort(Exception e);
 
    /**
-    * Has abort been called?
+    * Wether abort has been called.
+    *
+    * @return true if an abort has been requested.
     */
    public boolean isAbortRequested();
 
    /**
-    * return if acquisition is paused (i.e. not acquiring new data but not
+    * Return if acquisition is paused (i.e. not acquiring new data but not
     * finished)
     *
     * @return
