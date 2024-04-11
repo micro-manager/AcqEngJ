@@ -141,7 +141,7 @@ public class Engine {
                   }
                }
 
-               //Wait here is acquisition is paused
+               //Wait here if acquisition is paused
                while (event.acquisition_.isPaused()) {
                   try {
                      Thread.sleep(5);
@@ -347,6 +347,9 @@ public class Engine {
             stopHardwareSequences(hardwareSequencesInProgress);
             throw e;
          }
+         //keep track of last event to know what state the hardware was in without having to query it
+         lastEvent_ = event.getSequence() == null ? event : event.getSequence().get(event.getSequence().size() - 1);
+
          event.acquisition_.postNotification( new AcqNotification(
                  AcqNotification.Hardware.class, event.getAxesAsJSONString(), AcqNotification.Hardware.POST_HARDWARE));
          for (AcquisitionHook h : event.acquisition_.getAfterHardwareHooks()) {
@@ -940,9 +943,6 @@ public class Engine {
 
          }
       }, "Changing additional properties");
-
-      //keep track of last event to know what state the hardware was in without having to query it
-      lastEvent_ = event.getSequence() == null ? event : event.getSequence().get(event.getSequence().size() - 1);
    }
 
    /**
@@ -956,20 +956,23 @@ public class Engine {
    private void startZDrive(final AcquisitionEvent event,
                             HardwareSequences hardwareSequencesInProgress) throws HardwareControlException {
       final String zStage = core_.getFocusDevice();
-      DoubleVector zSequence = event.isZSequenced() ? new DoubleVector() : null;
-      for (AcquisitionEvent e : event.getSequence()) {
-         if (zSequence != null) {
-            zSequence.add(e.getZPosition());
+      if (event.getSequence() != null) {
+         DoubleVector zSequence = event.isZSequenced() ? new DoubleVector() : null;
+         for (AcquisitionEvent e : event.getSequence()) {
+            if (zSequence != null) {
+               zSequence.add(e.getZPosition());
+            }
          }
-      }
-      try {
-         if (event.isZSequenced()) {
-            core_.loadStageSequence(zStage, zSequence);
-            hardwareSequencesInProgress.deviceNames.add(zStage);
+         try {
+            if (event.isZSequenced()) {
+               core_.stopStageSequence(zStage);
+               core_.loadStageSequence(zStage, zSequence);
+               hardwareSequencesInProgress.deviceNames.add(zStage);
+            }
+         } catch (Exception ex) {
+            ex.printStackTrace();
+            throw new HardwareControlException(ex.getMessage());
          }
-      } catch (Exception ex) {
-         ex.printStackTrace();
-         throw new HardwareControlException(ex.getMessage());
       }
 
       ////////////////////////////Set the Z Drive////////////////////////////////////////////
