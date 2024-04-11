@@ -686,7 +686,6 @@ public class Engine {
                                              HardwareSequences hardwareSequencesInProgress) throws HardwareControlException {
       //Get the hardware specific to this acquisition
       final String xyStage = core_.getXYStageDevice();
-      final String zStage = core_.getFocusDevice();
       final String slm = core_.getSLMDevice();
       //prepare sequences if applicable
       if (event.getSequence() != null) {
