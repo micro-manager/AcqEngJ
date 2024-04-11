@@ -1118,7 +1118,10 @@ public class Engine {
          // arbitrary z stages
          // TODO implement sequences along arbitrary other stage decives
          for (String stageDevice : previousEvent.getStageDeviceNames() ) {
-            return false;
+            if (!nextEvent.getStageSingleAxisStagePosition(stageDevice)
+                    .equals(previousEvent.getStageSingleAxisStagePosition(stageDevice))) {
+               return false;
+            }
          }
 
          //xy stage
