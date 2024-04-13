@@ -26,19 +26,19 @@ public interface AcquisitionAPI {
    int BEFORE_HARDWARE_HOOK = 1;
    // This hook runs after all hardware except for the Z-drive has been set in place.  This is
    // an ideal place for things such as autofocussing.
-   int BEFORE_Z_DRIVE_HOOK = 5;
+   int BEFORE_Z_DRIVE_HOOK = 2;
 
    // This hook runs after changes to the hardware took place, but before camera exposure
    // (either a snap or a sequence) is started
-   int AFTER_HARDWARE_HOOK = 2;
+   int AFTER_HARDWARE_HOOK = 3;
 
    // Hook runs after the camera sequence acquisition has started. This can be used for
    // external triggering of the camera
-   int AFTER_CAMERA_HOOK = 3;
+   int AFTER_CAMERA_HOOK = 4;
 
    // Hook runs after the camera exposure ended (when possible, before readout of the camera
    // and availability of the images in memory).
-   int AFTER_EXPOSURE_HOOK = 4;
+   int AFTER_EXPOSURE_HOOK = 5;
 
    /**
     * Call to ready acquisition to start receiving acquisition events. No more hooks
