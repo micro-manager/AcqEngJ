@@ -13,6 +13,7 @@ public class AcqNotification {
 
    public class Hardware {
       public static final String PRE_HARDWARE = "pre_hardware";
+      public static final String PRE_Z_DRIVE = "pre_z_drive";
       public static final String POST_HARDWARE = "post_hardware";
 
    }
