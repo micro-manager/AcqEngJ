@@ -776,7 +776,16 @@ public class Engine {
 //               if (event.isZSequenced()) {
 //                  core_.startStageSequence(zStage);
 //               } else  {
-               for (String stageDeviceName : event.getStageDeviceNames()) {
+               AcquisitionEvent tmpEvent = event;
+               if (event.getSequence() != null && event.getSequence().size() > 0) {
+                  tmpEvent = event.getSequence().get(0);
+               }
+
+               for (String stageDeviceName : tmpEvent.getStageDeviceNames()) {
+                  //wait for it to not be busy (is this even needed?)
+                  core_.waitForDevice(stageDeviceName);
+                  //Move Z
+                  core_.setPosition(stageDeviceName, tmpEvent.getStageSingleAxisStagePosition(stageDeviceName));
                   // TODO: could reimplement logic here to decide when to try to move
 //                  Double previousZ = lastEvent_ == null ? null :
 //                        lastEvent_.getSequence() == null ? lastEvent_.getZPosition() :
@@ -791,15 +800,11 @@ public class Engine {
 //                     return;
 //                  }
 
-                  //wait for it to not be busy (is this even needed?)
-                  core_.waitForDevice(stageDeviceName);
-                  //Move Z
-                  core_.setPosition(stageDeviceName, event.getStageSingleAxisStagePosition(stageDeviceName));
                }
                // wait only after having started to move all stages.
                // there is a possibility this approach creates complications for certain devices
                // but could bring significant speed advantages
-               for (String stageDeviceName : event.getStageDeviceNames()) {
+               for (String stageDeviceName : tmpEvent.getStageDeviceNames()) {
                   //wait for move to finish
                   core_.waitForDevice(stageDeviceName);
                }
