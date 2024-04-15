@@ -56,7 +56,7 @@ public class AcquisitionEvent {
    private Double timeout_ms_ = null;
 
    private String configGroup_, configPreset_ = null;
-   private Double exposure_ = null; //leave null to keep exposaure unchanged
+   private Double exposure_ = null; //leave null to keep exposure unchanged
 
    private Long miniumumStartTime_ms_ = null; //For pausing between time points
 
@@ -532,12 +532,25 @@ public class AcquisitionEvent {
       setStageCoordinate(deviceName, v, null);
    }
 
+   /**
+    * Sets the (desired) position for the requested single axis stage.
+    *
+    * @param deviceName Name (as it is known to Micro-Manager) of the stage
+    * @param v Desired position in microns
+    * @param axisName Optional name of this axis.  Can be null (I am not sure what this is used for).
+    */
    public void setStageCoordinate(String deviceName, double v, String axisName) {
       stageCoordinates_.put(deviceName, v);
       stageDeviceNamesToAxisNames_.put(deviceName, axisName == null ? deviceName : axisName);
    }
 
 
+   /**
+    * returns the position of this stage in this event.
+    *
+    * @param deviceName Name (as it is known to Micro-Manager) of the stage
+    * @return Position of this stage in microns, or null if the stage is not found in this event
+    */
    public Double getStageSingleAxisStagePosition(String deviceName) {
       if (deviceName == null) {
          return null;

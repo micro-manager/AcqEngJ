@@ -51,12 +51,13 @@ public class Acquisition implements AcquisitionAPI {
    protected AcqEngJDataSink dataSink_;
    private Consumer<JSONObject> summaryMetadataProcessor_;
    final public CMMCore core_;
-   private CopyOnWriteArrayList<AcquisitionHook> eventGenerationHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
-   private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
-   private CopyOnWriteArrayList<AcquisitionHook> afterHardwareHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
-   private CopyOnWriteArrayList<AcquisitionHook> afterCameraHooks_ = new CopyOnWriteArrayList<AcquisitionHook>();
+   private CopyOnWriteArrayList<AcquisitionHook> eventGenerationHooks_ = new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> beforeZDriveHooks_ = new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> afterHardwareHooks_ = new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> afterCameraHooks_ = new CopyOnWriteArrayList<>();
    private CopyOnWriteArrayList<AcquisitionHook> afterExposureHooks_ = new CopyOnWriteArrayList<>();
-   private CopyOnWriteArrayList<TaggedImageProcessor> imageProcessors_ = new CopyOnWriteArrayList<TaggedImageProcessor>();
+   private CopyOnWriteArrayList<TaggedImageProcessor> imageProcessors_ = new CopyOnWriteArrayList<>();
    protected LinkedBlockingDeque<TaggedImage> firstDequeue_
            = new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE);
    private ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>> processorOutputQueues_
@@ -291,6 +292,8 @@ public class Acquisition implements AcquisitionAPI {
          eventGenerationHooks_.add(h);
       } else if (type == BEFORE_HARDWARE_HOOK) {
          beforeHardwareHooks_.add(h);
+      } else if (type == BEFORE_Z_DRIVE_HOOK) {
+         beforeZDriveHooks_.add(h);
       } else if (type == AFTER_HARDWARE_HOOK) {
          afterHardwareHooks_.add(h);
       } else if (type == AFTER_CAMERA_HOOK) {
@@ -412,6 +415,9 @@ public class Acquisition implements AcquisitionAPI {
 
    public Iterable<AcquisitionHook> getBeforeHardwareHooks() {
       return beforeHardwareHooks_;
+   }
+   public Iterable<AcquisitionHook> getBeforeZDriveHooks() {
+      return beforeZDriveHooks_;
    }
 
    public Iterable<AcquisitionHook> getAfterHardwareHooks() {
