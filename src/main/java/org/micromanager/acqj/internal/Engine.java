@@ -631,9 +631,11 @@ public class Engine {
       // this is not the most pleasant place to put this call, but I can not find anything better.
       stopHardwareSequences(hardwareSequencesInProgress);
 
-      event.acquisition_.postNotification(
-              new AcqNotification(AcqNotification.Camera.class,
-                      axesAsJSONString, AcqNotification.Camera.POST_SEQUENCE_STOPPED));
+      if (event.getSequence() != null) {
+         event.acquisition_.postNotification(
+                 new AcqNotification(AcqNotification.Camera.class,
+                         axesAsJSONString, AcqNotification.Camera.POST_SEQUENCE_STOPPED));
+      }
 
       if (timeout) {
          throw new TimeoutException("Timeout waiting for images to arrive in circular buffer");
