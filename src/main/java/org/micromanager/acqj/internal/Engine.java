@@ -536,7 +536,13 @@ public class Engine {
                         // TODO: probably there should be a timeout here too, but I'm
                         //  not sure the snapImage system supports it (as opposed to sequences)
                         ti = core_.getTaggedImage(camIndex);
-                        cameraName = core_.getCameraDevice();
+                        if (ti.tags.has("Camera")) {
+                           // This is present for multi cam adapter
+                           cameraName = ti.tags.getString("Camera");
+                        } else {
+                           // but not regular cameras
+                           cameraName = core_.getCameraDevice();
+                        }
                      } catch (Exception e) {
                         //continue waiting
                      }
@@ -606,6 +612,11 @@ public class Engine {
             // add standard metadata
             AcqEngMetadata.addImageMetadata(ti.tags, correspondingEvent,
                     currentTime - correspondingEvent.acquisition_.getStartTime_ms(), exposure);
+            // special behavior for multi camera adapter
+            if (core_.getNumberOfCameraChannels() > 1) {
+               AcqEngMetadata.setAxisPosition(ti.tags, "camera", cameraName);
+            }
+
             // add user metadata specified in the event
             try {
                correspondingEvent.acquisition_.addTagsToTaggedImage(ti.tags, correspondingEvent.getTags());
