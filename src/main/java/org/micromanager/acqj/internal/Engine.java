@@ -773,33 +773,18 @@ public class Engine {
          public void run() {
             try {
                // TODO implement Z sequencing for other devices
-//               if (event.isZSequenced()) {
-//                  core_.startStageSequence(zStage);
-//               } else  {
+
+               // instead of complicated logic in XY stage to only move if the position
+               // changed, just send the command and trust the device to ignore it if it's the same
                AcquisitionEvent tmpEvent = event;
                if (event.getSequence() != null && event.getSequence().size() > 0) {
                   tmpEvent = event.getSequence().get(0);
                }
-
                for (String stageDeviceName : tmpEvent.getStageDeviceNames()) {
                   //wait for it to not be busy (is this even needed?)
                   core_.waitForDevice(stageDeviceName);
                   //Move Z
                   core_.setPosition(stageDeviceName, tmpEvent.getStageSingleAxisStagePosition(stageDeviceName));
-                  // TODO: could reimplement logic here to decide when to try to move
-//                  Double previousZ = lastEvent_ == null ? null :
-//                        lastEvent_.getSequence() == null ? lastEvent_.getZPosition() :
-//                              lastEvent_.getSequence().get(0).getZPosition();
-//                  Double currentZ = event.getSequence() == null ? event.getZPosition() :
-//                        event.getSequence().get(0).getZPosition();
-//                  if (currentZ == null) {
-//                     return;
-//                  }
-//                  boolean change = previousZ == null || !previousZ.equals(currentZ);
-//                  if (!change) {
-//                     return;
-//                  }
-
                }
                // wait only after having started to move all stages.
                // there is a possibility this approach creates complications for certain devices
