@@ -10,6 +10,7 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 import mmcorej.org.json.JSONObject;
+import org.micromanager.acqj.internal.Engine;
 import org.micromanager.acqj.main.AcquisitionEvent;
 
 /**
@@ -193,4 +194,11 @@ public interface AcquisitionAPI {
     * Activate debug logging
     */
    public void setDebugMode(boolean debug);
+
+   /**
+    * Are there any unfinished acquisitions?
+    */
+   public static boolean anyAcquisitionsRunning() {
+      return Engine.getInstance().anyAcquisitionsRunning();
+   }
 }
