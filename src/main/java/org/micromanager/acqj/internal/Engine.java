@@ -56,6 +56,8 @@ public class Engine {
    private static ExecutorService eventGeneratorExecutor_;
    //Thread on which all communication with hardware occurs
    private static ExecutorService acqExecutor_;
+   private static HashSet<AcquisitionAPI> activeAcquisitions_ = new HashSet<AcquisitionAPI>();
+
 
 
    public Engine(CMMCore core) {
@@ -130,6 +132,7 @@ public class Engine {
                   continue;
                }
                acq = event.acquisition_;
+               activeAcquisitions_.add(acq);
                if (acq.isDebugMode()) {
                   core_.logMessage("got event: " + event.toString()  );
                }
@@ -311,6 +314,7 @@ public class Engine {
             h.run(event);
             h.close();
          }
+         activeAcquisitions_.remove(event.acquisition_);
          event.acquisition_.addToOutput(new TaggedImage(null, null));
          event.acquisition_.postNotification(AcqNotification.createAcqEventsFinishedNotification());
       } else {
@@ -1187,6 +1191,10 @@ public class Engine {
       ex.printStackTrace(pw);
       String sStackTrace = sw.toString();
       return sStackTrace;
+   }
+
+   public boolean anyAcquisitionsRunning() {
+      return !activeAcquisitions_.isEmpty();
    }
 }
 
