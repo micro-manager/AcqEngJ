@@ -335,8 +335,9 @@ public class AcqEngMetadata {
       try {
          return map.getInt(BIT_DEPTH);
       } catch (JSONException ex) {
-         throw new RuntimeException("Missing bit depth tag");
+
       }
+      return getBytesPerPixel(map) * 8;
    }
 
    public static void setWidth(JSONObject map, int width) {
