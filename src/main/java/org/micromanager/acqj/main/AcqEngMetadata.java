@@ -26,6 +26,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.TreeSet;
 
+import mmcorej.Configuration;
+import mmcorej.PropertySetting;
 import mmcorej.org.json.JSONArray;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
@@ -85,6 +87,8 @@ public class AcqEngMetadata {
    public static final String Z_AXIS = "z";
    public static final String POSITION_AXIS = "position";
    public static final String TAGS = "tags";
+   public static final String SYSTEM_STATE_CACHE = "SystemStateCache";
+
 
    private static final String ACQUISITION_EVENT = "Event";
 
@@ -190,10 +194,9 @@ public class AcqEngMetadata {
          throw new RuntimeException("Camera byte depth cannot be zero");
       }
       AcqEngMetadata.setPixelTypeFromByteDepth(summary, byteDepth);
-//      AcqEngMetadata.setBitDepth(summary, (int) Engine.getCore().getImageBitDepth());
-//      AcqEngMetadata.setWidth(summary, (int) Engine.getCore().getImageWidth());
-//      AcqEngMetadata.setHeight(summary, (int) Engine.getCore().getImageHeight());
       AcqEngMetadata.setPixelSizeUm(summary, Engine.getCore().getPixelSizeUm());
+
+
 
       /////// Info about core devices ////////
       try {
@@ -215,6 +218,21 @@ public class AcqEngMetadata {
          AcqEngMetadata.setAffineTransformString(summary, AffineTransformUtils.transformToString(at));
       } else {
          AcqEngMetadata.setAffineTransformString(summary, "Undefined");
+      }
+
+      // Add system state cache
+      try {
+         Configuration config = Engine.getCore().getSystemStateCache();
+         JSONObject cache = new JSONObject();
+         for (int i = 0; i < config.size(); ++i) {
+            PropertySetting setting = config.getSetting(i);
+            String key = setting.getDeviceLabel() + "-" + setting.getPropertyName();
+            String value = setting.getPropertyValue();
+            cache.put(key, value);
+         }
+         summary.put(SYSTEM_STATE_CACHE, cache);
+      } catch (Exception e) {
+         throw new RuntimeException("problem getting system state cache");
       }
 
       return summary;
