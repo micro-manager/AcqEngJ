@@ -14,16 +14,16 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
+
 package org.micromanager.acqj.util.xytiling;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.util.Objects;
-
 import mmcorej.org.json.JSONArray;
 import mmcorej.org.json.JSONObject;
-import org.micromanager.acqj.internal.Engine;
 import org.micromanager.acqj.internal.AffineTransformUtils;
+import org.micromanager.acqj.internal.Engine;
 
 /**
  * Immutable object representing single XY stage position
@@ -36,7 +36,8 @@ public class XYStagePosition {
    private final Point2D.Double center_;
    //These are conveniences for determining where this position is in coordinates
    //of the XY stage
-   private Integer gridRow_ = null, gridCol_ = null;
+   private Integer gridRow_ = null;
+   private Integer gridCol_ = null;
 
    /**
     * for abitrary positions not neccessarily in a grid

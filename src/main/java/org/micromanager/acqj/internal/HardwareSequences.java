@@ -8,8 +8,8 @@ import mmcorej.CMMCore;
  */
 public class HardwareSequences {
 
-    public ArrayList<String> deviceNames = new ArrayList<>();
-    public ArrayList<String> propertyNames = new ArrayList<>();
-    public ArrayList<String> propertyDeviceNames = new ArrayList<>();
+   public ArrayList<String> deviceNames = new ArrayList<>();
+   public ArrayList<String> propertyNames = new ArrayList<>();
+   public ArrayList<String> propertyDeviceNames = new ArrayList<>();
 
 }

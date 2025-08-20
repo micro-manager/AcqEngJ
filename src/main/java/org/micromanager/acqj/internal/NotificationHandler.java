@@ -1,25 +1,26 @@
 package org.micromanager.acqj.internal;
 
-import java.util.concurrent.LinkedBlockingDeque;
-import org.micromanager.acqj.api.AcqNotificationListener;
-import org.micromanager.acqj.main.AcqNotification;
-
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
+import org.micromanager.acqj.api.AcqNotificationListener;
+import org.micromanager.acqj.main.AcqNotification;
 
 /**
  * Class that handles asynchronous notifications from the acquisition engine
- * Runs a dedicated thread that stores notifications and dispatchems them to listeners
+ * Runs a dedicated thread that stores notifications and dispatchems them to listeners.
  */
 public class NotificationHandler {
 
    private ExecutorService executor_ = Executors.newSingleThreadExecutor(r ->
            new Thread(r, "Acquisition Notification Thread"));
-   private LinkedBlockingDeque<AcqNotification> notificationQueue_ = new LinkedBlockingDeque<AcqNotification>();
+   private LinkedBlockingDeque<AcqNotification> notificationQueue_ =
+         new LinkedBlockingDeque<>();
 
-   private BlockingQueue<AcqNotificationListener> listeners_ = new LinkedBlockingQueue<>();
+   private BlockingQueue<AcqNotificationListener> listeners_ =
+         new LinkedBlockingQueue<>();
 
    public NotificationHandler() {
       executor_.submit(() -> {
@@ -35,9 +36,9 @@ public class NotificationHandler {
                if (n.isAcquisitionEventsFinishedNotification()) {
                   eventsFinished = true;
                }
-                if (n.isDataSinkFinishedNotification()) {
-                    dataSinkFinished = true;
-                }
+               if (n.isDataSinkFinishedNotification()) {
+                  dataSinkFinished = true;
+               }
 
                if (eventsFinished && dataSinkFinished) {
                   executor_.shutdown();
@@ -56,7 +57,8 @@ public class NotificationHandler {
    public void postNotification(AcqNotification notification) {
       notificationQueue_.add(notification);
       if (notificationQueue_.size() > 500) {
-         System.err.println("Warning: Acquisition notification queue size: " + notificationQueue_.size());
+         System.err.println("Warning: Acquisition notification queue size: "
+               + notificationQueue_.size());
       }
    }
 

@@ -14,22 +14,29 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
+
 package org.micromanager.acqj.main;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
 import mmcorej.CMMCore;
 import mmcorej.TaggedImage;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
+import org.micromanager.acqj.api.AcqEngJDataSink;
 import org.micromanager.acqj.api.AcqNotificationListener;
 import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.api.AcquisitionHook;
-import org.micromanager.acqj.api.AcqEngJDataSink;
 import org.micromanager.acqj.api.TaggedImageProcessor;
 import org.micromanager.acqj.internal.Engine;
 import org.micromanager.acqj.internal.NotificationHandler;
@@ -42,26 +49,35 @@ public class Acquisition implements AcquisitionAPI {
 
    private static final int IMAGE_QUEUE_SIZE = 30;
 
-   protected String xyStage_, zStage_, slm_;
+   protected String xyStage_;
+   protected String zStage_;
+   protected String slm_;
    protected volatile CountDownLatch eventsFinished_ = new CountDownLatch(1);
    protected volatile CountDownLatch abortRequested_ = new CountDownLatch(1);
    protected JSONObject summaryMetadata_;
-   private long startTime_ms_ = -1;
+   private long startTimeMs_ = -1;
    private volatile boolean paused_ = false;
    protected AcqEngJDataSink dataSink_;
    private Consumer<JSONObject> summaryMetadataProcessor_;
-   final public CMMCore core_;
-   private CopyOnWriteArrayList<AcquisitionHook> eventGenerationHooks_ = new CopyOnWriteArrayList<>();
-   private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ = new CopyOnWriteArrayList<>();
-   private CopyOnWriteArrayList<AcquisitionHook> beforeZDriveHooks_ = new CopyOnWriteArrayList<>();
-   private CopyOnWriteArrayList<AcquisitionHook> afterHardwareHooks_ = new CopyOnWriteArrayList<>();
-   private CopyOnWriteArrayList<AcquisitionHook> afterCameraHooks_ = new CopyOnWriteArrayList<>();
-   private CopyOnWriteArrayList<AcquisitionHook> afterExposureHooks_ = new CopyOnWriteArrayList<>();
-   private CopyOnWriteArrayList<TaggedImageProcessor> imageProcessors_ = new CopyOnWriteArrayList<>();
+   public final CMMCore core_;
+   private CopyOnWriteArrayList<AcquisitionHook> eventGenerationHooks_ =
+         new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> beforeHardwareHooks_ =
+         new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> beforeZDriveHooks_ =
+         new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> afterHardwareHooks_ =
+         new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> afterCameraHooks_ =
+         new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<AcquisitionHook> afterExposureHooks_ =
+         new CopyOnWriteArrayList<>();
+   private CopyOnWriteArrayList<TaggedImageProcessor> imageProcessors_ =
+         new CopyOnWriteArrayList<>();
    protected LinkedBlockingDeque<TaggedImage> firstDequeue_
-           = new LinkedBlockingDeque<TaggedImage>(IMAGE_QUEUE_SIZE);
-   private ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>> processorOutputQueues_
-           = new ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>>();
+           = new LinkedBlockingDeque<>(IMAGE_QUEUE_SIZE);
+   private ConcurrentHashMap<TaggedImageProcessor, LinkedBlockingDeque<TaggedImage>>
+         processorOutputQueues_ = new ConcurrentHashMap<>();
    public boolean debugMode_ = false;
    private ThreadPoolExecutor savingExecutor_ = null;
    private Exception abortException_ = null;
@@ -74,7 +90,7 @@ public class Acquisition implements AcquisitionAPI {
     * TaggedImageProcessor that diverts the images to custom downstream processing
     * must be implemented.
     *
-    * After this constructor returns, the Acquisiton will be ready to be given instructions
+    * <p>After this constructor returns, the Acquisiton will be ready to be given instructions
     * by calling submitEventIterator. However, if any acquisition hooks or image processors
     * are desired, they should be added before the first call of submitEventIterator
     *
@@ -84,7 +100,7 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    /**
-    * Version of the constructor that accepts a function that can modify SummaryMetadata as needed
+    * Version of the constructor that accepts a function that can modify SummaryMetadata as needed.
     */
    public Acquisition(AcqEngJDataSink sink, Consumer<JSONObject> summaryMetadataProcessor) {
       core_ = Engine.getCore();
@@ -94,7 +110,7 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    /**
-    * Version in which initialization can be handled by a subclass
+    * Version in which initialization can be handled by a subclass.
     */
    public Acquisition(AcqEngJDataSink sink, boolean initialize) {
       core_ = Engine.getCore();
@@ -114,30 +130,25 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    /**
-    * Don't delete, called by python side
+    * Don't delete, called by python side.
     */
    public AcqEngJDataSink getDataSink() {
       return dataSink_;
    }
 
    /**
-    * Don't delete, called by python side
+    * Don't delete, called by python side.
     */
-   public void setDebugMode(boolean debug) {debugMode_ = debug; }
+   public void setDebugMode(boolean debug) {
+      debugMode_ = debug;
+   }
 
-   public boolean isDebugMode() {return debugMode_;}
+   public boolean isDebugMode() {
+      return debugMode_;
+   }
 
    public boolean isAbortRequested() {
       return abortRequested_.getCount() == 0;
-   }
-
-   /**
-    * Auto abort caused by an exception during acquisition
-    * @param e
-    */
-   public void abort(Exception e) {
-      abortException_ = e;
-      abort();
    }
 
    // Pycromanager calls this
@@ -145,6 +156,16 @@ public class Acquisition implements AcquisitionAPI {
       if (abortException_ != null) {
          throw abortException_;
       }
+   }
+
+   /**
+    * Auto abort caused by an exception during acquisition.
+    *
+    * @param e Exception causing the abort
+    */
+   public void abort(Exception e) {
+      abortException_ = e;
+      abort();
    }
 
    public void abort() {
@@ -203,7 +224,8 @@ public class Acquisition implements AcquisitionAPI {
    }
 
    private void startSavingThread() {
-      savingExecutor_ = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+      savingExecutor_ = new ThreadPoolExecutor(1, 1, 0L,
+            TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
               (Runnable r) -> new Thread(r, "Acquisition image processing and saving thread"));
 
       savingExecutor_.submit(() -> {
@@ -217,11 +239,11 @@ public class Acquisition implements AcquisitionAPI {
                // or from the output of the last image processor
                if (imageProcessors_.isEmpty()) {
                   if (debugMode_) {
-                     core_.logMessage("waiting for image to save" );
+                     core_.logMessage("waiting for image to save");
                   }
                   img = firstDequeue_.takeFirst();
                   if (debugMode_) {
-                     core_.logMessage("got image to save" );
+                     core_.logMessage("got image to save");
                   }
                   if (img.pix == null && img.tags == null) {
                      break;
@@ -303,10 +325,10 @@ public class Acquisition implements AcquisitionAPI {
       }
    }
 
-   @Override
    /**
     * Block until everything finished.
     */
+   @Override
    public void waitForCompletion() {
       try {
          // wait for event generation to shut down
@@ -357,7 +379,7 @@ public class Acquisition implements AcquisitionAPI {
 
 
    /**
-    * Called by acquisition engine to save an image
+    * Called by acquisition engine to save an image.
     */
    private void saveImage(TaggedImage image) {
       if (image.tags == null && image.pix == null) {
@@ -371,12 +393,12 @@ public class Acquisition implements AcquisitionAPI {
       }
    }
 
-   public long getStartTime_ms() {
-      return startTime_ms_;
+   public long getStartTimeMs() {
+      return startTimeMs_;
    }
 
-   public void setStartTime_ms(long time) {
-      startTime_ms_ = time;
+   public void setStartTimeMs(long time) {
+      startTimeMs_ = time;
    }
 
    public boolean isPaused() {
@@ -416,6 +438,7 @@ public class Acquisition implements AcquisitionAPI {
    public Iterable<AcquisitionHook> getBeforeHardwareHooks() {
       return beforeHardwareHooks_;
    }
+
    public Iterable<AcquisitionHook> getBeforeZDriveHooks() {
       return beforeZDriveHooks_;
    }
@@ -453,14 +476,14 @@ public class Acquisition implements AcquisitionAPI {
       return eventsFinished_.getCount() == 0;
    }
 
-    @Override
-    public void blockUntilEventsFinished(Double timeoutSeconds) throws InterruptedException {
+   @Override
+   public void blockUntilEventsFinished(Double timeoutSeconds) throws InterruptedException {
       if (timeoutSeconds == null) {
-        eventsFinished_.await();
+         eventsFinished_.await();
       } else {
          eventsFinished_.await((long) (timeoutSeconds * 1000), TimeUnit.MILLISECONDS);
       }
-    }
+   }
 
    public int getImageTransferQueueSize() {
       return IMAGE_QUEUE_SIZE;
@@ -470,9 +493,9 @@ public class Acquisition implements AcquisitionAPI {
       return firstDequeue_.size();
    }
 
-   public void blockUnlessAborted(long timeout_ms) {
+   public void blockUnlessAborted(long timeoutMs) {
       try {
-         abortRequested_.await(timeout_ms, TimeUnit.MILLISECONDS);
+         abortRequested_.await(timeoutMs, TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
          throw new RuntimeException(e);
       }

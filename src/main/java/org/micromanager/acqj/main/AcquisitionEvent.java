@@ -14,6 +14,7 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
+
 package org.micromanager.acqj.main;
 
 import java.awt.geom.AffineTransform;
@@ -53,15 +54,18 @@ public class AcquisitionEvent {
 
    // If null, use Core-camera, otherwise, use this camera
    private String camera_ = null;
-   private Double timeout_ms_ = null;
+   private Double timeoutMs_ = null;
 
-   private String configGroup_, configPreset_ = null;
-   private Double exposure_ = null; //leave null to keep exposure unchanged
+   private String configGroup_ = null;
+   private String configPreset_ = null;
+   private Double exposure_ = null; // leave null to keep exposure unchanged
 
-   private Long miniumumStartTime_ms_ = null; //For pausing between time points
+   private Long miniumumStartTimeMs_ = null; //For pausing between time points
 
    //positions for devices that are generically hardcoded into MMCore
-   private Double zPosition_ = null, xPosition_ = null, yPosition_ = null;
+   private Double zPosition_ = null;
+   private Double xPosition_ = null;
+   private Double yPosition_ = null;
 
    //TODO: SLM, Galvo, etc
 
@@ -82,7 +86,10 @@ public class AcquisitionEvent {
 
    //for hardware sequencing
    private List<AcquisitionEvent> sequence_ = null;
-   private boolean xySequenced_ = false, zSequenced_ = false, exposureSequenced_ = false, configGroupSequenced_ = false;
+   private boolean xySequenced_ = false;
+   private boolean zSequenced_ = false;
+   private boolean exposureSequenced_ = false;
+   private boolean configGroupSequenced_ = false;
 
    //To specify end of acquisition or end of sequence
    private SpecialFlag specialFlag_;
@@ -101,7 +108,7 @@ public class AcquisitionEvent {
     */
    public AcquisitionEvent(List<AcquisitionEvent> sequence) {
       acquisition_ = sequence.get(0).acquisition_;
-      miniumumStartTime_ms_ = sequence.get(0).miniumumStartTime_ms_;
+      miniumumStartTimeMs_ = sequence.get(0).miniumumStartTimeMs_;
       sequence_ = new ArrayList<>();
       sequence_.addAll(sequence);
       TreeSet<Double> zPosSet = new TreeSet<Double>();
@@ -134,7 +141,7 @@ public class AcquisitionEvent {
       // set exposure time if it is provided and exposure is not sequenced
       if (sequence_.get(0).exposure_ != null && !exposureSequenced_) {
          exposure_ = sequence.get(0).exposure_;
-      };
+      }
    }
 
    public AcquisitionEvent copy() {
@@ -147,19 +154,19 @@ public class AcquisitionEvent {
       e.stageDeviceNamesToAxisNames_ = new HashMap<>(stageDeviceNamesToAxisNames_);
       e.xPosition_ = xPosition_;
       e.yPosition_ = yPosition_;
-      e.miniumumStartTime_ms_ = miniumumStartTime_ms_;
+      e.miniumumStartTimeMs_ = miniumumStartTimeMs_;
       e.slmImage_ = slmImage_;
       e.acquireImage_ = acquireImage_;
       e.properties_ = new TreeSet<ThreeTuple>(this.properties_);
       e.camera_ = camera_;
-      e.timeout_ms_ = timeout_ms_;
+      e.timeoutMs_ = timeoutMs_;
       e.setTags(tags_);
       return e;
    }
 
    /**
     * Convert the event's axes to a JSONObject, or if it is a sequence event,
-    * then convert to a json array of json objects
+    * then convert to a json array of json objects.
     */
    public String getAxesAsJSONString() {
       try {
@@ -198,14 +205,14 @@ public class AcquisitionEvent {
          }
 
          //timelpases
-         if (e.miniumumStartTime_ms_ != null) {
-            json.put("min_start_time", e.miniumumStartTime_ms_ / 1000);
+         if (e.miniumumStartTimeMs_ != null) {
+            json.put("min_start_time", e.miniumumStartTimeMs_ / 1000);
          }
 
          if (e.hasConfigGroup()) {
             JSONArray configGroup = new JSONArray();
-            configGroup.put( e.configGroup_);
-            configGroup.put( e.configPreset_);
+            configGroup.put(e.configGroup_);
+            configGroup.put(e.configPreset_);
             json.put("config_group", configGroup);
          }
 
@@ -217,8 +224,8 @@ public class AcquisitionEvent {
             json.put("slm_pattern", e.slmImage_);
          }
 
-         if (e.timeout_ms_ != null) {
-            json.put("timeout", e.timeout_ms_);
+         if (e.timeoutMs_ != null) {
+            json.put("timeout", e.timeoutMs_);
          }
 
          //Coordinate indices
@@ -276,7 +283,7 @@ public class AcquisitionEvent {
             prop.put(t.prop);
             prop.put(t.val);
             props.put(prop);
-          }
+         }
          if (props.length() > 0) {
             json.put("properties", props);
          }
@@ -312,11 +319,11 @@ public class AcquisitionEvent {
          }
          //timelpases
          if (json.has("min_start_time")) {
-            event.miniumumStartTime_ms_ = (long) (json.getDouble("min_start_time") * 1000);
+            event.miniumumStartTimeMs_ = (long) (json.getDouble("min_start_time") * 1000);
          }
 
          if (json.has("timeout")) {
-            event.timeout_ms_ = json.getDouble("timeout");
+            event.timeoutMs_ = json.getDouble("timeout");
          }
 
          // Config group (usually this is a channel, but doesnt have to be)
@@ -329,7 +336,7 @@ public class AcquisitionEvent {
          }
 
          if (json.has("timeout")) {
-            event.timeout_ms_ = json.getDouble("timeout");
+            event.timeoutMs_ = json.getDouble("timeout");
          }
 
          if (json.has("stage_positions")) {
@@ -360,7 +367,8 @@ public class AcquisitionEvent {
                     new int[]{(int) event.axisPositions_.get(AcqEngMetadata.AXES_GRID_COL)})[0];
 
             //infer XY stage position based on affine transform
-            Point2D.Double xyPos = ((XYTiledAcquisition) acq).getPixelStageTranslator().getXYPosition(posIndex).getCenter();
+            Point2D.Double xyPos = ((XYTiledAcquisition) acq).getPixelStageTranslator()
+                  .getXYPosition(posIndex).getCenter();
             event.xPosition_ = xyPos.x;
             event.yPosition_ = xyPos.y;
          }
@@ -398,7 +406,8 @@ public class AcquisitionEvent {
             JSONArray propList = json.getJSONArray("properties");
             for (int i = 0; i < propList.length(); i++) {
                JSONArray trip = propList.getJSONArray(i);
-               ThreeTuple t = new ThreeTuple(trip.getString(0), trip.getString(1), trip.getString(2));
+               ThreeTuple t = new ThreeTuple(trip.getString(0),
+                     trip.getString(1), trip.getString(2));
                event.properties_.add(t);
             }
          }
@@ -410,8 +419,9 @@ public class AcquisitionEvent {
    }
 
    /**
-    * Return JSONArray or JSONObject for sequence vs single event
-    * @return
+    * Return JSONArray or JSONObject for sequence vs single event.
+    *
+    * @return This AcquisitionEvent as a JSON Object
     */
    public JSONObject toJSON() {
       try {
@@ -432,7 +442,7 @@ public class AcquisitionEvent {
    }
 
    /**
-    * Create an event or sequence of events from JSON
+    * Create an event or sequence of events from JSON.
     */
    public static AcquisitionEvent fromJSON(JSONObject json, AcquisitionAPI acq)  {
       try {
@@ -453,11 +463,11 @@ public class AcquisitionEvent {
 
 
    public String getCameraDeviceName() {
-        return camera_;
+      return camera_;
    }
 
    public void setCameraDeviceName(String camera) {
-        camera_ = camera;
+      camera_ = camera;
    }
 
    public List<String[]> getAdditonalProperties() {
@@ -514,7 +524,7 @@ public class AcquisitionEvent {
     * @param l Minimum start time in ms.
     */
    public void setMinimumStartTime(Long l) {
-      miniumumStartTime_ms_ = l;
+      miniumumStartTimeMs_ = l;
    }
 
    public Set<String> getDefinedAxes() {
@@ -537,7 +547,8 @@ public class AcquisitionEvent {
     *
     * @param deviceName Name (as it is known to Micro-Manager) of the stage
     * @param v Desired position in microns
-    * @param axisName Optional name of this axis.  Can be null (I am not sure what this is used for).
+    * @param axisName Optional name of this axis.
+    *                 Can be null (I am not sure what this is used for).
     */
    public void setStageCoordinate(String deviceName, double v, String axisName) {
       stageCoordinates_.put(deviceName, v);
@@ -572,8 +583,8 @@ public class AcquisitionEvent {
       return axisPositions_.get(label);
    }
 
-   public Double getTimeout_ms() {
-      return timeout_ms_;
+   public Double getTimeoutMs() {
+      return timeoutMs_;
    }
 
    public void setTimeIndex(int index) {
@@ -605,7 +616,8 @@ public class AcquisitionEvent {
 
    public String getDeviceAxisName(String deviceName) {
       if (!stageDeviceNamesToAxisNames_.containsKey(deviceName)) {
-         throw new RuntimeException("No axis name for device " + deviceName + ". call setStageCoordinate first");
+         throw new RuntimeException("No axis name for device " + deviceName
+               + ". call setStageCoordinate first");
       }
       return stageDeviceNamesToAxisNames_.get(deviceName);
    }
@@ -644,10 +656,10 @@ public class AcquisitionEvent {
     * @return
     */
    public Long getMinimumStartTimeAbsolute() {
-      if (miniumumStartTime_ms_ == null) {
+      if (miniumumStartTimeMs_ == null) {
          return null;
       }
-      return acquisition_.getStartTime_ms() + miniumumStartTime_ms_;
+      return acquisition_.getStartTimeMs() + miniumumStartTimeMs_;
    }
 
    public List<AcquisitionEvent> getSequence() {
@@ -671,8 +683,9 @@ public class AcquisitionEvent {
    }
 
    /**
-    * Get the stage coordinates of the corners of the camera field of view
-    * @return
+    * Get the stage coordinates of the corners of the camera field of view.
+    *
+    * @return Display Position Corners
     */
    public Point2D.Double[] getDisplayPositionCorners() {
       if (xPosition_ == null || yPosition_ == null) {
@@ -682,20 +695,25 @@ public class AcquisitionEvent {
       int height = (int) Engine.getCore().getImageHeight();
       Integer overlapX = AcqEngMetadata.getPixelOverlapX(acquisition_.getSummaryMetadata());
       Integer overlapY = AcqEngMetadata.getPixelOverlapY(acquisition_.getSummaryMetadata());
-      int displayTileWidth = width - (overlapX != null ? overlapX : 0);
-      int displayTileHeight = height - (overlapY != null ? overlapY : 0);
+      final int displayTileWidth = width - (overlapX != null ? overlapX : 0);
+      final int displayTileHeight = height - (overlapY != null ? overlapY : 0);
       Point2D.Double[] displayedTileCorners = new Point2D.Double[4];
       displayedTileCorners[0] = new Point2D.Double();
       displayedTileCorners[1] = new Point2D.Double();
       displayedTileCorners[2] = new Point2D.Double();
       displayedTileCorners[3] = new Point2D.Double();
-      //this AT is centered at the stage position, becuase there no global translation relevant to a single stage position
+      //this AT is centered at the stage position, becuase there no global translation relevant
+      // to a single stage position
       AffineTransform transform = AffineTransformUtils.getAffineTransform(
               xPosition_, yPosition_);
-      transform.transform(new Point2D.Double(-displayTileWidth / 2, -displayTileHeight / 2), displayedTileCorners[0]);
-      transform.transform(new Point2D.Double(-displayTileWidth / 2, displayTileHeight / 2), displayedTileCorners[1]);
-      transform.transform(new Point2D.Double(displayTileWidth / 2, displayTileHeight / 2), displayedTileCorners[2]);
-      transform.transform(new Point2D.Double(displayTileWidth / 2, -displayTileHeight / 2), displayedTileCorners[3]);
+      transform.transform(new Point2D.Double(-displayTileWidth / 2,
+            -displayTileHeight / 2), displayedTileCorners[0]);
+      transform.transform(new Point2D.Double(-displayTileWidth / 2,
+            displayTileHeight / 2), displayedTileCorners[1]);
+      transform.transform(new Point2D.Double(displayTileWidth / 2,
+            displayTileHeight / 2), displayedTileCorners[2]);
+      transform.transform(new Point2D.Double(displayTileWidth / 2,
+            -displayTileHeight / 2), displayedTileCorners[3]);
       return displayedTileCorners;
    }
 
@@ -703,27 +721,30 @@ public class AcquisitionEvent {
     * Get the number of images to be acquired on each camera in a sequence event.
     * For a non-sequence event, the number of images is 1, and the camera is the core camera
     * This is passed in as an argument in order to avoid this class talking to the core directly
+    *
     * @param defaultCameraDeviceName
-    * @return
+    * @return NUmber of Images to be acquired in each camera in the sequence event
     */
    public HashMap<String, Integer> getCameraImageCounts(String defaultCameraDeviceName) {
-      // figure out how many images on each camera and start sequence with appropriate number on each
+      // figure out how many images on each camera and start sequence with appropriate
+      // number on each
       HashMap<String, Integer> cameraImageCounts = new HashMap<String, Integer>();
       Set<String> cameraDeviceNames = new HashSet<String>();
       if (this.getSequence() == null) {
          cameraImageCounts.put(defaultCameraDeviceName, 1);
          return cameraImageCounts;
       }
-      this.getSequence().stream().map(e -> e.getCameraDeviceName()).forEach(e -> cameraDeviceNames.add(e));
+      this.getSequence().stream().map(e -> e.getCameraDeviceName()).forEach(
+            e -> cameraDeviceNames.add(e));
       // replace null with the default camera
-       if (cameraDeviceNames.size() == 1 && cameraDeviceNames.contains(null)) {
+      if (cameraDeviceNames.size() == 1 && cameraDeviceNames.contains(null)) {
          cameraDeviceNames.remove(null);
          cameraDeviceNames.add(defaultCameraDeviceName);
-        }
+      }
       for (String cameraDeviceName : cameraDeviceNames) {
          cameraImageCounts.put(cameraDeviceName, (int) this.getSequence().stream().filter(
-               e -> e.getCameraDeviceName() != null &&
-                     e.getCameraDeviceName().equals(cameraDeviceName)).count());
+               e -> e.getCameraDeviceName() != null
+                     && e.getCameraDeviceName().equals(cameraDeviceName)).count());
          if (cameraDeviceNames.size() == 1 && cameraDeviceName.equals(defaultCameraDeviceName)) {
             cameraImageCounts.put(cameraDeviceName, this.getSequence().size());
          }
@@ -740,14 +761,14 @@ public class AcquisitionEvent {
    }
 
    public String getPositionName() {
-      String positionName_ = null;
-      Object axisPosition_ = getAxisPosition(AcqEngMetadata.POSITION_AXIS);
+      String positionName = null;
+      Object axisPosition = getAxisPosition(AcqEngMetadata.POSITION_AXIS);
 
-      if (axisPosition_ instanceof String) {
-         positionName_ = (String) axisPosition_;
+      if (axisPosition instanceof String) {
+         positionName = (String) axisPosition;
       }
 
-      return positionName_;
+      return positionName;
    }
 
    public void setX(double x) {
@@ -764,7 +785,8 @@ public class AcquisitionEvent {
          tags_.putAll(tags);
       }
    }
-   public HashMap<String, String> getTags () {
+
+   public HashMap<String, String> getTags() {
       HashMap<String, String> tags = new HashMap<>(tags_.size());
       tags.putAll(tags_);
       return tags;
@@ -782,8 +804,8 @@ public class AcquisitionEvent {
 
       StringBuilder builder = new StringBuilder();
       for (String deviceName : stageDeviceNamesToAxisNames_.keySet()) {
-         builder.append("\t" + deviceName +
-                 ": " + getStageSingleAxisStagePosition(deviceName));
+         builder.append("\t" + deviceName
+               + ": " + getStageSingleAxisStagePosition(deviceName));
       }
 
       if (zPosition_ != null) {
@@ -809,27 +831,3 @@ public class AcquisitionEvent {
 
 }
 
-class ThreeTuple implements Comparable<ThreeTuple> {
-
-   final String dev, prop, val;
-
-   public ThreeTuple(String d, String p, String v) {
-      dev = d;
-      prop = p;
-      val = v;
-   }
-
-   public String[] toArray() {
-      return new String[]{dev, prop, val};
-   }
-
-   @Override
-   public int compareTo(ThreeTuple t) {
-      if (!dev.equals(t.dev)) {
-         return dev.compareTo(dev);
-      } else {
-         return prop.compareTo(prop);
-      }
-   }
-
-}

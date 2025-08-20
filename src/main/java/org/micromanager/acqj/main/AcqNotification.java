@@ -45,9 +45,9 @@ public class AcqNotification {
       }
    }
 
-   final public String type_;
+   public final String type_;
    final String payload_;
-   final public String milestone_;
+   public final String milestone_;
 
 
    public AcqNotification(Class type, String payload, String milestone) {

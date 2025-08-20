@@ -11,7 +11,7 @@ import org.micromanager.acqj.api.TaggedImageProcessor;
 
 
 /**
- * An abstract class that handles a the threading to implement an image processor
+ * An abstract class that handles the threading to implement an image processor
  * that runs asynchronously--i.e. on its own thread that is different from the one
  * that is pulling images from the Core, and different from any subsequent
  * processors/writing images to disk (if applicable)
@@ -23,9 +23,10 @@ public abstract class ImageProcessorBase implements TaggedImageProcessor {
    private ExecutorService imageProcessorExecutor_;
 
    AcquisitionAPI acq_;
-   protected volatile BlockingQueue<TaggedImage> source_, sink_;
+   protected volatile BlockingQueue<TaggedImage> source_;
+   protected volatile BlockingQueue<TaggedImage> sink_;
 
-   public ImageProcessorBase () {
+   public ImageProcessorBase() {
       imageProcessorExecutor_ = Executors.newSingleThreadExecutor(
             (Runnable r) -> new Thread(r, "Image processor thread"));
    }
@@ -61,7 +62,8 @@ public abstract class ImageProcessorBase implements TaggedImageProcessor {
                         // time to shut down
                         // tell the subclass
                         processImage(img);
-                        // propagate shutdown signal forward so that anything downstream also shuts down
+                        // propagate shutdown signal forward so that anything
+                        // downstream also shuts down
                         sink_.put(img);
                         imageProcessorExecutor_.shutdown();
                         break;
