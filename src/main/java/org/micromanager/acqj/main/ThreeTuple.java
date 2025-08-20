@@ -17,12 +17,19 @@ public class ThreeTuple implements Comparable<ThreeTuple> {
    }
 
    @Override
-   public int compareTo(org.micromanager.acqj.main.ThreeTuple t) {
+   public int compareTo(ThreeTuple t) {
       if (!dev.equals(t.dev)) {
-         return dev.compareTo(dev);
-      } else {
-         return prop.compareTo(prop);
+         int cmp = dev.compareTo(t.dev);
+         if (cmp != 0) {
+            return cmp;
+         }
+         cmp = prop.compareTo(t.prop);
+         if (cmp != 0) {
+            return cmp;
+         }
+         return val.compareTo(t.val);
       }
+      return 0;
    }
 
 }
