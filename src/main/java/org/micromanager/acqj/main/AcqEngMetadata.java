@@ -109,7 +109,7 @@ public class AcqEngMetadata {
          AcqEngMetadata.setPixelSizeUm(tags, Engine.getCore().getPixelSizeUm());
 
          //////////  Date and time   //////////////
-         AcqEngMetadata.setElapsedTimeMs(tags, elapsedMs);
+         AcqEngMetadata.setElapsedTimeMs(tags, event, elapsedMs);
          AcqEngMetadata.setImageTime(tags, (new SimpleDateFormat(
                "yyyy-MM-dd HH:mm:ss -")).format(Calendar.getInstance().getTime()));
 
@@ -650,9 +650,16 @@ public class AcqEngMetadata {
       }
    }
 
-   public static void setElapsedTimeMs(JSONObject map, long val) {
+   public static void setElapsedTimeMs(JSONObject map, AcquisitionEvent event, long val) {
+      long newVal = val;
+      if (hasElapsedTimeMs(map)) {
+         long cameraTimeStamp = getElapsedTimeMs(map);
+         newVal = cameraTimeStamp + val;
+      } else {
+         newVal = System.currentTimeMillis() - event.acquisition_.getStartTimeMs();
+      }
       try {
-         map.put(ELAPSED_TIME_MS, val);
+         map.put(ELAPSED_TIME_MS, newVal);
       } catch (JSONException ex) {
          throw new RuntimeException("Couldn't set elapsed time");
       }
