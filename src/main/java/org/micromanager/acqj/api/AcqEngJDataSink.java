@@ -14,7 +14,8 @@ import org.micromanager.acqj.main.Acquisition;
 public interface AcqEngJDataSink {
 
    /**
-    * Called when the Acquisition is initialized 
+    * Called when the Acquisition is initialized.
+    *
     * @param acq
     * @param summaryMetadata 
     */
@@ -33,6 +34,7 @@ public interface AcqEngJDataSink {
    /**
     * Add a new image to saving/display etc. If saving to disk,
     * do not return until the image written
+    *
     * @param image
     * @return An optional object describing the image's location in the data set
     */
@@ -40,6 +42,7 @@ public interface AcqEngJDataSink {
 
    /**
     * Has putImage been called yet?
+    *
     * @return 
     */
    public boolean anythingAcquired();

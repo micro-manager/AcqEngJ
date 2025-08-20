@@ -1,14 +1,8 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.micromanager.acqj.api;
 
 import java.util.Iterator;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
-
 import mmcorej.org.json.JSONObject;
 import org.micromanager.acqj.internal.Engine;
 import org.micromanager.acqj.main.AcquisitionEvent;
@@ -167,8 +161,9 @@ public interface AcquisitionAPI {
     * Submit a list of acquisition events for acquisition. Acquisition engine
     * will automatically optimize over this list (i.e. implement hardware sequencing).
     *
-    * If start() has not already been called on the acquisition, it will automatically
+    * <p>If start() has not already been called on the acquisition, it will automatically
     * be called here
+    *
     * @param evt 
     */
    public Future submitEventIterator(Iterator<AcquisitionEvent> evt);
@@ -176,6 +171,7 @@ public interface AcquisitionAPI {
    /**
     * Get the DataSink used by this acquisition. This could be null (since)
     * ImageProcessors allow data to be intercepted and diverted
+    *
     * @return
     */
    public AcqEngJDataSink getDataSink();

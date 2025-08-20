@@ -2,8 +2,8 @@ package org.micromanager.acqj.example;
 
 import java.util.Iterator;
 import java.util.concurrent.Future;
-import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.api.AcqEngJDataSink;
+import org.micromanager.acqj.api.AcquisitionAPI;
 import org.micromanager.acqj.main.Acquisition;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.util.AcqEventModules;

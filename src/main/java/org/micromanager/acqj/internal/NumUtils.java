@@ -20,6 +20,7 @@
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
 //
+
 package org.micromanager.acqj.internal;
 
 import java.math.RoundingMode;
@@ -28,10 +29,14 @@ import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.Locale;
 
+@SuppressWarnings({"checkstyle:Indentation", "checkstyle:FileTabCharacter", "checkstyle:CommentsIndentation", "checkstyle:LineLength", "checkstyle:MissingJavadocType"})
 public class NumUtils {
-	private static final NumberFormat format_;
-	private static final DecimalFormat coreDoubleFormat_;
-	private static final DecimalFormat coreIntegerFormat_;
+	@SuppressWarnings("checkstyle:Indentation")
+   private static final NumberFormat format_;
+	@SuppressWarnings({"checkstyle:Indentation", "checkstyle:FileTabCharacter"})
+   private static final DecimalFormat coreDoubleFormat_;
+	@SuppressWarnings({"checkstyle:Indentation", "checkstyle:FileTabCharacter"})
+   private static final DecimalFormat coreIntegerFormat_;
 
 	static {
 		// The display is supposed to use local formating (e.g., switch commas with periods in Locale.GERMANY).
@@ -51,76 +56,93 @@ public class NumUtils {
 
 	// Display string methods
 	
-	public static String intToDisplayString(int number) {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static String intToDisplayString(int number) {
 		return format_.format(number);
 	}
    
+   @SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
    public static String longToDisplayString(long number) {
 		return format_.format(number);
 	}
 
-	public static String doubleToDisplayString(double number) {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static String doubleToDisplayString(double number) {
 		return format_.format(number);
 	}
 
-	public static int displayStringToInt(Object numberString) throws ParseException {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static int displayStringToInt(Object numberString) throws ParseException {
 		return format_.parse((String) numberString).intValue();
 	}
 
+   @SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
    public static long displayStringToLong(Object numberString) throws ParseException {
 		return format_.parse((String) numberString).longValue();
 	}
    
-	public static double displayStringToDouble(Object numberString) throws ParseException {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static double displayStringToDouble(Object numberString) throws ParseException {
 		return format_.parse((String) numberString).doubleValue();
 	}
 
 	
     // Core string methods
 	
-	public static String intToCoreString(long number) {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static String intToCoreString(long number) {
 		return coreIntegerFormat_.format(number);
 	}
 
+   @SuppressWarnings("checkstyle:Indentation")
    public static String longToCoreString(long number) {
       return coreIntegerFormat_.format(number);
    }
 
-	public static String doubleToCoreString(double number) {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static String doubleToCoreString(double number) {
 		return coreDoubleFormat_.format(number);
 	}
 
-	public static int coreStringToInt(Object numberString) throws ParseException {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static int coreStringToInt(Object numberString) throws ParseException {
 		return coreIntegerFormat_.parse((String) numberString).intValue();
 	}
 
+        @SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
         public static long coreStringToLong(Object numberString) throws ParseException {
 		return coreIntegerFormat_.parse((String) numberString).longValue();
 	}
 
-	public static double coreStringToDouble(Object numberString) throws ParseException {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static double coreStringToDouble(Object numberString) throws ParseException {
 		return coreDoubleFormat_.parse((String) numberString).doubleValue();
 	}
 
 	
 	// Conversion between display and core strings.
 	
-	public static String doubleStringDisplayToCore(Object numberDouble) throws ParseException {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static String doubleStringDisplayToCore(Object numberDouble) throws ParseException {
 		return doubleToCoreString(displayStringToDouble(numberDouble));
 	}
 
-	public static String doubleStringCoreToDisplay(Object numberDouble) throws ParseException {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static String doubleStringCoreToDisplay(Object numberDouble) throws ParseException {
 		return doubleToDisplayString(coreStringToDouble(numberDouble));
 	}
 
-	public static String intStringDisplayToCore(Object numberInt) throws ParseException {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static String intStringDisplayToCore(Object numberInt) throws ParseException {
 		return intToCoreString(displayStringToInt(numberInt));
 	}
 
-	public static String intStringCoreToDisplay(Object numberInt) throws ParseException {
+	@SuppressWarnings({"checkstyle:FileTabCharacter", "checkstyle:Indentation"})
+   public static String intStringCoreToDisplay(Object numberInt) throws ParseException {
 		return intToDisplayString(coreStringToInt(numberInt));
 	}
 
+        @SuppressWarnings({"checkstyle:Indentation", "checkstyle:MissingJavadocMethod"})
         public static double parseDouble(String s) {
            try {
               return DecimalFormat.getNumberInstance().parse(s).doubleValue();

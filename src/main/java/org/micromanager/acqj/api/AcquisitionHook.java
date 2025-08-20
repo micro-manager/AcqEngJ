@@ -11,10 +11,10 @@ public interface AcquisitionHook {
  
    /**
     * Called for before/after hardware acquisition hooks
-    * 
-    * @param event 
+    *
+    * @param event
     * @return the same event if you don't want to modfify anything, otherwise null
-    * if you want to delete it
+    *        if you want to delete it
     */
    public AcquisitionEvent run(AcquisitionEvent event);
    

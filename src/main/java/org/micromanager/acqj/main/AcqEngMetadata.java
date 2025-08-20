@@ -14,6 +14,7 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
+
 package org.micromanager.acqj.main;
 
 import java.awt.geom.AffineTransform;
@@ -25,15 +26,14 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.TreeSet;
-
 import mmcorej.Configuration;
 import mmcorej.PropertySetting;
 import mmcorej.org.json.JSONArray;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
 import org.micromanager.acqj.api.AcquisitionAPI;
-import org.micromanager.acqj.internal.Engine;
 import org.micromanager.acqj.internal.AffineTransformUtils;
+import org.micromanager.acqj.internal.Engine;
 
 /**
  * Convenience/standardization for Acq Engine metadata
@@ -99,18 +99,19 @@ public class AcqEngMetadata {
     *
     * @param tags image metadata
     * @param event event
-    * @param elapsed_ms time since acq start
+    * @param elapsedMs time since acq start
     * @param exposure camera exposure in ms
     */
    public static void addImageMetadata(JSONObject tags, AcquisitionEvent event,
-            long elapsed_ms, double exposure) {
+            long elapsedMs, double exposure) {
       try {
 
          AcqEngMetadata.setPixelSizeUm(tags, Engine.getCore().getPixelSizeUm());
 
          //////////  Date and time   //////////////
-         AcqEngMetadata.setElapsedTimeMs(tags, elapsed_ms);
-         AcqEngMetadata.setImageTime(tags, (new SimpleDateFormat("yyyy-MM-dd HH:mm:ss -")).format(Calendar.getInstance().getTime()));
+         AcqEngMetadata.setElapsedTimeMs(tags, elapsedMs);
+         AcqEngMetadata.setImageTime(tags, (new SimpleDateFormat(
+               "yyyy-MM-dd HH:mm:ss -")).format(Calendar.getInstance().getTime()));
 
          //////// Info about all hardware that the core specifically knows about ///////
          // e.g. Core focus, core XYStage, core Camera etc
@@ -132,7 +133,6 @@ public class AcqEngMetadata {
          /////////  XY Stage Positions (with optional support for grid layout) ////////
          if (event.getXPosition() != null && event.getYPosition() != null) {
             //infer Stage position index at acquisition time to support on the fly modification
-//            AcqEngMetadata.setPositionIndex(tags, event.acquisition_.getPositionIndexFromName(event.getXY()));
             AcqEngMetadata.setStageXIntended(tags, event.getXPosition());
             AcqEngMetadata.setStageYIntended(tags, event.getYPosition());
          }
@@ -143,19 +143,23 @@ public class AcqEngMetadata {
 
          if (event.getZPosition() != null) {
             AcqEngMetadata.setStageZIntended(tags, event.getZPosition());
-         } else if (event.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice()) != null) {
-            AcqEngMetadata.setStageZIntended(tags, event.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice()));
+         } else if (event.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice())
+               != null) {
+            AcqEngMetadata.setStageZIntended(tags, event.getStageSingleAxisStagePosition(
+                  Engine.getCore().getFocusDevice()));
          }
          // Other non-coreFocusZ positions
          for (String name : event.getStageDeviceNames()) {
             if (!name.equals(Engine.getCore().getFocusDevice())) {
-               AcqEngMetadata.setStagePositionIntended(tags, name, event.getStageSingleAxisStagePosition(name));
+               AcqEngMetadata.setStagePositionIntended(tags, name,
+                     event.getStageSingleAxisStagePosition(name));
             }
          }
 
 
          if (event.getSequence() != null) {
-            //Dont add the event to image metadata if it is a sequence, because it could potentially be very large
+            // Dont add the event to image metadata if it is a sequence, because it could
+            // potentially be very large
             // Could probably pop out the individual event in the sequence this corresponds to
             AcqEngMetadata.addAcquisitionEvent(tags, event);
          }
@@ -190,7 +194,7 @@ public class AcqEngMetadata {
 
       //General information the core-camera
       int byteDepth = (int) Engine.getCore().getBytesPerPixel();
-      if (byteDepth ==0) {
+      if (byteDepth == 0) {
          throw new RuntimeException("Camera byte depth cannot be zero");
       }
       AcqEngMetadata.setPixelTypeFromByteDepth(summary, byteDepth);
@@ -215,7 +219,8 @@ public class AcqEngMetadata {
       //affine transform
       if (AffineTransformUtils.isAffineTransformDefined()) {
          AffineTransform at = AffineTransformUtils.getAffineTransform(0, 0);
-         AcqEngMetadata.setAffineTransformString(summary, AffineTransformUtils.transformToString(at));
+         AcqEngMetadata.setAffineTransformString(summary,
+               AffineTransformUtils.transformToString(at));
       } else {
          AcqEngMetadata.setAffineTransformString(summary, "Undefined");
       }
@@ -309,9 +314,9 @@ public class AcqEngMetadata {
       }
    }
 
-   public static boolean isExploreAcq(JSONObject summaryMetadata_) {
+   public static boolean isExploreAcq(JSONObject summaryMetadata) {
       try {
-         return summaryMetadata_.getBoolean(EXPLORE_ACQUISITION);
+         return summaryMetadata.getBoolean(EXPLORE_ACQUISITION);
       } catch (JSONException ex) {
          throw new RuntimeException("Missing expolore tag");
       }
@@ -353,9 +358,8 @@ public class AcqEngMetadata {
       try {
          return map.getInt(BIT_DEPTH);
       } catch (JSONException ex) {
-
+         return getBytesPerPixel(map) * 8;
       }
-      return getBytesPerPixel(map) * 8;
    }
 
    public static void setWidth(JSONObject map, int width) {
@@ -439,9 +443,9 @@ public class AcqEngMetadata {
             case 4:
                map.put(PIX_TYPE, "RGB32");
                break;
-//         case 8:
-//            map.put(PIX_TYPE, "RGB64");
-//         break;
+            default:
+               // do nothing
+               break;
          }
       } catch (JSONException e) {
          throw new RuntimeException("Couldn't set pixel type");
@@ -471,11 +475,11 @@ public class AcqEngMetadata {
       if (isGRAY16(map)) {
          return 2;
       }
-//       if (isGRAY32(map)) return 4;
+      //       if (isGRAY32(map)) return 4;
       if (isRGB32(map)) {
          return 4;
       }
-//       if (isRGB64(map)) return 8;
+      //       if (isRGB64(map)) return 8;
       return 0;
    }
 
@@ -485,13 +489,9 @@ public class AcqEngMetadata {
          return 1;
       } else if (pixelType.contentEquals(PIX_TYPE_GRAY16)) {
          return 1;
-      } //      else if (pixelType.contentEquals("GRAY32"))
-      //         return 1;
-      else if (pixelType.contentEquals("RGB32")) {
+      } else if (pixelType.contentEquals("RGB32")) {
          return 3;
-      } //      else if (pixelType.contentEquals("RGB64"))
-      //           return 3;
-      else {
+      }  else {
          throw new RuntimeException();
       }
    }
@@ -504,24 +504,16 @@ public class AcqEngMetadata {
       return getPixelType(map).contentEquals(PIX_TYPE_GRAY16);
    }
 
-//   public static boolean isGRAY32(JSONObject map)  {
-//      return getPixelType(map).contentEquals("GRAY32");
-//   }
-//
    public static boolean isRGB32(JSONObject map) {
       return getPixelType(map).contentEquals("RGB32");
    }
 
-//   public static boolean isRGB64(JSONObject map)  {
-//      return getPixelType(map).contentEquals("RGB64");
-//   }
    public static boolean isGRAY(JSONObject map) {
       return (isGRAY8(map) || isGRAY16(map));
    }
 
    public static boolean isRGB(JSONObject map) {
       return (isRGB32(map));
-//              || isRGB64(map));
    }
 
    public static String[] getKeys(JSONObject md) {
@@ -571,11 +563,7 @@ public class AcqEngMetadata {
          return 1;
       } else if (pixelType.contains(PIX_TYPE_GRAY16)) {
          return 2;
-      } //      else if (pixelType.contains(MMTags.Values.PIX_TYPE_RGB_32))
-      //         return 4;
-      //      else if (pixelType.contains(MMTags.Values.PIX_TYPE_RGB_64))
-      //         return 8;
-      else {
+      } else {
          return 0;
       }
    }
@@ -1067,7 +1055,7 @@ public class AcqEngMetadata {
       }
    }
    
-    public static HashMap<String, Object> getAxes(JSONObject tags) {
+   public static HashMap<String, Object> getAxes(JSONObject tags) {
       try {
          JSONObject axes = tags.getJSONObject(AXES);
          Iterator<String> iter = axes.keys();
@@ -1082,8 +1070,10 @@ public class AcqEngMetadata {
       }
    }
 
+   /**
+    * Convert axes to string.
+   */
    public static String serializeAxes(HashMap<String, Object> axes) {
-//      Convert axes to string
       try {
          JSONObject json = new JSONObject();
          //put into a new set to sort

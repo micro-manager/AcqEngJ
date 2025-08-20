@@ -14,35 +14,40 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
-package org.micromanager.acqj.internal;
 
-import mmcorej.org.json.JSONException;
-import org.micromanager.acqj.api.AcquisitionAPI;
-import org.micromanager.acqj.main.AcqNotification;
-import org.micromanager.acqj.main.Acquisition;
-import org.micromanager.acqj.main.AcquisitionEvent;
-import org.micromanager.acqj.api.AcquisitionHook;
+package org.micromanager.acqj.internal;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.Double;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.lang.Double;
 import java.util.concurrent.TimeoutException;
-
 import mmcorej.CMMCore;
 import mmcorej.Configuration;
 import mmcorej.DoubleVector;
 import mmcorej.PropertySetting;
 import mmcorej.StrVector;
 import mmcorej.TaggedImage;
+import mmcorej.org.json.JSONException;
+import org.micromanager.acqj.api.AcquisitionAPI;
+import org.micromanager.acqj.api.AcquisitionHook;
 import org.micromanager.acqj.main.AcqEngMetadata;
+import org.micromanager.acqj.main.AcqNotification;
+import org.micromanager.acqj.main.Acquisition;
+import org.micromanager.acqj.main.AcquisitionEvent;
 
+@SuppressWarnings({"checkstyle:LineLength", "checkstyle:MissingJavadocType"})
 public class Engine {
 
    private static final int HARDWARE_ERROR_RETRIES = 6;
@@ -51,15 +56,16 @@ public class Engine {
    private static Engine singleton_ = null;
    private AcquisitionEvent lastEvent_ = null;
    //A queue that holds multiple acquisition events which are in the process of being merged into a single, hardware-triggered event
-   private LinkedList<AcquisitionEvent> sequencedEvents_ = new LinkedList<AcquisitionEvent>();
+   private LinkedList<AcquisitionEvent> sequencedEvents_ = new LinkedList<>();
    //Thread on which the generation of acquisition events occurs
    private static ExecutorService eventGeneratorExecutor_;
    //Thread on which all communication with hardware occurs
    private static ExecutorService acqExecutor_;
-   private static HashSet<AcquisitionAPI> activeAcquisitions_ = new HashSet<AcquisitionAPI>();
+   private static HashSet<AcquisitionAPI> activeAcquisitions_ = new HashSet<>();
 
 
 
+   @SuppressWarnings("checkstyle:MissingJavadocMethod")
    public Engine(CMMCore core) {
       if (singleton_ == null) {
          singleton_ = this;
@@ -83,13 +89,16 @@ public class Engine {
    }
 
    /**
-    * No more data to be collected for this acquisition. Execute a finishing event so everything shuts down properly
+    * No more data to be collected for this acquisition.
+    * Execute a finishing event so everything shuts down properly
     *
-    * Note that this is not the only route to finishing an acquisition, but merely a convenient way
+    * <p></p>Note that this is not the only route to finishing an acquisition, but merely a convenient way
     * of submitting an AcquisitionFinishedEvent
-    * @param acq the acquisition to be finished
-    * @return
+    *
+    * @param acq the acquisition to be finished.
+    * @return a Future that will give the result
     */
+   @SuppressWarnings({"checkstyle:NonEmptyAtclauseDescription", "checkstyle:RequireEmptyLineBeforeBlockTagGroup", "checkstyle:LineLength"})
    public Future<Future> finishAcquisition(Acquisition acq) {
       return eventGeneratorExecutor_.submit(() -> {
          Future f = acqExecutor_.submit(() -> {
@@ -120,6 +129,7 @@ public class Engine {
     * @param eventIterator Iterator of acquisition events that contains instructions of what to acquire
     * @return a Future that can be gotten when the event iteration is finished,
     */
+   @SuppressWarnings({"checkstyle:LineLength", "checkstyle:ParenPad"})
    public Future submitEventIterator(Iterator<AcquisitionEvent> eventIterator) {
       return eventGeneratorExecutor_.submit(() -> {
          try {
@@ -192,6 +202,7 @@ public class Engine {
       });
    }
 
+   @SuppressWarnings({"checkstyle:LineLength", "checkstyle:MissingJavadocMethod"})
    public void checkForDefaultDevices(AcquisitionEvent event) {
       final String xyStage = core_.getXYStageDevice();
       final String zStage = core_.getFocusDevice();
@@ -210,9 +221,10 @@ public class Engine {
     * wait around in the queue forever, the function that calls this is required to eventually pass in a
     * SequenceEnd event, which will flush the queue
     *
-    * @return eith null, if nothing dispatched, or a Future which can be gotten once the image/sequence fully
-    * acquired and images retrieved for subsequent processing/saving
+    * @return either null, if nothing dispatched, or a Future which can be gotten once the image/sequence fully
+    *     acquired and images retrieved for subsequent processing/saving
     */
+   @SuppressWarnings({"checkstyle:ParenPad", "checkstyle:JavadocTagContinuationIndentation", "checkstyle:LineLength"})
    private Future processAcquisitionEvent(AcquisitionEvent event)  {
       Future imageAcquiredFuture = acqExecutor_.submit(() -> {
          try {
@@ -270,6 +282,7 @@ public class Engine {
     * @return
     * @throws InterruptedException
     */
+   @SuppressWarnings({"checkstyle:ParenPad", "checkstyle:OperatorWrap", "checkstyle:LineLength", "checkstyle:NonEmptyAtclauseDescription"})
    private void executeAcquisitionEvent(AcquisitionEvent event) throws InterruptedException {
       //check if we should pause until the minimum start time of the event has occured
       while (event.getMinimumStartTimeAbsolute() != null && 
@@ -399,12 +412,13 @@ public class Engine {
     * Acquire 1 or more images in a sequence, add some metadata, then
     * put them into an output queue.
     *
-    * If the event is a sequence and a sequence acquisition is started in the core,
+    * <p>If the event is a sequence and a sequence acquisition is started in the core,
     * It should be completed by the time this method returns.
     *
     * @param event
     * @throws HardwareControlException
     */
+   @SuppressWarnings({"checkstyle:LineLength", "checkstyle:Indentation", "checkstyle:ParenPad", "checkstyle:WhitespaceAround", "checkstyle:NonEmptyAtclauseDescription", "checkstyle:JavadocParagraph"})
    private void acquireImages(final AcquisitionEvent event,
                               HardwareSequences hardwareSequencesInProgress) throws HardwareControlException, TimeoutException {
       HashMap<String, Integer> cameraImageCounts = event.getCameraImageCounts(core_.getCameraDevice());
@@ -444,9 +458,9 @@ public class Engine {
 
       //get elapsed time
       final long currentTime = System.currentTimeMillis();
-      if (event.acquisition_.getStartTime_ms() == -1) {
+      if (event.acquisition_.getStartTimeMs() == -1) {
          //first image, initialize
-         event.acquisition_.setStartTime_ms(currentTime);
+         event.acquisition_.setStartTimeMs(currentTime);
       }
 
       //need to assign events to images as they come out, assuming they might be in arbitrary order,
@@ -520,8 +534,8 @@ public class Engine {
                         }
                         // check it timeout has been exceeded. This is used in the case of a camera waiting for
                         // a trigger that never comes.
-                        if (event.getSequence().get(i).getTimeout_ms() != null) {
-                           if (System.currentTimeMillis() - startCopyTime > event.getSequence().get(i).getTimeout_ms()) {
+                        if (event.getSequence().get(i).getTimeoutMs() != null) {
+                           if (System.currentTimeMillis() - startCopyTime > event.getSequence().get(i).getTimeoutMs()) {
                               timeout = true;
                               core_.stopSequenceAcquisition();
                               while (core_.isSequenceRunning()) {
@@ -615,7 +629,7 @@ public class Engine {
             }
             // add standard metadata
             AcqEngMetadata.addImageMetadata(ti.tags, correspondingEvent,
-                    currentTime - correspondingEvent.acquisition_.getStartTime_ms(), exposure);
+                    currentTime - correspondingEvent.acquisition_.getStartTimeMs(), exposure);
             // special behavior for multi camera adapter
             if (core_.getNumberOfCameraChannels() > 1) {
                AcqEngMetadata.setAxisPosition(ti.tags, "camera", cameraName);
@@ -696,11 +710,12 @@ public class Engine {
     *
     * @param event
     * @param hardwareSequencesInProgress -- keep track of which hardware sequences have been started
-    * @throws HardwareControlException
     * @return Data class describing which hardware devices have had sequences activated
+    * @throws HardwareControlException
     */
+   @SuppressWarnings({"checkstyle:LineLength", "checkstyle:WhitespaceAround", "checkstyle:LocalVariableName", "checkstyle:AtclauseOrder", "checkstyle:NonEmptyAtclauseDescription"})
    private void prepareHardware(final AcquisitionEvent event,
-                                             HardwareSequences hardwareSequencesInProgress) throws HardwareControlException {
+                                HardwareSequences hardwareSequencesInProgress) throws HardwareControlException {
       //Get the hardware specific to this acquisition
       final String xyStage = core_.getXYStageDevice();
       final String slm = core_.getSLMDevice();
@@ -786,6 +801,7 @@ public class Engine {
 
       /////////////////////////////Other stage devices ////////////////////////////////////////////
       loopHardwareCommandRetries(new Runnable() {
+         @SuppressWarnings("checkstyle:LineLength")
          @Override
          public void run() {
             try {
@@ -819,6 +835,7 @@ public class Engine {
 
       /////////////////////////////XY Stage////////////////////////////////////////////////////
       loopHardwareCommandRetries(new Runnable() {
+         @SuppressWarnings("checkstyle:LineLength")
          @Override
          public void run() {
             try {
@@ -858,6 +875,7 @@ public class Engine {
 
       /////////////////////////////Channels//////////////////////////////////////////////////
       loopHardwareCommandRetries(new Runnable() {
+         @SuppressWarnings({"checkstyle:LineLength", "checkstyle:ParenPad", "checkstyle:OperatorWrap"})
          @Override
          public void run() {
             try {
@@ -904,6 +922,7 @@ public class Engine {
 
       /////////////////////////////Camera exposure//////////////////////////////////////////////
       loopHardwareCommandRetries(new Runnable() {
+         @SuppressWarnings("checkstyle:OperatorWrap")
          @Override
          public void run() {
             try {
@@ -971,6 +990,7 @@ public class Engine {
     *
     * @param event acquisition event with all information we need.
     */
+   @SuppressWarnings("checkstyle:LineLength")
    private void startZDrive(final AcquisitionEvent event,
                             HardwareSequences hardwareSequencesInProgress) throws HardwareControlException {
       final String zStage = core_.getFocusDevice();
@@ -1041,6 +1061,7 @@ public class Engine {
     * @param commandName name given to the command for loggin purposes
     * @throws HardwareControlException
     */
+   @SuppressWarnings({"checkstyle:Indentation", "checkstyle:LineLength", "checkstyle:NonEmptyAtclauseDescription"})
    private void loopHardwareCommandRetries(Runnable r, String commandName) throws HardwareControlException {
       Exception ex = null;
       for (int i = 0; i < HARDWARE_ERROR_RETRIES; i++) {
@@ -1077,6 +1098,7 @@ public class Engine {
     * @param nextEvent next event to sequence
     * @return true if they can be combined
     */
+   @SuppressWarnings({"checkstyle:LineLength", "checkstyle:OperatorWrap", "checkstyle:ParenPad", "checkstyle:WhitespaceAfter"})
    private static boolean isSequencable(List<AcquisitionEvent> previousEvents,
                                         AcquisitionEvent nextEvent, int newSeqLength) {
       try {
@@ -1179,6 +1201,7 @@ public class Engine {
     * @param eventList list of one or more AcquisitionEvents
     * @return
     */
+   @SuppressWarnings({"checkstyle:NonEmptyAtclauseDescription", "checkstyle:LineLength"})
    private AcquisitionEvent mergeSequenceEvent(List<AcquisitionEvent> eventList) {
       if (eventList.size() == 1) {
          return eventList.get(0);
@@ -1186,6 +1209,7 @@ public class Engine {
       return new AcquisitionEvent(eventList);
    }
 
+   @SuppressWarnings("checkstyle:MissingJavadocMethod")
    public static String stackTraceToString(Exception ex) {
       StringWriter sw = new StringWriter();
       PrintWriter pw = new PrintWriter(sw);
@@ -1201,6 +1225,7 @@ public class Engine {
 
 
 
+@SuppressWarnings("checkstyle:OneTopLevelClass")
 class HardwareControlException extends RuntimeException {
 
    public HardwareControlException() {

@@ -5,11 +5,10 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
+import org.micromanager.acqj.internal.Engine;
 import org.micromanager.acqj.main.AcqEngMetadata;
 import org.micromanager.acqj.main.AcquisitionEvent;
 import org.micromanager.acqj.util.xytiling.XYStagePosition;
-import org.micromanager.acqj.internal.Engine;
 
 /**
  * A utility class with multiple "modules" functions for creating common
@@ -19,7 +18,8 @@ import org.micromanager.acqj.internal.Engine;
  */
 public class AcqEventModules {
 
-   public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>> zStack(int startSliceIndex, int stopSliceIndex, double zStep, double zOrigin) {
+   public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>>
+         zStack(int startSliceIndex, int stopSliceIndex, double zStep, double zOrigin) {
       return (AcquisitionEvent event) -> {
          return new Iterator<AcquisitionEvent>() {
 
@@ -34,9 +34,11 @@ public class AcqEventModules {
             public AcquisitionEvent next() {
                double zPos = zIndex_ * zStep + zOrigin;
                AcquisitionEvent sliceEvent = event.copy();
-               //Do plus equals here in case z positions have been modified by another function (e.g. channel specific focal offsets)
+               //Do plus equals here in case z positions have been modified by another function
+               // (e.g. channel specific focal offsets)
                sliceEvent.setZ(zIndex_,
-                       (sliceEvent.getZPosition() == null ? 0.0 : sliceEvent.getZPosition()) + zPos);
+                       (sliceEvent.getZPosition() == null ? 0.0
+                             : sliceEvent.getZPosition()) + zPos);
                zIndex_++;
                return sliceEvent;
             }
@@ -45,7 +47,9 @@ public class AcqEventModules {
    }
 
    /**
-    * Generic version of a z stack that corresponds to an arbitrary sequence of linearly spaced points along a stage
+    * Generic version of a z stack that corresponds to an arbitrary sequence of linearly
+    * spaced points along a stage.
+    *
     * @return
     */
    public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>> moveStage(
@@ -65,7 +69,8 @@ public class AcqEventModules {
             public AcquisitionEvent next() {
                double pos = index_ * step + origin;
                AcquisitionEvent sliceEvent = event.copy();
-               //Do plus equals here in case z positions have been modified by another function (e.g. channel specific focal offsets)
+               // Do plus equals here in case z positions have been modified by another
+               // function (e.g. channel specific focal offsets)
                sliceEvent.setStageCoordinate(deviceName,
                        (sliceEvent.getStageSingleAxisStagePosition(deviceName) == null ? 0.0
                                : sliceEvent.getStageSingleAxisStagePosition(deviceName)) + pos);
@@ -78,7 +83,8 @@ public class AcqEventModules {
    }
 
 
-   public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>> timelapse(int numTimePoints, double interval_ms) {
+   public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>>
+         timelapse(int numTimePoints, double intervalMs) {
       return (AcquisitionEvent event) -> {
          return new Iterator<AcquisitionEvent>() {
 
@@ -99,7 +105,7 @@ public class AcqEventModules {
             public AcquisitionEvent next() {
                AcquisitionEvent timePointEvent = event.copy();
 
-               timePointEvent.setMinimumStartTime((long) (interval_ms * frameIndex_));
+               timePointEvent.setMinimumStartTime((long) (intervalMs * frameIndex_));
                
                timePointEvent.setTimeIndex(frameIndex_);
                frameIndex_++;
@@ -111,12 +117,13 @@ public class AcqEventModules {
    }
 
    /**
-    * Make an iterator for events for each active channel
+    * Make an iterator for events for each active channel.
     *
     * @param channelList 
     * @return
     */
-   public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>> channels(List<ChannelSetting> channelList) {
+   public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>>
+         channels(List<ChannelSetting> channelList) {
       return (AcquisitionEvent event) -> {
          return new Iterator<AcquisitionEvent>() {
             int index = 0;
@@ -132,17 +139,20 @@ public class AcqEventModules {
                channelEvent.setConfigGroup(channelList.get(index).group_);
                channelEvent.setConfigPreset(channelList.get(index).config_);
                channelEvent.setChannelName(channelList.get(index).config_);
-               boolean hasZOffsets = channelList.stream().map(t -> t.offset_).
-                       filter(t -> t != 0).collect(Collectors.toList()).size() > 0;
+               boolean hasZOffsets = channelList.stream().map(t -> t.offset_)
+                           .filter(t -> t != 0).collect(Collectors.toList()).size() > 0;
                Double zPos = null;
                if (channelEvent.getZPosition() != null) {
                   zPos = channelEvent.getZPosition();
                }
-               if (channelEvent.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice()) != null) {
+               if (channelEvent.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice())
+                     != null) {
                   if (zPos != null) {
-                     throw new RuntimeException("Can't have both a z position and a named axis focus position");
+                     throw new RuntimeException(
+                           "Can't have both a z position and a named axis focus position");
                   } else {
-                     zPos = channelEvent.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice());
+                     zPos = channelEvent.getStageSingleAxisStagePosition(
+                           Engine.getCore().getFocusDevice());
                   }
                }
 
@@ -161,7 +171,8 @@ public class AcqEventModules {
                }
                if (zPos != null) {
                   // Its either stored as a named stage or as "z", keep it con
-                  if (channelEvent.getStageSingleAxisStagePosition(Engine.getCore().getFocusDevice()) != null) {
+                  if (channelEvent.getStageSingleAxisStagePosition(
+                        Engine.getCore().getFocusDevice()) != null) {
                      channelEvent.setStageCoordinate(Engine.getCore().getFocusDevice(), zPos);
                   } else {
                      channelEvent.setZ(channelEvent.getZIndex(), zPos);
@@ -184,7 +195,8 @@ public class AcqEventModules {
     * @param positions
     * @return
     */
-   public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>> positions(List<XYStagePosition> positions) {
+   public static Function<AcquisitionEvent, Iterator<AcquisitionEvent>>
+         positions(List<XYStagePosition> positions) {
       return (AcquisitionEvent event) -> {
          Stream.Builder<AcquisitionEvent> builder = Stream.builder();
          if (positions == null) {
@@ -194,9 +206,10 @@ public class AcqEventModules {
                AcquisitionEvent posEvent = event.copy();
                posEvent.setX(positions.get(index).getCenter().x);
                posEvent.setY(positions.get(index).getCenter().y);
-               posEvent.setAxisPosition(AcqEngMetadata.AXES_GRID_ROW, positions.get(index).getGridRow());
-               posEvent.setAxisPosition(AcqEngMetadata.AXES_GRID_COL, positions.get(index).getGridCol());
-//               posEvent.setAxisPosition(AcqEngMetadata.POSITION_AXIS, index);
+               posEvent.setAxisPosition(AcqEngMetadata.AXES_GRID_ROW,
+                     positions.get(index).getGridRow());
+               posEvent.setAxisPosition(AcqEngMetadata.AXES_GRID_COL,
+                     positions.get(index).getGridCol());
                builder.accept(posEvent);
             }
          }

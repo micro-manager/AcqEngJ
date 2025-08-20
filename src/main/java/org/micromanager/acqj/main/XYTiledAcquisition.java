@@ -14,20 +14,21 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
-package org.micromanager.acqj.main;
 
-import mmcorej.DeviceType;
-import mmcorej.org.json.JSONException;
-import mmcorej.org.json.JSONObject;
-import org.micromanager.acqj.api.*;
-import org.micromanager.acqj.internal.Engine;
-import org.micromanager.acqj.internal.ZAxis;
-import org.micromanager.acqj.util.xytiling.CameraTilingStageTranslator;
+package org.micromanager.acqj.main;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import mmcorej.DeviceType;
+import mmcorej.org.json.JSONException;
+import mmcorej.org.json.JSONObject;
+import org.micromanager.acqj.api.AcqEngJDataSink;
+import org.micromanager.acqj.api.XYTiledAcquisitionAPI;
+import org.micromanager.acqj.internal.Engine;
+import org.micromanager.acqj.internal.ZAxis;
+import org.micromanager.acqj.util.xytiling.CameraTilingStageTranslator;
 
 /**
  * Special type of acquisiton that collects tiles in a 2D grid.
@@ -37,7 +38,8 @@ public class XYTiledAcquisition extends Acquisition implements XYTiledAcquisitio
 
    protected CameraTilingStageTranslator pixelStageTranslator_;
 
-   private Integer overlapX_, overlapY_;
+   private Integer overlapX_;
+   private Integer overlapY_;
    Consumer<JSONObject> summaryMDAdder_;
 
    protected HashMap<String, ZAxis> zAxes_ = new HashMap<String, ZAxis>();
@@ -62,8 +64,8 @@ public class XYTiledAcquisition extends Acquisition implements XYTiledAcquisitio
    private void createZDeviceModel(Double zStep) {
       for (String zDeviceName : core_.getLoadedDevicesOfType(DeviceType.StageDevice)) {
          // Could uncomment if want to add support for setting z device origins
-//         double zDeviceOrigin = zDeviceOrigins == null && zDeviceOrigins.containsKey(zDeviceName)
-//                 ? Engine.getCore().getPosition(zDeviceName) : zDeviceOrigins.get(zDeviceName);
+         // double zDeviceOrigin = zDeviceOrigins == null && zDeviceOrigins.containsKey(zDeviceName)
+         // ? Engine.getCore().getPosition(zDeviceName) : zDeviceOrigins.get(zDeviceName);
          double currentZPos;
          try {
             currentZPos = Engine.getCore().getPosition(zDeviceName);
@@ -71,7 +73,7 @@ public class XYTiledAcquisition extends Acquisition implements XYTiledAcquisitio
             throw new RuntimeException(e);
          }
          zAxes_.put(zDeviceName, new ZAxis(zDeviceName, currentZPos,
-                 zStep, 0,0, 0, 0));
+                 zStep, 0, 0, 0, 0));
       }
    }
 
@@ -86,8 +88,8 @@ public class XYTiledAcquisition extends Acquisition implements XYTiledAcquisitio
       AcqEngMetadata.setPixelOverlapX(summaryMetadata, overlapX_);
       AcqEngMetadata.setPixelOverlapY(summaryMetadata, overlapY_);
       if (AcqEngMetadata.getAffineTransformString(summaryMetadata).equals("Undefined")) {
-         throw new RuntimeException("Cannot run acquisition with XY tiling without first defining" +
-                 "affine transform between camera and stage. Check pixel size calibration");
+         throw new RuntimeException("Cannot run acquisition with XY tiling without first defining"
+               + "affine transform between camera and stage. Check pixel size calibration");
       }
 
       try {
@@ -98,8 +100,13 @@ public class XYTiledAcquisition extends Acquisition implements XYTiledAcquisitio
          ex.printStackTrace();
       }
 
-      pixelStageTranslator_ = new CameraTilingStageTranslator(AcqEngMetadata.getAffineTransform(getSummaryMetadata()), xyStage_,
-              (int) Engine.getCore().getImageWidth(), (int) Engine.getCore().getImageHeight(), overlapX_, overlapY_);
+      pixelStageTranslator_ = new CameraTilingStageTranslator(AcqEngMetadata.getAffineTransform(
+            getSummaryMetadata()),
+            xyStage_,
+            (int) Engine.getCore().getImageWidth(),
+            (int) Engine.getCore().getImageHeight(),
+            overlapX_,
+            overlapY_);
 
       if (dataSink_ != null) {
          //It could be null if not using saving and viewing and diverting with custom processor
@@ -116,11 +123,11 @@ public class XYTiledAcquisition extends Acquisition implements XYTiledAcquisitio
    }
 
    public double getZStep(String name) {
-      return zAxes_.get(name).zStep_um_;
+      return zAxes_.get(name).zStepUm_;
    }
 
    public double getZOrigin(String name) {
-      return zAxes_.get(name).zOrigin_um_;
+      return zAxes_.get(name).zOriginUm_;
    }
 
    public List<String> getZDeviceNames() {

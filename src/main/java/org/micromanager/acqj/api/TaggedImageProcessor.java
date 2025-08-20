@@ -9,8 +9,8 @@ import org.micromanager.acqj.api.AcquisitionAPI;
 /**
  * Image processors are responsible for shutting down and releasing resources automatically,
  * once a TaggedImage(null, null) appears in the source queue. is a processor gets this signal
- * on its source queue, it is responsible for propagating the message to its sink queue so downstream
- * resources can also be released
+ * on its source queue, it is responsible for propagating the message to its sink queue so
+ * downstream resources can also be released
  */
 public interface TaggedImageProcessor {
 
