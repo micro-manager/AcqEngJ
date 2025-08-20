@@ -123,11 +123,11 @@ public class XYTiledAcquisition extends Acquisition implements XYTiledAcquisitio
    }
 
    public double getZStep(String name) {
-      return zAxes_.get(name).zStepUm_;
+      return zAxes_.get(name).zStep_um_;
    }
 
    public double getZOrigin(String name) {
-      return zAxes_.get(name).zOriginUm_;
+      return zAxes_.get(name).zOrigin_um_;
    }
 
    public List<String> getZDeviceNames() {
