@@ -149,6 +149,7 @@ public class AcquisitionEvent {
       e.axisPositions_ = (HashMap<String, Object>) axisPositions_.clone();
       e.configPreset_ = configPreset_;
       e.configGroup_ = configGroup_;
+      e.exposure_ = exposure_;
       e.zPosition_ = zPosition_;
       e.stageCoordinates_ = new HashMap<>(stageCoordinates_);
       e.stageDeviceNamesToAxisNames_ = new HashMap<>(stageDeviceNamesToAxisNames_);
