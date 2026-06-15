@@ -814,6 +814,10 @@ public class Engine {
                   tmpEvent = event.getSequence().get(0);
                }
                for (String stageDeviceName : tmpEvent.getStageDeviceNames()) {
+                  // skip z stage since it is handled in a separate function
+                  if(stageDeviceName.equals(core_.getFocusDevice())) {
+                     continue;
+                  }
                   //wait for it to not be busy (is this even needed?)
                   core_.waitForDevice(stageDeviceName);
                   //Move Z
