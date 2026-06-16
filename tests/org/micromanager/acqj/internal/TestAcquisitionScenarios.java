@@ -244,6 +244,100 @@ public class TestAcquisitionScenarios {
       Assert.assertEquals(30, core_.positionsSetFor(FOCUS).size());
    }
 
+   // ---------------------------------------------------------------------------
+   // Scenario 4: stage-only acquisition that visits 4 distinct (X, Y, Z) points.
+   // No channels, no z stack -- just move the XY stage and the focus drive to
+   // each named position and confirm every position is visited correctly.
+   // ---------------------------------------------------------------------------
+   @Test
+   public void fourXyzStagePositions() throws Exception {
+      double[][] points = {
+            {10.0, 20.0, 1.0},
+            {30.0, 40.0, 2.0},
+            {50.0, 60.0, 3.0},
+            {70.0, 80.0, 4.0},
+      };
+
+      Iterator<AcquisitionEvent> events = stream(Collections.singletonList(
+            xyzPositions(points)));
+
+      List<AcquisitionEvent> dispatched = harness_.run(events);
+
+      // Each point is its own (non-sequenced) event.
+      Assert.assertEquals(4, dispatched.size());
+      for (AcquisitionEvent e : dispatched) {
+         Assert.assertNull("stage-only events should not be hardware-sequenced",
+               e.getSequence());
+      }
+
+      // The focus drive visited all four Z positions, in order.
+      Assert.assertEquals(Arrays.asList(1.0, 2.0, 3.0, 4.0),
+            core_.positionsSetFor(FOCUS));
+
+      // The XY stage visited all four XY positions, in order. Pull the XY moves
+      // out of the recorded command stream and compare.
+      List<String> xyMoves = new ArrayList<>();
+      for (String c : core_.commands) {
+         if (c.startsWith("setXYPosition " + XY + " ")) {
+            xyMoves.add(c);
+         }
+      }
+      Assert.assertEquals(Arrays.asList(
+            "setXYPosition " + XY + " 10.0 20.0",
+            "setXYPosition " + XY + " 30.0 40.0",
+            "setXYPosition " + XY + " 50.0 60.0",
+            "setXYPosition " + XY + " 70.0 80.0"),
+            xyMoves);
+
+      // And, per event, the XY move and the focus (Z) move must both happen, with
+      // XY positioned before the Z drive (the engine moves other stages and XY in
+      // prepareHardware, then the focus drive in startZDrive).
+      assertXyBeforeZForEachPoint(core_.commands, points);
+   }
+
+   private void assertXyBeforeZForEachPoint(List<String> commands, double[][] points) {
+      int pointIndex = 0;
+      Integer xyAtOrAfter = null;
+      for (int i = 0; i < commands.size(); i++) {
+         String c = commands.get(i);
+         if (c.equals("setXYPosition " + XY + " "
+               + points[pointIndex][0] + " " + points[pointIndex][1])) {
+            xyAtOrAfter = i;
+         } else if (c.equals("setPosition " + FOCUS + " " + points[pointIndex][2])) {
+            Assert.assertNotNull("XY move missing for point " + pointIndex, xyAtOrAfter);
+            Assert.assertTrue("XY must be set before the Z drive for point "
+                  + pointIndex, xyAtOrAfter < i);
+            pointIndex++;
+            xyAtOrAfter = null;
+            if (pointIndex == points.length) {
+               break;
+            }
+         }
+      }
+      Assert.assertEquals("all four points should be matched in order",
+            points.length, pointIndex);
+   }
+
+   /**
+    * A position module that, for each (x, y, z) point, emits one event with the
+    * XY stage and the focus drive set. Models visiting a list of named stage
+    * positions that each carry their own focus position.
+    */
+   private static Function<AcquisitionEvent, Iterator<AcquisitionEvent>>
+         xyzPositions(double[][] points) {
+      return (AcquisitionEvent event) -> {
+         List<AcquisitionEvent> out = new ArrayList<>();
+         for (int i = 0; i < points.length; i++) {
+            AcquisitionEvent e = event.copy();
+            e.setX(points[i][0]);
+            e.setY(points[i][1]);
+            e.setZ(i, points[i][2]);
+            out.add(e);
+         }
+         return out.iterator();
+      };
+   }
+
    private static void assertAutofocusBeforeEachFocusMove(List<String> commands) {
       boolean sawAutofocusSinceLastFocusMove = false;
       int focusMoves = 0;
