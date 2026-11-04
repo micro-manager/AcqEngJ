@@ -588,6 +588,17 @@ public class AcquisitionEvent {
       return timeoutMs_;
    }
 
+   /**
+    * Set how long to wait for this event's images, in ms. Only hardware
+    * sequences check it, counting from the start of image collection, so it
+    * must cover the whole sequence. Null (the default) means no time limit.
+    *
+    * @param timeoutMs timeout in ms, or null for no time limit
+    */
+   public void setTimeoutMs(Double timeoutMs) {
+      timeoutMs_ = timeoutMs;
+   }
+
    public void setTimeIndex(int index) {
       setAxisPosition(AcqEngMetadata.TIME_AXIS, index);
    }
