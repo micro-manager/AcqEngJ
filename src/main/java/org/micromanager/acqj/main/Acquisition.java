@@ -220,7 +220,7 @@ public class Acquisition implements AcquisitionAPI {
       if (!started_) {
          start();
       }
-      return Engine.getInstance().submitEventIterator(evt);
+      return Engine.getInstance().submitEventIterator(evt, this);
    }
 
    private void startSavingThread() {

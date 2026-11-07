@@ -129,11 +129,25 @@ public class Engine {
     * @param eventIterator Iterator of acquisition events that contains instructions of what to acquire
     * @return a Future that can be gotten when the event iteration is finished,
     */
-   @SuppressWarnings({"checkstyle:LineLength", "checkstyle:ParenPad"})
    public Future submitEventIterator(Iterator<AcquisitionEvent> eventIterator) {
+      return submitEventIterator(eventIterator, null);
+   }
+
+   /**
+    * Same as {@link #submitEventIterator(Iterator)}, but takes the acquisition the events belong
+    * to, so that a failure before the first event aborts it.
+    *
+    * @param eventIterator Iterator of acquisition events that contains instructions of what to acquire
+    * @param acquisition the acquisition the events belong to, or null
+    * @return a Future that can be gotten when the event iteration is finished,
+    */
+   @SuppressWarnings({"checkstyle:LineLength", "checkstyle:ParenPad"})
+   public Future submitEventIterator(Iterator<AcquisitionEvent> eventIterator,
+                                     AcquisitionAPI acquisition) {
       return eventGeneratorExecutor_.submit(() -> {
+         AcquisitionAPI acq = acquisition;
+         boolean producedEvents = false;
          try {
-            AcquisitionAPI acq = null;
             while (eventIterator.hasNext()) {
                AcquisitionEvent event = eventIterator.next();
                // Some iterators can return null, they still may have more events, but want to
@@ -141,6 +155,7 @@ public class Engine {
                if (event == null) {
                   continue;
                }
+               producedEvents = true;
                acq = event.acquisition_;
                activeAcquisitions_.add(acq);
                if (acq.isDebugMode()) {
@@ -159,7 +174,8 @@ public class Engine {
                   try {
                      Thread.sleep(5);
                   } catch (InterruptedException ex) {
-                     throw new RuntimeException(ex);
+                     //cancelled
+                     return;
                   }
                }
                try {
@@ -177,10 +193,18 @@ public class Engine {
                } catch (ExecutionException ex) {
                   //some problem with acquisition, abort and propagate exception
                   core_.logMessage(ex.getMessage());
-                  core_.logMessage(ex.getStackTrace().toString());
-                  acq.abort(ex);
+                  core_.logMessage(stackTraceToString(ex));
+                  // store what the engine threw, not the Future's wrapper; after an abort
+                  // keep what that abort stored
+                  if (!acq.isAbortRequested()) {
+                     acq.abort(ex.getCause() instanceof Exception ? (Exception) ex.getCause() : ex);
+                  }
                   throw new RuntimeException(ex);
                }
+            }
+            if (!producedEvents) {
+               // an iterator with no events executes nothing, not even what another left queued
+               return;
             }
             try {
                //Make all events get executed from this iterator
@@ -190,13 +214,21 @@ public class Engine {
                //cancelled
                return;
             } catch (ExecutionException ex) {
-               //some problem with acuisition, propagate exception
-               ex.printStackTrace();
+               // the events queued for hardware sequencing ran here and failed: abort and store
+               // the error as the handler above does, or the acquisition ends as if complete
+               core_.logMessage(stackTraceToString(ex));
+               if (acq != null && !acq.isAbortRequested()) {
+                  acq.abort(ex.getCause() instanceof Exception ? (Exception) ex.getCause() : ex);
+               }
                throw new RuntimeException(ex);
             }
 
          } catch (Exception e) {
-            e.printStackTrace();
+            // the iterator or an event generation hook failed, or a handler above rethrew
+            if (acq != null && !acq.isAbortRequested()) {
+               core_.logMessage(stackTraceToString(e));
+               acq.abort(e);
+            }
             throw new RuntimeException(e);
          }
       });
